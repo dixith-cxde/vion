@@ -1,18 +1,45 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
-export async function GET() {
+type GraphNode = {
+  id: string;
+  type: string;
+  data: {
+    label: string;
+  };
+};
+
+type GraphEdge = {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+};
+
+export async function GET(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
   try {
-    const relationships = await prisma.relationship.findMany();
+    const { workspaceId } = params;
 
-    const nodesMap = new Map<string, any>();
-    const edges: any[] = [];
+    await requireWorkspaceAccess(workspaceId);
 
-    relationships.forEach((rel) => {
+    const relationships = await prisma.relationship.findMany({
+      where: {
+        workspaceId,
+      },
+    });
+
+    const nodesMap = new Map<string, GraphNode>();
+    const edges: GraphEdge[] = [];
+
+    for (const rel of relationships) {
       const sourceKey = `${rel.sourceEntityType}-${rel.sourceEntityId}`;
       const targetKey = `${rel.targetEntityType}-${rel.targetEntityId}`;
 
-      // Add source node
+      // Source node
       if (!nodesMap.has(sourceKey)) {
         nodesMap.set(sourceKey, {
           id: sourceKey,
@@ -23,7 +50,7 @@ export async function GET() {
         });
       }
 
-      // Add target node
+      // Target node
       if (!nodesMap.has(targetKey)) {
         nodesMap.set(targetKey, {
           id: targetKey,
@@ -34,14 +61,13 @@ export async function GET() {
         });
       }
 
-      // Add edge
       edges.push({
         id: rel.id,
         source: sourceKey,
         target: targetKey,
         label: rel.relationshipType,
       });
-    });
+    }
 
     return NextResponse.json({
       success: true,
@@ -50,7 +76,15 @@ export async function GET() {
         edges,
       },
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return new Response("Forbidden", { status: 403 });
+    }
+
     console.error("Graph API error:", err);
 
     return NextResponse.json(

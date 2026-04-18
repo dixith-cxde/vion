@@ -1,9 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { createDocumentSchema } from "@/lib/validators/documents";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import { Prisma } from "@/lib/generated/prisma/client";
 
-export async function POST(req: Request) {
+export async function POST(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
   try {
+    const { workspaceId } = params;
+
+    const { user } = await requireWorkspaceAccess(workspaceId);
+
     const body = await req.json();
 
     const parsed = createDocumentSchema.safeParse(body);
@@ -19,10 +28,13 @@ export async function POST(req: Request) {
     }
 
     const document = await prisma.document.create({
-      data: parsed.data,
+      data: {
+        ...parsed.data,
+        workspaceId,
+        authorId: user.id,
+      },
     });
 
-    // 3. Response
     return NextResponse.json(
       {
         success: true,
@@ -30,31 +42,58 @@ export async function POST(req: Request) {
       },
       { status: 201 },
     );
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return new Response("Forbidden", { status: 403 });
+    }
+
     console.error("Document POST error:", err);
 
     return NextResponse.json(
       {
         success: false,
         error: "Internal server error",
-        errorTrace: err,
       },
       { status: 500 },
     );
   }
 }
 
-export async function GET() {
+export async function GET(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
   try {
+    const { workspaceId } = params;
+
+    await requireWorkspaceAccess(workspaceId);
+
     const documents = await prisma.document.findMany({
-      orderBy: { createdAt: "desc" },
+      where: {
+        workspaceId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return NextResponse.json({
       success: true,
       data: documents,
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return new Response("Forbidden", { status: 403 });
+    }
+
     console.error("Document GET error:", err);
 
     return NextResponse.json(

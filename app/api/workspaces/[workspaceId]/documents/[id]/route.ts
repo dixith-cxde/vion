@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { updateDocumentSchema } from "@/lib/validators/documents";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
@@ -21,9 +23,7 @@ function extractMentionRefs(value: unknown): MentionRef[] {
       return;
     }
 
-    if (!node || typeof node !== "object") {
-      return;
-    }
+    if (!node || typeof node !== "object") return;
 
     const record = node as Record<string, unknown>;
     const styles =
@@ -51,11 +51,15 @@ function extractMentionRefs(value: unknown): MentionRef[] {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ workspaceId: string; id: string }> },
 ) {
   try {
     const resolvedParams = await params;
-    const parsedParams = paramsSchema.safeParse(resolvedParams);
+    const { workspaceId, id } = resolvedParams;
+
+    await requireWorkspaceAccess(workspaceId);
+
+    const parsedParams = paramsSchema.safeParse({ id });
 
     if (!parsedParams.success) {
       return NextResponse.json(
@@ -78,23 +82,33 @@ export async function PATCH(
     }
 
     const { authorName, ...documentFields } = parsedBody.data;
+
+    const existingDocument = await prisma.document.findFirst({
+      where: {
+        id: parsedParams.data.id,
+        workspaceId,
+      },
+      select: { authorId: true },
+    });
+
+    if (!existingDocument) {
+      return NextResponse.json(
+        { success: false, error: "Document not found in workspace" },
+        { status: 404 },
+      );
+    }
+
+    // FIXED TYPE (no create)
     const documentData: {
-      contentJson?: unknown;
+      contentJson?: Prisma.InputJsonValue;
       title?: string;
       summary?: string;
       status?: "DRAFT" | "PUBLISHED";
-      author?:
-        | {
-            update: {
-              name: string;
-            };
-          }
-        | {
-            create: {
-              name: string;
-              email: string;
-            };
-          };
+      author?: {
+        update: {
+          name: string;
+        };
+      };
     } = {};
 
     if (documentFields.contentJson !== undefined) {
@@ -113,31 +127,12 @@ export async function PATCH(
       documentData.status = documentFields.status;
     }
 
-    if (authorName !== undefined) {
-      const existingDocument = await prisma.document.findUnique({
-        where: { id: parsedParams.data.id },
-        select: { authorId: true },
-      });
-
-      if (!existingDocument) {
-        return NextResponse.json(
-          { success: false, error: "Document not found" },
-          { status: 404 },
-        );
-      }
-
-      documentData.author = existingDocument.authorId
-        ? {
-            update: {
-              name: authorName,
-            },
-          }
-        : {
-            create: {
-              name: authorName,
-              email: `${parsedParams.data.id}@document.local`,
-            },
-          };
+    if (authorName !== undefined && existingDocument.authorId) {
+      documentData.author = {
+        update: {
+          name: authorName,
+        },
+      };
     }
 
     const document = await prisma.document.update({
@@ -150,8 +145,10 @@ export async function PATCH(
 
     if (documentFields.contentJson !== undefined) {
       const nextMentions = extractMentionRefs(documentFields.contentJson);
+
       const existingRelationships = await prisma.relationship.findMany({
         where: {
+          workspaceId,
           sourceEntityType: "DOCUMENT",
           sourceEntityId: parsedParams.data.id,
           relationshipType: "REFERENCES",
@@ -163,46 +160,40 @@ export async function PATCH(
         },
       });
 
-      const nextKeys = new Set(
-        nextMentions.map((mention) => `${mention.type}:${mention.id}`),
-      );
+      const nextKeys = new Set(nextMentions.map((m) => `${m.type}:${m.id}`));
+
       const existingKeys = new Set(
         existingRelationships.map(
-          (relationship) =>
-            `${relationship.targetEntityType}:${relationship.targetEntityId}`,
+          (r) => `${r.targetEntityType}:${r.targetEntityId}`,
         ),
       );
 
       const relationshipIdsToDelete = existingRelationships
         .filter(
-          (relationship) =>
-            !nextKeys.has(
-              `${relationship.targetEntityType}:${relationship.targetEntityId}`,
-            ),
+          (r) => !nextKeys.has(`${r.targetEntityType}:${r.targetEntityId}`),
         )
-        .map((relationship) => relationship.id);
+        .map((r) => r.id);
 
       const relationshipsToCreate = nextMentions.filter(
-        (mention) => !existingKeys.has(`${mention.type}:${mention.id}`),
+        (m) => !existingKeys.has(`${m.type}:${m.id}`),
       );
 
       if (relationshipIdsToDelete.length > 0) {
         await prisma.relationship.deleteMany({
           where: {
-            id: {
-              in: relationshipIdsToDelete,
-            },
+            id: { in: relationshipIdsToDelete },
           },
         });
       }
 
       if (relationshipsToCreate.length > 0) {
         await prisma.relationship.createMany({
-          data: relationshipsToCreate.map((mention) => ({
+          data: relationshipsToCreate.map((m) => ({
+            workspaceId,
             sourceEntityType: "DOCUMENT",
             sourceEntityId: parsedParams.data.id,
-            targetEntityType: mention.type,
-            targetEntityId: mention.id,
+            targetEntityType: m.type,
+            targetEntityId: m.id,
             relationshipType: "REFERENCES",
           })),
         });
@@ -220,7 +211,7 @@ export async function PATCH(
       typeof err === "object" &&
       err !== null &&
       "code" in err &&
-      err.code === "P2025"
+      (err as any).code === "P2025"
     ) {
       return NextResponse.json(
         { success: false, error: "Document not found" },
