@@ -4,10 +4,12 @@ import { getWorkspaceDashboard } from "@/lib/services/dashboard.service";
 
 export async function GET(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
-    const access = await requireWorkspaceAccess(params.workspaceId);
+    const { workspaceId } = await context.params;
+
+    const access = await requireWorkspaceAccess(workspaceId);
 
     if ("error" in access) {
       return NextResponse.json(
@@ -16,12 +18,16 @@ export async function GET(
       );
     }
 
-    const data = await getWorkspaceDashboard(params.workspaceId);
+    const data = await getWorkspaceDashboard(workspaceId);
 
     return NextResponse.json(data);
   } catch (error) {
+    console.error("DASHBOARD API ERROR:", error);
     return NextResponse.json(
-      { message: "Failed to fetch dashboard" },
+      {
+        message:
+          error instanceof Error ? error.message : "Failed to fetch dashboard",
+      },
       { status: 500 },
     );
   }

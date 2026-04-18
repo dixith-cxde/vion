@@ -34,7 +34,7 @@ export async function requireWorkspaceAccess(
 
   const membership = await prisma.workspaceMember.findUnique({
     where: {
-      userId_workspaceId: {
+      workspaceId_userId: {
         userId: user.id,
         workspaceId,
       },

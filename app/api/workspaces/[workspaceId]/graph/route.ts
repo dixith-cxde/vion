@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import { resolveEntityLabels } from "@/lib/services/entity-resolve.service";
 
 type GraphNode = {
   id: string;
@@ -24,7 +25,14 @@ export async function GET(
   try {
     const { workspaceId } = params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const relationships = await prisma.relationship.findMany({
       where: {
@@ -32,35 +40,39 @@ export async function GET(
       },
     });
 
+    // Resolve labels (CRITICAL FIX)
+    const resolved = await resolveEntityLabels(relationships);
+
     const nodesMap = new Map<string, GraphNode>();
     const edges: GraphEdge[] = [];
 
-    for (const rel of relationships) {
+    for (const rel of resolved) {
       const sourceKey = `${rel.sourceEntityType}-${rel.sourceEntityId}`;
       const targetKey = `${rel.targetEntityType}-${rel.targetEntityId}`;
 
-      // Source node
+      // SOURCE NODE
       if (!nodesMap.has(sourceKey)) {
         nodesMap.set(sourceKey, {
           id: sourceKey,
           type: rel.sourceEntityType,
           data: {
-            label: rel.sourceEntityType,
+            label: rel.sourceLabel || rel.sourceEntityType,
           },
         });
       }
 
-      // Target node
+      // TARGET NODE
       if (!nodesMap.has(targetKey)) {
         nodesMap.set(targetKey, {
           id: targetKey,
           type: rel.targetEntityType,
           data: {
-            label: rel.targetEntityType,
+            label: rel.targetLabel || rel.targetEntityType,
           },
         });
       }
 
+      // EDGE
       edges.push({
         id: rel.id,
         source: sourceKey,
@@ -76,12 +88,12 @@ export async function GET(
         edges,
       },
     });
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return new Response("Forbidden", { status: 403 });
     }
 

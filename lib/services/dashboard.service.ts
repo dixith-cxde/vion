@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveEntityLabels } from "./entity-resolve.service";
 
 export async function getWorkspaceDashboard(workspaceId: string) {
   const [documents, tasks, relationships] = await Promise.all([
@@ -29,19 +30,14 @@ export async function getWorkspaceDashboard(workspaceId: string) {
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
       take: 10,
-      select: {
-        id: true,
-        sourceEntityType: true,
-        targetEntityType: true,
-        relationshipType: true,
-        createdAt: true,
-      },
     }),
   ]);
+
+  const resolvedActivity = await resolveEntityLabels(relationships);
 
   return {
     documents,
     tasks,
-    activity: relationships,
+    activity: resolvedActivity,
   };
 }
