@@ -1,12 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { createTaskSchema } from "@/lib/validators/tasks";
 import { NextResponse } from "next/server";
-import { parse } from "zod/v4/core";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
-export async function POST(req: Request) {
+export async function POST(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
   try {
+    const { workspaceId } = params;
+
+    const { user } = await requireWorkspaceAccess(workspaceId);
+
     const body = await req.json();
-    if (!body)
+
+    if (!body) {
       return NextResponse.json(
         {
           success: false,
@@ -14,23 +22,25 @@ export async function POST(req: Request) {
         },
         { status: 400 },
       );
+    }
 
     const parsed = createTaskSchema.safeParse(body);
-    if (!parsed.success)
-      return NextResponse.json(
-        { success: false, error: parsed.error.issues },
-        { status: 400 },
-      );
 
-    if (!parsed.data)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "No data found" },
+        {
+          success: false,
+          error: parsed.error.issues,
+        },
         { status: 400 },
       );
+    }
 
     const task = await prisma.task.create({
       data: {
         ...parsed.data,
+        workspaceId,
+        assigneeId: user.id,
       },
     });
 
@@ -41,30 +51,65 @@ export async function POST(req: Request) {
       },
       { status: 201 },
     );
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    console.error("Task POST error:", err);
+
     return NextResponse.json(
       {
         success: false,
         error: "Internal server error",
-        errorTrace: err,
       },
       { status: 500 },
     );
   }
 }
-export async function GET() {
+
+export async function GET(
+  req: Request,
+  { params }: { params: { workspaceId: string } },
+) {
   try {
+    const { workspaceId } = params;
+
+    await requireWorkspaceAccess(workspaceId);
+
     const tasks = await prisma.task.findMany({
-      orderBy: { createdAt: "desc" },
+      where: {
+        workspaceId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return NextResponse.json({
       success: true,
       data: tasks,
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "UNAUTHORIZED") {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    if (err.message === "FORBIDDEN") {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    console.error("Task GET error:", err);
+
     return NextResponse.json(
-      { success: false, error: "Failed to fetch tasks", errorTrace: err },
+      {
+        success: false,
+        error: "Failed to fetch tasks",
+      },
       { status: 500 },
     );
   }
