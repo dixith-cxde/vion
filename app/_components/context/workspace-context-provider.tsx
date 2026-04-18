@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
 type Workspace = {
@@ -17,28 +17,35 @@ type WorkspaceContextType = {
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const { workspaceId } = useParams();
+  const params = useParams();
+
   const currentWorkspaceId =
-    typeof workspaceId === "string" ? workspaceId : workspaceId?.[0];
+    typeof params?.workspaceId === "string"
+      ? params.workspaceId
+      : params?.workspaceId?.[0];
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
-    null,
-  );
 
   useEffect(() => {
-    fetch("/api/workspaces")
-      .then((res) => res.json())
-      .then((data) => {
+    async function load() {
+      try {
+        const res = await fetch("/api/workspaces");
+        const data = await res.json();
+
         setWorkspaces(data);
+      } catch (err) {
+        console.error("Failed to load workspaces", err);
+      }
+    }
 
-        const matched = data.find(
-          (ws: Workspace) => ws.id === currentWorkspaceId,
-        );
+    load();
+  }, []);
 
-        setActiveWorkspace(matched ?? data[0] ?? null);
-      });
-  }, [currentWorkspaceId]);
+  const activeWorkspace = useMemo(() => {
+    if (!currentWorkspaceId || workspaces.length === 0) return null;
+
+    return workspaces.find((ws) => ws.id === currentWorkspaceId) ?? null;
+  }, [currentWorkspaceId, workspaces]);
 
   return (
     <WorkspaceContext.Provider value={{ workspaces, activeWorkspace }}>
