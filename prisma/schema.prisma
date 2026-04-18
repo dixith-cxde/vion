@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -24,6 +19,11 @@ model User {
   commits   Commit[]
 
   githubAccount GitHubAccount?
+
+  // Workspace relations
+  ownedWorkspaces  Workspace[]       @relation("WorkspaceOwner")
+  workspaceMembers WorkspaceMember[]
+  invitedMembers   WorkspaceMember[] @relation("WorkspaceInviter")
 }
 
 model Task {
@@ -137,4 +137,47 @@ model Activity {
   action     String
   metadata   Json?
   createdAt  DateTime @default(now())
+}
+
+model Workspace {
+  id   String @id @default(uuid())
+  name String
+
+  ownerId String
+  owner   User   @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+
+  members WorkspaceMember[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id String @id @default(uuid())
+
+  workspaceId String
+  userId      String
+  role        Role   @default(MEMBER)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  invitedById String?
+  invitedBy   User?   @relation("WorkspaceInviter", fields: [invitedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
 }
