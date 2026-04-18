@@ -1,165 +1,125 @@
-.vion-blocknote.bn-container {
-  --bn-border: 1px solid var(--bn-colors-border);
-  --bn-border-radius-small: 12px;
-  --bn-border-radius-medium: 16px;
-  --bn-border-radius-large: 22px;
-  --bn-shadow-medium: 0 18px 40px rgba(31, 41, 75, 0.08);
-  height: 100%;
+/* Mention chip — task (blue) */
+.vion-blocknote [data-background-color="blue"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    margin: 0 0.1rem;
+    padding: 0.13rem 0.65rem;
+    border: 1px solid #bfcfee;
+    background-color: #eef4ff !important;
+    color: #284b8f !important;
+    font-weight: 600;
+    font-size: 0.82em;
+    line-height: 1.6;
+    text-decoration: none !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
 }
 
+.vion-blocknote [data-background-color="blue"]:hover {
+    background-color: #ddeaff !important;
+    border-color: #a8bfe8;
+}
+
+/* Mention chip — document (purple) */
+.vion-blocknote [data-background-color="purple"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    margin: 0 0.1rem;
+    padding: 0.13rem 0.65rem;
+    border: 1px solid #cfc0e8;
+    background-color: #f4f0ff !important;
+    color: #65538f !important;
+    font-weight: 600;
+    font-size: 0.82em;
+    line-height: 1.6;
+    text-decoration: none !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.vion-blocknote [data-background-color="purple"]:hover {
+    background-color: #ebe4ff !important;
+    border-color: #bfaadc;
+}
+
+/* Strip default link styling from inside mention chips */
+.vion-blocknote a[data-link-type] [data-background-color="blue"],
+.vion-blocknote a[data-link-type] [data-background-color="purple"],
+.vion-blocknote a [data-background-color="blue"],
+.vion-blocknote a [data-background-color="purple"] {
+    text-decoration: none !important;
+}
+/* Base chip style for all mention links */
+.vion-blocknote .bn-editor a[href^="/tasks/"],
+.vion-blocknote .bn-editor a[href^="/documents/"] {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    margin: 0 0.1rem;
+    padding: 0.13rem 0.65rem;
+    font-weight: 600;
+    font-size: 0.82em;
+    line-height: 1.6;
+    text-decoration: none !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+/* Task chip — blue */
+.vion-blocknote .bn-editor a[href^="/tasks/"] {
+    border: 1px solid #bfcfee;
+    background-color: #eef4ff !important;
+    color: #284b8f !important;
+}
+
+.vion-blocknote .bn-editor a[href^="/tasks/"]:hover {
+    background-color: #ddeaff !important;
+    border-color: #a8bfe8;
+}
+
+/* Document chip — purple */
+.vion-blocknote .bn-editor a[href^="/documents/"] {
+    border: 1px solid #cfc0e8;
+    background-color: #f4f0ff !important;
+    color: #65538f !important;
+}
+
+.vion-blocknote .bn-editor a[href^="/documents/"]:hover {
+    background-color: #ebe4ff !important;
+    border-color: #bfaadc;
+}
 .vion-blocknote .bn-editor {
-  height: 100%;
-  min-height: 100%;
-  padding: 1.5rem clamp(0.9rem, 2vw, 1.4rem);
-  border: 1px solid #edf0f6;
-  border-radius: 1.6rem;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
-  box-shadow: none;
+    height: 100%;
+    min-height: 100%;
+    padding: 1.5rem 0.5rem; /* reduce horizontal padding here */
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
 }
 
 .vion-blocknote .bn-editor .ProseMirror {
-  min-height: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 0.5rem 0 8rem;
-  font-size: 1.05rem;
-  line-height: 1.9;
-  color: #1f2330;
-}
-
-.vion-blocknote .bn-editor .bn-block-content[data-content-type="heading"] {
-  letter-spacing: -0.03em;
-}
-
-.vion-blocknote .bn-block-content[data-content-type="heading"][data-level="1"] {
-  font-size: clamp(2.25rem, 4vw, 3.5rem);
-  font-weight: 800;
-  line-height: 1.05;
-  margin-top: 0.35em;
-  margin-bottom: 0.35em;
-}
-
-.vion-blocknote .bn-block-content[data-content-type="heading"][data-level="2"] {
-  font-size: clamp(1.45rem, 2.2vw, 2rem);
-  font-weight: 700;
-  line-height: 1.2;
-  margin-top: 1.1em;
-  margin-bottom: 0.4em;
-}
-
-.vion-blocknote .bn-block-content[data-content-type="paragraph"] {
-  margin-bottom: 0.35em;
-}
-
-.vion-blocknote .bn-block-content:has(.ProseMirror-trailingBreak:only-child):after {
-  opacity: 0.65;
-  font-style: italic;
-}
-
-.vion-blocknote .bn-toolbar,
-.vion-blocknote .bn-menu-dropdown,
-.vion-blocknote .bn-suggestion-menu {
-  backdrop-filter: blur(10px);
-  border: 1px solid #e8ebf2;
-  box-shadow: 0 18px 40px rgba(31, 41, 75, 0.08);
-}
-
-.vion-blocknote .bn-toolbar {
-  padding: 0.25rem;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.vion-blocknote .bn-toolbar .mantine-Button-root,
-.vion-blocknote .bn-toolbar .mantine-ActionIcon-root {
-  min-height: 2.25rem;
-}
-
-.vion-blocknote .bn-suggestion-menu {
-  width: min(92vw, 380px);
-  padding: 0.25rem;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.vion-blocknote .bn-suggestion-menu-label {
-  padding: 0.5rem 0.625rem 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.vion-blocknote .bn-suggestion-menu-item {
-  min-height: 3.4rem;
-  border-radius: 8px;
-  padding: 0.65rem 0.75rem;
-}
-
-.vion-blocknote .bn-mt-suggestion-menu-item-section[data-position="left"] {
-  border: 1px solid #e8ebf2;
-  background: #f7f8fc;
-  box-shadow: none;
-}
-
-.vion-blocknote .bn-mt-suggestion-menu-item-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.vion-blocknote .bn-mt-suggestion-menu-item-subtitle {
-  margin-top: 0.15rem;
-  font-size: 0.74rem;
-  line-height: 1.35;
-  opacity: 0.82;
-}
-
-.vion-blocknote .bn-side-menu .mantine-UnstyledButton-root:not(.mantine-Menu-item) {
-  border-radius: 999px;
-  padding: 0.28rem;
-  background: rgba(247, 248, 252, 0.95);
-  border: 1px solid #e8ebf2;
-  transition:
-    background-color 160ms ease,
-    transform 160ms ease;
-}
-
-.vion-blocknote .bn-side-menu .mantine-UnstyledButton-root:hover {
-  transform: scale(1.04);
-  background: #ffffff;
-}
-
-.vion-blocknote .bn-side-menu .mantine-UnstyledButton-root:not(.mantine-Menu-item) svg {
-  width: 20px;
-  height: 20px;
-}
-
-.vion-blocknote [data-background-color="gray"] {
-  display: inline-block;
-  border-radius: 999px;
-  margin: 0 0.08rem;
-  padding: 0.14rem 0.68rem;
-  border: 1px solid #d7dde8;
-  background-color: #f3f5f8 !important;
-  color: #111827 !important;
-  font-weight: 600;
-  line-height: 1.55;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
-@media (max-width: 768px) {
-  .vion-blocknote .bn-editor {
     min-height: 100%;
-    padding: 1rem 0.75rem;
-  }
-
-  .vion-blocknote .bn-editor .ProseMirror {
-    min-height: 100%;
-    font-size: 1rem;
-    line-height: 1.75;
-  }
-
-  .vion-blocknote .bn-suggestion-menu {
-    width: min(94vw, 340px);
-  }
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0.5rem 0 8rem; /* remove horizontal padding here */
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: #1f2330;
 }

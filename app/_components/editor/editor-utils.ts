@@ -20,7 +20,9 @@ interface EntityApiResponse {
 interface TextContent {
   type: string;
   text?: string;
+  href?: string;
   styles?: Record<string, unknown>;
+  content?: TextContent[];
 }
 
 export interface EditorBlock {
@@ -103,33 +105,26 @@ export function parseInitialContent(initialContent?: string) {
 
 export function extractTextFromDocument(doc: EditorBlock[]): string {
   return doc
-    .map((block) =>
-      block.content?.map((content) => content.text || "").join("") || "",
+    .map(
+      (block) =>
+        block.content?.map((content) => content.text ?? "").join("") ?? "",
     )
     .join("\n");
 }
 
 export function extractTextFromBlock(block?: EditorBlock) {
-  return block?.content?.map((content) => content.text || "").join("") || "";
+  return block?.content?.map((content) => content.text ?? "").join("") ?? "";
 }
 
 export function getMentionQueryAtCursor() {
-  if (typeof window === "undefined") {
-    return null;
-  }
+  if (typeof window === "undefined") return null;
 
   const selection = window.getSelection();
-
-  if (!selection || selection.rangeCount === 0) {
-    return null;
-  }
+  if (!selection || selection.rangeCount === 0) return null;
 
   const range = selection.getRangeAt(0);
   const anchorNode = selection.anchorNode;
-
-  if (!anchorNode) {
-    return null;
-  }
+  if (!anchorNode) return null;
 
   const anchorElement =
     anchorNode.nodeType === Node.ELEMENT_NODE
@@ -140,9 +135,7 @@ export function getMentionQueryAtCursor() {
     ".bn-editor [data-content-type], .bn-editor .bn-block-content",
   );
 
-  if (!blockElement) {
-    return null;
-  }
+  if (!blockElement) return null;
 
   const textRange = range.cloneRange();
   textRange.selectNodeContents(blockElement);
@@ -156,12 +149,8 @@ export function getMentionQueryAtCursor() {
 
 export function getMentionQuery(text: string) {
   const words = text.split(/\s+/);
-  const lastWord = words[words.length - 1] || "";
-
-  if (!lastWord.startsWith("@")) {
-    return null;
-  }
-
+  const lastWord = words[words.length - 1] ?? "";
+  if (!lastWord.startsWith("@")) return null;
   return lastWord.slice(1);
 }
 
@@ -170,31 +159,32 @@ export function normalizeEntities(
   documents: EntityApiResponse,
 ): MentionEntity[] {
   return [
-    ...(tasks.data || []).map((task) => ({
+    ...(tasks.data ?? []).map((task) => ({
       id: task.id,
       label: task.title,
       type: "TASK" as const,
     })),
-    ...(documents.data || []).map((document) => ({
-      id: document.id,
-      label: document.title,
+    ...(documents.data ?? []).map((doc) => ({
+      id: doc.id,
+      label: doc.title,
       type: "DOCUMENT" as const,
     })),
   ];
 }
 
-export function getMentionColor(type: MentionEntityType) {
-  if (type === "TASK") {
-    return {
-      backgroundColor: "gray",
-      textColor: "#1f2937",
-    };
-  }
+export function getMentionPath(item: MentionEntity): string {
+  if (item.type === "TASK") return `/tasks/${item.id}`;
+  return `/documents/${item.id}`;
+}
 
-  return {
-    backgroundColor: "gray",
-    textColor: "#1f2937",
-  };
+export function getMentionBackgroundColor(
+  type: MentionEntityType,
+): "blue" | "purple" {
+  return type === "TASK" ? "blue" : "purple";
+}
+
+export function getMentionPrefix(type: MentionEntityType): string {
+  return type === "TASK" ? "T" : "D";
 }
 
 export function replaceMentionTokenInBlock(
@@ -202,11 +192,15 @@ export function replaceMentionTokenInBlock(
   item: MentionEntity,
   mentionQuery: string,
 ) {
-  const mentionColor = getMentionColor(item.type);
-  const content = block.content || [];
+  const content = block.content ?? [];
   const token = `@${mentionQuery}`;
   const replacedContent: TextContent[] = [];
   let didReplace = false;
+
+  const mentionPath = getMentionPath(item);
+  const mentionBg = getMentionBackgroundColor(item.type);
+  const mentionPrefix = getMentionPrefix(item.type);
+  const mentionLabel = `${mentionPrefix} ${item.label}`;
 
   for (let index = content.length - 1; index >= 0; index -= 1) {
     const part = content[index];
@@ -224,35 +218,31 @@ export function replaceMentionTokenInBlock(
       const replacement: TextContent[] = [];
 
       if (before) {
-        replacement.push({
-          ...part,
-          text: before,
-        });
+        replacement.push({ type: "text", text: before, styles: {} });
       }
 
+      // Insert as a link node so it is navigable
       replacement.push({
-        type: "text",
-        text: item.label,
-        styles: {
-          bold: true,
-          backgroundColor: mentionColor.backgroundColor,
-          textColor: mentionColor.textColor,
-          mention: true,
-          mentionId: item.id,
-          mentionType: item.type,
-        },
+        type: "link",
+        href: mentionPath,
+        content: [
+          {
+            type: "text",
+            text: mentionLabel,
+            styles: {
+              bold: true,
+            },
+          },
+        ],
       });
 
-      replacement.push({
-        type: "text",
-        text: " ",
-        styles: {},
-      });
+      replacement.push({ type: "text", text: " ", styles: {} });
 
       if (after.trim()) {
         replacement.push({
-          ...part,
+          type: "text",
           text: after.trimStart(),
+          styles: {},
         });
       }
 
@@ -264,9 +254,6 @@ export function replaceMentionTokenInBlock(
     replacedContent.unshift(part);
   }
 
-  if (!didReplace) {
-    return content;
-  }
-
+  if (!didReplace) return content;
   return replacedContent;
 }

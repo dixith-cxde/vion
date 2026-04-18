@@ -58,9 +58,9 @@ export default function Editor({
   const [activeIndex, setActiveIndex] = useState(0);
   const [entities, setEntities] = useState<MentionEntity[]>([]);
   const [title, setTitle] = useState(meta.title);
-  const [summary, setSummary] = useState(meta.summary || "");
+  const [summary, setSummary] = useState(meta.summary ?? "");
   const [status, setStatus] = useState(meta.status);
-  const [authorName, setAuthorName] = useState(meta.authorName || "");
+  const [authorName, setAuthorName] = useState(meta.authorName ?? "");
 
   const createdAtLabel = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -131,15 +131,12 @@ export default function Editor({
 
   const filteredEntities = useMemo(() => {
     const normalizedQuery = mentionQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return entities;
-    }
-
+    if (!normalizedQuery) return entities;
     return entities.filter((entity) =>
       entity.label.toLowerCase().includes(normalizedQuery),
     );
   }, [entities, mentionQuery]);
+
   const highlightedIndex =
     filteredEntities.length > 0
       ? Math.min(activeIndex, filteredEntities.length - 1)
@@ -155,11 +152,9 @@ export default function Editor({
         mentionQuery,
       );
 
-      const updatedBlock = editor.updateBlock(currentBlock, {
-        content: nextContent,
-      });
-
-      editor.setTextCursorPosition(updatedBlock, "end");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      editor.updateBlock(currentBlock, { content: nextContent as any });
+      editor.setTextCursorPosition(currentBlock, "end");
 
       setShowMentions(false);
       setMentionQuery("");
@@ -168,9 +163,7 @@ export default function Editor({
   );
 
   useEffect(() => {
-    if (!showMentions) {
-      return;
-    }
+    if (!showMentions) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!filteredEntities.length) {
@@ -179,7 +172,6 @@ export default function Editor({
           setShowMentions(false);
           setMentionQuery("");
         }
-
         return;
       }
 
@@ -217,7 +209,6 @@ export default function Editor({
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
-
       if (
         target &&
         dropdownRef.current &&
@@ -252,7 +243,6 @@ export default function Editor({
     }
 
     const content = JSON.stringify(editor.document);
-
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
     timeoutRef.current = setTimeout(async () => {
@@ -270,10 +260,8 @@ export default function Editor({
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
-
     const nextTitle = value.trim();
     if (!nextTitle) return;
-
     saveDocumentMeta({ title: nextTitle });
   };
 
@@ -289,10 +277,8 @@ export default function Editor({
 
   const handleAuthorChange = (value: string) => {
     setAuthorName(value);
-
     const nextAuthorName = value.trim();
     if (!nextAuthorName) return;
-
     saveDocumentMeta({ authorName: nextAuthorName });
   };
 
@@ -370,7 +356,7 @@ export default function Editor({
             editable={editable}
             theme={isDark ? darkTheme : lightTheme}
             onChange={handleChange}
-            className="vion-blocknote h-full"
+            className="vion-blocknote h-full w-full"
             sideMenu={editable}
             slashMenu={editable}
             formattingToolbar={editable}
