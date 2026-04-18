@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-import { useTheme } from "next-themes";
+import { useParams } from "next/navigation";
 
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
@@ -11,7 +11,6 @@ import "./editor.css";
 
 import MentionDropdown from "./mention-dropdown";
 import {
-  darkTheme,
   getMentionQueryAtCursor,
   lightTheme,
   normalizeEntities,
@@ -19,6 +18,20 @@ import {
   replaceMentionTokenInBlock,
   type MentionEntity,
 } from "./editor-utils";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface EditorProps {
   documentId: string;
@@ -42,8 +55,10 @@ export default function Editor({
   editable = true,
   meta,
 }: EditorProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const params = useParams<{ workspaceId?: string | string[] }>();
+  const workspaceId = Array.isArray(params.workspaceId)
+    ? params.workspaceId[0]
+    : params.workspaceId;
 
   const editor = useCreateBlockNote({
     initialContent: parseInitialContent(initialContent),
@@ -85,7 +100,9 @@ export default function Editor({
 
       metaTimeoutRef.current = setTimeout(async () => {
         try {
-          await fetch(`/api/documents/${documentId}`, {
+          if (!workspaceId) return;
+
+          await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -95,15 +112,17 @@ export default function Editor({
         }
       }, 350);
     },
-    [documentId],
+    [documentId, workspaceId],
   );
 
   useEffect(() => {
     const fetchEntities = async () => {
       try {
+        if (!workspaceId) return;
+
         const [tasksRes, docsRes] = await Promise.all([
-          fetch("/api/tasks"),
-          fetch("/api/documents"),
+          fetch(`/api/workspaces/${workspaceId}/tasks`),
+          fetch(`/api/workspaces/${workspaceId}/documents`),
         ]);
 
         const tasks = (await tasksRes.json()) as {
@@ -120,7 +139,7 @@ export default function Editor({
     };
 
     void fetchEntities();
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => {
     return () => {
@@ -150,6 +169,7 @@ export default function Editor({
         currentBlock,
         item,
         mentionQuery,
+        workspaceId,
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -159,7 +179,7 @@ export default function Editor({
       setShowMentions(false);
       setMentionQuery("");
     },
-    [editor, mentionQuery],
+    [editor, mentionQuery, workspaceId],
   );
 
   useEffect(() => {
@@ -247,7 +267,9 @@ export default function Editor({
 
     timeoutRef.current = setTimeout(async () => {
       try {
-        await fetch(`/api/documents/${documentId}`, {
+        if (!workspaceId) return;
+
+        await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contentJson: content }),
@@ -284,86 +306,95 @@ export default function Editor({
 
   return (
     <div className="relative vion-editor-shell w-full">
-      <div className="flex h-screen max-h-screen flex-col overflow-hidden border border-[#e7eaf2] bg-[#fcfcfe] shadow-[0_28px_80px_rgba(28,32,48,0.09)]">
-        <div className="sticky top-0 z-20 border-b border-[#eceff6] bg-[#fcfcfe]/95 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#9aa1b2]">
-                Document
-              </p>
-              <input
-                type="text"
+      <Card className="flex h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-none border-0 shadow-none md:rounded-none">
+        <CardHeader className="sticky top-0 z-20 gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur md:px-5 md:py-2">
+          <div className="flex flex-col gap-2">
+            <div className="min-w-0 flex-1">
+              <Input
                 value={title}
                 onChange={(event) => handleTitleChange(event.target.value)}
-                className="mt-2 w-full truncate bg-transparent text-[2rem] font-semibold tracking-[-0.05em] text-[#171821] outline-none placeholder:text-[#b0b6c4] md:text-[2.35rem]"
+                className="mt-1 h-auto border-0 bg-transparent px-0 py-0 text-[1.4rem] font-semibold tracking-[-0.04em] text-foreground shadow-none focus-visible:ring-0 md:text-[1.65rem]"
                 placeholder="Untitled"
               />
-              <textarea
+              <Textarea
                 value={summary}
                 onChange={(event) => handleSummaryChange(event.target.value)}
-                rows={2}
-                className="mt-3 w-full max-w-3xl resize-none border-0 bg-transparent px-0 text-sm leading-6 text-[#707789] outline-none placeholder:text-[#b0b6c4]"
+                rows={1}
+                className="mt-1 max-w-3xl min-h-0 resize-none border-0 bg-transparent px-0 py-0 text-sm leading-5 text-muted-foreground shadow-none focus-visible:ring-0"
                 placeholder="Add a short summary"
               />
             </div>
-
-            <div className="rounded-full border border-[#e8ebf2] bg-white px-3 py-1.5 text-xs font-medium text-[#5f6574]">
-              `/` commands
-            </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2.5">
-            <label className="rounded-full border border-[#e7ebf3] bg-[#f4f7fb] px-3 py-1.5 text-xs font-medium text-[#586072]">
-              <span className="mr-2">Status:</span>
-              <select
-                value={status}
-                onChange={(event) =>
-                  handleStatusChange(
-                    event.target.value as "DRAFT" | "PUBLISHED",
-                  )
-                }
-                className="bg-transparent font-medium outline-none"
-              >
-                <option value="DRAFT">DRAFT</option>
-                <option value="PUBLISHED">PUBLISHED</option>
-              </select>
-            </label>
-            <div className="rounded-full border border-[#e7ebf3] bg-[#f4f7fb] px-3 py-1.5 text-xs font-medium text-[#586072]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="muted" className="px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]">
+              Document
+            </Badge>
+
+            <Badge variant="muted" className="px-2.5 py-1 text-xs font-medium">
               Version: v{meta.version}
-            </div>
-            <label className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-              <span className="mr-2">Author:</span>
-              <input
-                type="text"
+            </Badge>
+
+            <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-900 dark:bg-emerald-950">
+              <Label className="text-xs text-emerald-700 dark:text-emerald-300">
+                Author
+              </Label>
+              <Input
                 value={authorName}
                 onChange={(event) => handleAuthorChange(event.target.value)}
-                className="min-w-20 bg-transparent font-medium outline-none placeholder:text-emerald-400"
+                className="h-auto min-w-16 border-0 bg-transparent px-0 py-0 text-xs font-medium text-emerald-700 shadow-none placeholder:text-emerald-400 focus-visible:ring-0 dark:text-emerald-300"
                 placeholder="Unknown"
               />
-            </label>
-            <div className="rounded-full border border-[#e7ebf3] bg-white px-3 py-1.5 text-xs font-medium text-[#586072]">
-              Created: {createdAtLabel}
             </div>
-            <div className="rounded-full border border-[#e7ebf3] bg-white px-3 py-1.5 text-xs font-medium text-[#586072]">
+
+            <Separator orientation="vertical" className="hidden self-center md:block" />
+
+            <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium">
+              Created: {createdAtLabel}
+            </Badge>
+            <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium">
               Updated: {updatedAtLabel}
+            </Badge>
+            </div>
+
+            <div className="inline-flex items-center rounded-full border bg-muted px-2 py-px">
+              <Select
+                value={status}
+                onValueChange={(value) =>
+                  handleStatusChange(value as "DRAFT" | "PUBLISHED")
+                }
+              >
+                <SelectTrigger className="h-auto min-h-0 w-auto gap-1 border-0 bg-transparent px-0 py-0 text-[10px] leading-none font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-none focus-visible:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="p-2">
+                  <SelectItem value="DRAFT" className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]">
+                    DRAFT
+                  </SelectItem>
+                  <SelectItem value="PUBLISHED" className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]">
+                    PUBLISHED
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
+        </CardHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 md:px-3 md:py-3">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-2 py-2 md:px-3 md:py-3">
           <BlockNoteView
             editor={editor}
             editable={editable}
-            theme={isDark ? darkTheme : lightTheme}
+            theme={lightTheme}
             onChange={handleChange}
-            className="vion-blocknote h-full w-full"
+            className={cn("vion-blocknote h-full w-full", !editable && "pointer-events-none")}
             sideMenu={editable}
             slashMenu={editable}
             formattingToolbar={editable}
             linkToolbar={editable}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {showMentions && (
         <MentionDropdown

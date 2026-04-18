@@ -64,8 +64,8 @@
     text-decoration: none !important;
 }
 /* Base chip style for all mention links */
-.vion-blocknote .bn-editor a[href^="/tasks/"],
-.vion-blocknote .bn-editor a[href^="/documents/"] {
+.vion-blocknote .bn-editor a[href*="/tasks/"],
+.vion-blocknote .bn-editor a[href*="/documents/"] {
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
@@ -85,41 +85,66 @@
 }
 
 /* Task chip — blue */
-.vion-blocknote .bn-editor a[href^="/tasks/"] {
+.vion-blocknote .bn-editor a[href*="/tasks/"] {
     border: 1px solid #bfcfee;
     background-color: #eef4ff !important;
     color: #284b8f !important;
 }
 
-.vion-blocknote .bn-editor a[href^="/tasks/"]:hover {
+.vion-blocknote .bn-editor a[href*="/tasks/"]:hover {
     background-color: #ddeaff !important;
     border-color: #a8bfe8;
 }
 
 /* Document chip — purple */
-.vion-blocknote .bn-editor a[href^="/documents/"] {
+.vion-blocknote .bn-editor a[href*="/documents/"] {
     border: 1px solid #cfc0e8;
     background-color: #f4f0ff !important;
     color: #65538f !important;
 }
 
-.vion-blocknote .bn-editor a[href^="/documents/"]:hover {
+.vion-blocknote .bn-editor a[href*="/documents/"]:hover {
     background-color: #ebe4ff !important;
     border-color: #bfaadc;
 }
 .vion-blocknote .bn-editor {
     height: 100%;
     min-height: 100%;
-    padding: 1.5rem 0.5rem; /* reduce horizontal padding here */
-    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%);
+    padding: 1rem 0.5rem;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%) !important;
+    color: #1f2330 !important;
+}
+
+.vion-blocknote .bn-container,
+.vion-blocknote .bn-editor,
+.vion-blocknote .bn-side-menu,
+.vion-blocknote [data-content-type],
+.vion-blocknote .bn-block-content {
+    color: #1f2330 !important;
+}
+
+.vion-blocknote .bn-container,
+.vion-blocknote .bn-editor,
+.vion-blocknote .bn-formatting-toolbar,
+.vion-blocknote .bn-slash-menu,
+.vion-blocknote .bn-drag-handle-menu,
+.vion-blocknote .bn-side-menu {
+    background-color: #ffffff !important;
+}
+
+.vion-blocknote .bn-formatting-toolbar,
+.vion-blocknote .bn-slash-menu,
+.vion-blocknote .bn-drag-handle-menu {
+    border: 1px solid #e7eaf2 !important;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08) !important;
 }
 
 .vion-blocknote .bn-editor .ProseMirror {
     min-height: 100%;
     max-width: 760px;
     margin: 0 auto;
-    padding: 0.5rem 0 8rem; /* remove horizontal padding here */
+    padding: 0.25rem 0 8rem;
     font-size: 1.05rem;
     line-height: 1.9;
-    color: #1f2330;
+    color: #1f2330 !important;
 }

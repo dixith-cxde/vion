@@ -172,9 +172,14 @@ export function normalizeEntities(
   ];
 }
 
-export function getMentionPath(item: MentionEntity): string {
-  if (item.type === "TASK") return `/tasks/${item.id}`;
-  return `/documents/${item.id}`;
+export function getMentionPath(
+  item: MentionEntity,
+  workspaceId?: string | null,
+): string {
+  const basePath = workspaceId ? `/workspaces/${workspaceId}` : "";
+
+  if (item.type === "TASK") return `${basePath}/tasks/${item.id}`;
+  return `${basePath}/documents/${item.id}`;
 }
 
 export function getMentionBackgroundColor(
@@ -191,14 +196,14 @@ export function replaceMentionTokenInBlock(
   block: EditorBlock,
   item: MentionEntity,
   mentionQuery: string,
+  workspaceId?: string | null,
 ) {
   const content = block.content ?? [];
   const token = `@${mentionQuery}`;
   const replacedContent: TextContent[] = [];
   let didReplace = false;
 
-  const mentionPath = getMentionPath(item);
-  const mentionBg = getMentionBackgroundColor(item.type);
+  const mentionPath = getMentionPath(item, workspaceId);
   const mentionPrefix = getMentionPrefix(item.type);
   const mentionLabel = `${mentionPrefix} ${item.label}`;
 
