@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  tasks     Task[]
+  documents Document[]
+  messages  Message[]
+  commits   Commit[]
+
+  githubAccount GitHubAccount?
+}
+
+model Task {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+
+  status   String @default("TODO")
+  priority String @default("MEDIUM")
+
+  dueDate     DateTime?
+  estimatedAt Int?
+
+  type String @default("TASK") // TASK | ISSUE | PR
+
+  assigneeId String?
+  assignee   User?   @relation(fields: [assigneeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Document {
+  id String @id @default(uuid())
+
+  title       String
+  contentJson Json?
+  summary     String? // short description
+  status      String     @default("DRAFT") // DRAFT | PUBLISHED
+  version     Int        @default(1)
+  parentId    String?
+  parent      Document?  @relation("DocHierarchy", fields: [parentId], references: [id])
+  children    Document[] @relation("DocHierarchy")
+
+  authorId String?
+  author   User?   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id        String  @id @default(uuid())
+  content   String
+  authorId  String?
+  channelId String?
+
+  author  User?    @relation(fields: [authorId], references: [id])
+  channel Channel? @relation(fields: [channelId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Commit {
+  id       String  @id @default(uuid())
+  message  String
+  authorId String?
+
+  author    User?    @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Channel {
+  id   String @id @default(uuid())
+  name String
+
+  messages Message[]
+}
+
+model Relationship {
+  id String @id @default(uuid())
+
+  sourceEntityType String
+  sourceEntityId   String
+
+  targetEntityType String
+  targetEntityId   String
+
+  relationshipType String
+
+  createdAt DateTime @default(now())
+
+  @@index([sourceEntityType, sourceEntityId])
+  @@index([targetEntityType, targetEntityId])
+}
+
+model GitHubAccount {
+  id          String @id @default(uuid())
+  userId      String @unique
+  githubId    String @unique
+  username    String
+  accessToken String
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model ExternalMapping {
+  id           String @id @default(uuid())
+  externalId   String
+  externalType String // ISSUE | PR | COMMIT | REPO
+  entityType   String // TASK | COMMIT | DOCUMENT
+  entityId     String
+
+  @@index([externalId, externalType])
+}
+
+model Activity {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
