@@ -10,6 +10,9 @@ export default async function DocumentPage({
 
   const document = await prisma.document.findUnique({
     where: { id },
+    include: {
+      author: true,
+    },
   });
 
   if (!document) {
@@ -18,7 +21,7 @@ export default async function DocumentPage({
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.92),_transparent_28%),linear-gradient(180deg,#f2f4fa_0%,#e9edf6_100%)] text-[#171821]">
-      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      <div className="w-full px-0 py-0 md:px-0 md:py-0">
         <EditorWrapper
           documentId={id}
           initialContent={
@@ -26,6 +29,16 @@ export default async function DocumentPage({
               ? JSON.stringify(document.contentJson)
               : undefined
           }
+          meta={{
+            title: document.title,
+            status: document.status,
+            version: document.version,
+            summary: document.summary,
+            authorId: document.authorId,
+            authorName: document.author?.name ?? null,
+            createdAt: document.createdAt.toISOString(),
+            updatedAt: document.updatedAt.toISOString(),
+          }}
         />
       </div>
     </div>
