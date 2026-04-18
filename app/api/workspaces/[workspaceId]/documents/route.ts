@@ -2,16 +2,22 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { createDocumentSchema } from "@/lib/validators/documents";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
-import { Prisma } from "@/lib/generated/prisma/client";
 
 export async function POST(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
-    const { workspaceId } = params;
+    const { workspaceId } = await context.params;
 
-    const { user } = await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const body = await req.json();
 
@@ -30,8 +36,15 @@ export async function POST(
     const document = await prisma.document.create({
       data: {
         ...parsed.data,
+        title: parsed.data.title || "Untitled Document",
+        contentJson: parsed.data.contentJson || {},
         workspaceId,
-        authorId: user.id,
+        authorId: access.user.id,
+      },
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
       },
     });
 
@@ -42,15 +55,7 @@ export async function POST(
       },
       { status: 201 },
     );
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    if (err.message === "FORBIDDEN") {
-      return new Response("Forbidden", { status: 403 });
-    }
-
+  } catch (err) {
     console.error("Document POST error:", err);
 
     return NextResponse.json(
@@ -65,19 +70,31 @@ export async function POST(
 
 export async function GET(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
-    const { workspaceId } = params;
+    const { workspaceId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const documents = await prisma.document.findMany({
       where: {
         workspaceId,
       },
       orderBy: {
-        createdAt: "desc",
+        updatedAt: "desc",
+      },
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
       },
     });
 
@@ -85,15 +102,7 @@ export async function GET(
       success: true,
       data: documents,
     });
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    if (err.message === "FORBIDDEN") {
-      return new Response("Forbidden", { status: 403 });
-    }
-
+  } catch (err) {
     console.error("Document GET error:", err);
 
     return NextResponse.json(
