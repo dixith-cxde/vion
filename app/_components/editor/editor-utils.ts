@@ -61,7 +61,7 @@ export const lightTheme: Theme = {
   },
   borderRadius: 14,
   fontFamily:
-    'var(--font-geist-sans), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
+    'var(--font-poppins), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
 };
 
 export const darkTheme: Theme = lightTheme;
