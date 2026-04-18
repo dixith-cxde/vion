@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 type Workspace = {
   id: string;
@@ -11,12 +12,15 @@ type Workspace = {
 type WorkspaceContextType = {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
-  setActiveWorkspace: (ws: Workspace) => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const { workspaceId } = useParams();
+  const currentWorkspaceId =
+    typeof workspaceId === "string" ? workspaceId : workspaceId?.[0];
+
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(
     null,
@@ -28,17 +32,16 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       .then((data) => {
         setWorkspaces(data);
 
-        // default selection
-        if (data.length > 0) {
-          setActiveWorkspace(data[0]);
-        }
+        const matched = data.find(
+          (ws: Workspace) => ws.id === currentWorkspaceId,
+        );
+
+        setActiveWorkspace(matched ?? data[0] ?? null);
       });
-  }, []);
+  }, [currentWorkspaceId]);
 
   return (
-    <WorkspaceContext.Provider
-      value={{ workspaces, activeWorkspace, setActiveWorkspace }}
-    >
+    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace }}>
       {children}
     </WorkspaceContext.Provider>
   );

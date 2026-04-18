@@ -1,82 +1,95 @@
 "use client";
 
 import Link from "next/link";
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
+import { WorkspaceSwitcher } from "./ui/workspace-switcher";
+
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export default function Navbar() {
+  const { user, isLoaded } = useUser();
   const { activeWorkspace } = useWorkspace();
 
   const wsId = activeWorkspace?.id;
 
+  if (!isLoaded) return null;
+
+  const isSignedIn = !!user;
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#eceff6] bg-[#fcfcfe]/95 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 backdrop-blur md:px-6">
       {/* LEFT */}
-      <div className="flex items-center gap-4 md:gap-6">
-        <Link
-          href="/"
-          className="text-[#171821] transition-colors hover:text-[#4f5668] font-black text-xl"
-        >
+      <div className="flex items-center gap-6">
+        <Link href="/" className="text-xl font-black tracking-tight">
           VION
         </Link>
 
-        <Show when={"signed-in"}>
-          <nav className="flex items-center gap-1 rounded-full border border-[#e7ebf3] bg-[#f4f7fb] p-1 text-sm text-[#707789]">
-            <Link
-              href={wsId ? `/workspaces/${wsId}/documents` : "#"}
-              className="rounded-full px-3 py-1.5 font-medium transition-colors hover:bg-white hover:text-[#171821]"
-            >
+        {isSignedIn && (
+          <div className="flex items-center gap-2">
+            <NavItem href={wsId ? `/workspaces/${wsId}/documents` : "#"}>
               Documents
-            </Link>
+            </NavItem>
 
-            <Link
-              href={wsId ? `/workspaces/${wsId}/tasks` : "#"}
-              className="rounded-full px-3 py-1.5 font-medium transition-colors hover:bg-white hover:text-[#171821]"
-            >
+            <NavItem href={wsId ? `/workspaces/${wsId}/tasks` : "#"}>
               Tasks
-            </Link>
+            </NavItem>
 
-            <Link
-              href={wsId ? `/workspaces/${wsId}/chat` : "#"}
-              className="rounded-full px-3 py-1.5 font-medium transition-colors hover:bg-white hover:text-[#171821]"
-            >
+            <NavItem href={wsId ? `/workspaces/${wsId}/chat` : "#"}>
               Chat
-            </Link>
+            </NavItem>
 
-            <Link
-              href={wsId ? `/workspaces/${wsId}/graph` : "#"}
-              className="rounded-full px-3 py-1.5 font-medium transition-colors hover:bg-white hover:text-[#171821]"
-            >
+            <NavItem href={wsId ? `/workspaces/${wsId}/graph` : "#"}>
               Graph
-            </Link>
-          </nav>
-        </Show>
+            </NavItem>
+          </div>
+        )}
       </div>
 
       {/* RIGHT */}
       <div className="flex items-center gap-3">
-        <Show when="signed-out">
-          <SignInButton>
-            <button className="rounded-full border border-[#e7ebf3] bg-white px-4 py-2 text-sm font-medium text-[#5f6574] transition-colors hover:border-[#d8deea] hover:text-[#171821] cursor-pointer">
-              Sign In
-            </button>
-          </SignInButton>
+        {!isSignedIn && (
+          <>
+            <SignInButton>
+              <Button variant="outline" size="sm">
+                Sign In
+              </Button>
+            </SignInButton>
 
-          <SignUpButton>
-            <button className="cursor-pointer rounded-full border border-[#171821] bg-[#171821] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2a2e3a]">
-              Sign Up
-            </button>
-          </SignUpButton>
-        </Show>
+            <SignUpButton>
+              <Button size="sm">Sign Up</Button>
+            </SignUpButton>
+          </>
+        )}
 
-        <Show when="signed-in">
-          <div className="text-sm font-medium">
-            {activeWorkspace?.name || "Loading..."}
-          </div>
+        {isSignedIn && (
+          <>
+            <Separator orientation="vertical" className="" />
 
-          <UserButton />
-        </Show>
+            <WorkspaceSwitcher />
+
+            <UserButton />
+          </>
+        )}
       </div>
     </header>
+  );
+}
+
+function NavItem({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link href={href}>
+      <Button variant="ghost" size="sm">
+        {children}
+      </Button>
+    </Link>
   );
 }
