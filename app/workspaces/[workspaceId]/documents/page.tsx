@@ -88,12 +88,8 @@ export default function DocumentsPage() {
   if (loading) {
     return (
       <div className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto max-w-6xl">
-          <Card className="border-dashed">
-            <CardContent className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
-              Loading documents...
-            </CardContent>
-          </Card>
+        <div className="mx-auto flex min-h-40 max-w-6xl items-center justify-center text-sm text-muted-foreground">
+          Loading documents...
         </div>
       </div>
     );
@@ -104,7 +100,10 @@ export default function DocumentsPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
         <header className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
-            <Badge variant="muted" className="w-fit uppercase tracking-[0.16em]">
+            <Badge
+              variant="muted"
+              className="w-fit uppercase tracking-[0.16em]"
+            >
               Workspace Documents
             </Badge>
             <div className="space-y-1">
@@ -139,34 +138,32 @@ export default function DocumentsPage() {
         </div>
 
         {documents.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex min-h-72 flex-col items-center justify-center px-6 py-10 text-center">
-              <div className="mb-4 rounded-full bg-muted p-4">
-                <FileText className="size-6 text-muted-foreground" />
-              </div>
-              <h2 className="text-lg font-semibold">No documents yet</h2>
-              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                This workspace does not have any documents yet. Create the first
-                one to start capturing ideas, specs, and team knowledge.
-              </p>
-              <Button
-                onClick={handleCreate}
-                disabled={creating}
-                className="mt-6 rounded-full"
-              >
-                <Plus className="size-4" />
-                {creating ? "Opening..." : "Create first document"}
-              </Button>
-            </CardContent>
-          </Card>
+          <section className="flex min-h-72 flex-col items-center justify-center px-6 py-10 text-center">
+            <div className="mb-4 rounded-full bg-muted p-4">
+              <FileText className="size-6 text-muted-foreground" />
+            </div>
+            <h2 className="text-lg font-semibold">No documents yet</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+              This workspace does not have any documents yet. Create the first
+              one to start capturing ideas, specs, and team knowledge.
+            </p>
+            <Button
+              onClick={handleCreate}
+              disabled={creating}
+              className="mt-6 rounded-full"
+            >
+              <Plus className="size-4" />
+              {creating ? "Opening..." : "Create first document"}
+            </Button>
+          </section>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {documents.map((doc) => (
               <Card
                 key={doc.id}
-              className="group cursor-pointer border-border/70 transition-colors hover:border-foreground/15 hover:bg-muted/30"
-              onClick={() =>
-                router.push(
+                className="group cursor-pointer border-border/70 shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30"
+                onClick={() =>
+                  router.push(
                     `/workspaces/${activeWorkspace?.id}/documents/${doc.id}`,
                   )
                 }
@@ -176,7 +173,10 @@ export default function DocumentsPage() {
                     <div className="rounded-2xl bg-muted p-2.5">
                       <FileText className="size-4 text-muted-foreground" />
                     </div>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-[0.14em]">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] uppercase tracking-[0.14em]"
+                    >
                       Document
                     </Badge>
                   </div>

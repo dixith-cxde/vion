@@ -7,7 +7,6 @@ export default async function Page({
   params: { workspaceId: string; documentId: string };
 }) {
   const { workspaceId, documentId } = params;
-
   const document = await prisma.document.findFirst({
     where: {
       id: documentId,
