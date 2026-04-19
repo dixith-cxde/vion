@@ -79,8 +79,9 @@ model Task {
   title       String
   description String?
 
-  status   String @default("TODO")
-  priority String @default("MEDIUM")
+  status    TaskStatus    @default(TODO)
+  lifecycle TaskLifecycle @default(ACTIVE)
+  priority  String        @default("MEDIUM")
 
   dueDate     DateTime?
   estimatedAt Int?
@@ -223,4 +224,18 @@ enum Role {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskLifecycle {
+  ACTIVE
+  PLANNED
+  UPCOMING
+  DRAFT
+  ARCHIVED
 }
