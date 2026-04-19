@@ -26,7 +26,7 @@ export function WorkspaceSwitcher() {
           return;
         }
 
-        router.push(`/workspaces/${value}/documents`);
+        router.push(`/workspaces/${value}`);
       }}
     >
       <SelectTrigger className="w-fit border-none shadow-none focus:ring-0  h-auto">

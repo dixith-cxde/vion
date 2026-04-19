@@ -23,7 +23,10 @@ export default function Navbar() {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 backdrop-blur md:px-6">
       {/* LEFT */}
       <div className="flex items-center gap-6">
-        <Link href="/" className="text-xl font-black tracking-tight">
+        <Link
+          href={`/workspaces/${wsId}`}
+          className="text-xl font-black tracking-tight"
+        >
           VION
         </Link>
 
