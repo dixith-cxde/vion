@@ -1,18 +1,24 @@
 "use client";
 
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { FileText, CheckSquare2, Activity, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Activity,
+  ArrowRight,
+  CheckSquare2,
+  FileText,
+  Sparkles,
+} from "lucide-react";
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
   CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
@@ -35,56 +41,79 @@ type DashboardData = {
   }[];
 };
 
+type SectionCardProps = {
+  title: string;
+  description: string;
+  badgeLabel: string;
+  icon: ComponentType<{ className?: string }>;
+  children: ReactNode;
+};
+
+function SectionCard({
+  title,
+  description,
+  badgeLabel,
+  icon: Icon,
+  children,
+}: SectionCardProps) {
+  return (
+    <Card className="border-border/70 shadow-none">
+      <CardHeader className="gap-2 px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-muted p-1.5">
+              <Icon className="size-3 text-muted-foreground" />
+            </div>
+            <CardTitle className="text-sm leading-none">{title}</CardTitle>
+          </div>
+          <Badge
+            variant="outline"
+            className="h-5 px-2 text-[9px] uppercase tracking-[0.12em]"
+          >
+            {badgeLabel}
+          </Badge>
+        </div>
+        <CardDescription className="line-clamp-1 text-[11px] leading-4">
+            {description}
+        </CardDescription>
+      </CardHeader>
+      <Separator />
+      <CardContent className="px-4 py-4">{children}</CardContent>
+    </Card>
+  );
+}
+
 export default function WorkspaceDashboard() {
   const { activeWorkspace } = useWorkspace();
+  const router = useRouter();
+  const workspaceId = activeWorkspace?.id;
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadDashboard() {
-      if (!cancelled) {
-        setLoading(true);
-      }
-
-      if (!activeWorkspace) {
-        if (!cancelled) {
-          setData(null);
-          setLoading(false);
-        }
+    async function load() {
+      if (!workspaceId) {
+        setData(null);
+        setLoading(false);
         return;
       }
 
       try {
-        const response = await fetch(
-          `/api/workspaces/${activeWorkspace.id}/dashboard`,
-        );
-        const json = (await response.json()) as DashboardData;
-
-        if (!cancelled) {
-          setData(json);
-        }
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setData(null);
-        }
+        const res = await fetch(`/api/workspaces/${workspaceId}/dashboard`);
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error(err);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
-    void loadDashboard();
+    load();
+  }, [workspaceId]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeWorkspace]);
-
-  if (loading) {
+  if (loading || !data) {
     return (
       <div className="px-4 py-6 md:px-6 md:py-8">
         <div className="mx-auto flex min-h-40 max-w-6xl items-center justify-center text-sm text-muted-foreground">
@@ -94,157 +123,185 @@ export default function WorkspaceDashboard() {
     );
   }
 
-  if (!data) {
-    return (
-      <div className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto flex min-h-40 max-w-6xl items-center justify-center text-sm text-muted-foreground">
-          Failed to load workspace overview.
-        </div>
-      </div>
-    );
-  }
+  const totalItems =
+    data.documents.length + data.tasks.length + data.activity.length;
 
   return (
     <div className="px-3 py-4 md:px-4 md:py-5">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <header className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <Badge variant="muted" className="w-fit uppercase tracking-[0.16em]">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <header className="flex flex-col gap-3 border-b pb-3 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-1.5">
+            <Badge
+              variant="muted"
+              className="w-fit px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]"
+            >
               Workspace Overview
             </Badge>
             <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="text-xl font-semibold tracking-tight">
                 {activeWorkspace?.name ?? "Workspace"} dashboard
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Recent documents, task momentum, and relationship activity across
-                this workspace.
+              <p className="max-w-2xl text-xs leading-5 text-muted-foreground md:text-sm">
+                Review recent documents, active tasks, and graph activity for
+                this workspace in one place.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="h-9 rounded-full px-4">
-              <Link href={`/workspaces/${activeWorkspace?.id}/documents`}>
-                Documents
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="h-9 rounded-full px-4">
-              <Link href={`/workspaces/${activeWorkspace?.id}/tasks`}>
-                Tasks
-              </Link>
-            </Button>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground md:text-sm">
+            <Sparkles className="size-3.5" />
+            <span>
+              {totalItems} tracked item{totalItems === 1 ? "" : "s"}
+            </span>
           </div>
         </header>
 
         <div className="grid gap-4 xl:grid-cols-3">
-          <Card className="border-border/70 shadow-none">
-            <CardHeader className="gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="rounded-2xl bg-muted p-2.5">
-                  <FileText className="size-4 text-muted-foreground" />
+          <SectionCard
+            title="Documents"
+            description="Recently updated notes and reference material."
+            badgeLabel={`${data.documents.length} item${
+              data.documents.length === 1 ? "" : "s"
+            }`}
+            icon={FileText}
+          >
+            {data.documents.length === 0 ? (
+              <div className="flex min-h-44 flex-col items-center justify-center px-4 py-6 text-center">
+                <div className="mb-4 rounded-full bg-muted p-4">
+                  <FileText className="size-5 text-muted-foreground" />
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.14em]">
-                  {data.documents.length}
-                </Badge>
+                <h2 className="text-sm font-semibold">No documents yet</h2>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+                  Create a document to start collecting specs, notes, and shared
+                  knowledge.
+                </p>
               </div>
-              <div className="space-y-1">
-                <CardTitle className="text-base">Recent Documents</CardTitle>
-                <CardDescription>Latest writing activity in this workspace</CardDescription>
-              </div>
-            </CardHeader>
-            <Separator />
-            <CardContent className="pt-4">
-              {data.documents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No documents yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {data.documents.map((doc) => (
-                    <div key={doc.id} className="space-y-1">
-                      <div className="text-sm font-medium">{doc.title}</div>
-                      <div className="text-xs text-muted-foreground">
+            ) : (
+              <div className="space-y-2">
+                {data.documents.map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() =>
+                      router.push(`/workspaces/${workspaceId}/documents/${doc.id}`)
+                    }
+                    className="flex w-full items-start gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-left shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30"
+                  >
+                    <div className="rounded-lg bg-muted p-2">
+                      <FileText className="size-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="line-clamp-2 text-sm font-medium leading-5">
+                        {doc.title}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
                         Updated {new Date(doc.updatedAt).toLocaleString()}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 text-[10px] uppercase tracking-[0.14em]"
+                    >
+                      Open
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+          </SectionCard>
 
-          <Card className="border-border/70 shadow-none">
-            <CardHeader className="gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="rounded-2xl bg-muted p-2.5">
-                  <CheckSquare2 className="size-4 text-muted-foreground" />
+          <SectionCard
+            title="Tasks"
+            description="Current work items and their latest status."
+            badgeLabel={`${data.tasks.length} item${
+              data.tasks.length === 1 ? "" : "s"
+            }`}
+            icon={CheckSquare2}
+          >
+            {data.tasks.length === 0 ? (
+              <div className="flex min-h-44 flex-col items-center justify-center px-4 py-6 text-center">
+                <div className="mb-4 rounded-full bg-muted p-4">
+                  <CheckSquare2 className="size-5 text-muted-foreground" />
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.14em]">
-                  {data.tasks.length}
-                </Badge>
+                <h2 className="text-sm font-semibold">No tasks yet</h2>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+                  Add a task to track execution, follow-ups, and deliverables.
+                </p>
               </div>
-              <div className="space-y-1">
-                <CardTitle className="text-base">Recent Tasks</CardTitle>
-                <CardDescription>Items that changed most recently</CardDescription>
-              </div>
-            </CardHeader>
-            <Separator />
-            <CardContent className="pt-4">
-              {data.tasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tasks yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {data.tasks.map((task) => (
-                    <div key={task.id} className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{task.title}</div>
-                      </div>
-                      <Badge variant="muted" className="shrink-0 text-[10px] uppercase tracking-[0.14em]">
-                        {task.status.replaceAll("_", " ")}
-                      </Badge>
+            ) : (
+              <div className="space-y-2">
+                {data.tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-start gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30"
+                  >
+                    <div className="rounded-lg bg-muted p-2">
+                      <CheckSquare2 className="size-3.5 text-muted-foreground" />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium leading-5">
+                        {task.title}
+                      </span>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Current execution status
+                      </div>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 text-[10px] uppercase tracking-[0.14em]"
+                    >
+                      {task.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
 
-          <Card className="border-border/70 shadow-none">
-            <CardHeader className="gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="rounded-2xl bg-muted p-2.5">
-                  <Activity className="size-4 text-muted-foreground" />
+          <SectionCard
+            title="Activity"
+            description="Recent relationships and graph connections."
+            badgeLabel={`${data.activity.length} item${
+              data.activity.length === 1 ? "" : "s"
+            }`}
+            icon={Activity}
+          >
+            {data.activity.length === 0 ? (
+              <div className="flex min-h-44 flex-col items-center justify-center px-4 py-6 text-center">
+                <div className="mb-4 rounded-full bg-muted p-4">
+                  <Activity className="size-5 text-muted-foreground" />
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.14em]">
-                  {data.activity.length}
-                </Badge>
+                <h2 className="text-sm font-semibold">No activity yet</h2>
+                <p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">
+                  New links and relationships will appear here as the workspace
+                  graph evolves.
+                </p>
               </div>
-              <div className="space-y-1">
-                <CardTitle className="text-base">Activity</CardTitle>
-                <CardDescription>Recent relationship events across entities</CardDescription>
-              </div>
-            </CardHeader>
-            <Separator />
-            <CardContent className="pt-4">
-              {data.activity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {data.activity.map((item) => (
-                    <div key={item.id} className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm font-medium">
+            ) : (
+              <div className="space-y-2">
+                {data.activity.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-start gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30"
+                  >
+                    <div className="rounded-lg bg-muted p-2">
+                      <Activity className="size-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm font-medium leading-5">
                         <span className="truncate">{item.sourceLabel}</span>
                         <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
                         <span className="truncate">{item.targetLabel}</span>
                       </div>
-                      <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      <div className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                         {item.relationshipType}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         </div>
       </div>
     </div>
