@@ -4,6 +4,7 @@ import { useDebounce } from "@/lib/hooks/use-debounce";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useWorkspace } from "../context/workspace-context-provider";
+import { Block } from "@blocknote/core";
 
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
@@ -22,20 +23,22 @@ interface EditorMeta {
 
 interface Props {
   documentId: string;
-  initialContent?: string;
+  workspaceId: string;
+  initialContent?: Block[];
   meta: EditorMeta;
 }
 
 export default function EditorWrapper({
   documentId,
   initialContent,
+  workspaceId,
   meta,
 }: Props) {
   const [content, setContent] = useState(initialContent);
   const debouncedContent = useDebounce(content, 1000);
 
-  const { activeWorkspace } = useWorkspace();
-  const workspaceId = activeWorkspace?.id;
+  // const { activeWorkspace } = useWorkspace();
+  // const workspaceId = activeWorkspace?.id;
 
   useEffect(() => {
     async function save() {
@@ -45,7 +48,7 @@ export default function EditorWrapper({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contentJson: JSON.parse(debouncedContent),
+            contentJson: debouncedContent,
           }),
         });
       } catch (err) {
@@ -63,6 +66,7 @@ export default function EditorWrapper({
       documentId={documentId}
       initialContent={initialContent}
       meta={meta}
+      onChange={setContent}
     />
   );
 }
