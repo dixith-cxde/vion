@@ -37,7 +37,12 @@ export async function POST(
       data: {
         ...parsed.data,
         title: parsed.data.title || "Untitled Document",
-        contentJson: parsed.data.contentJson || {},
+        contentJson: parsed.data.contentJson || [
+          {
+            type: "paragraph",
+            content: [],
+          },
+        ],
         workspaceId,
         authorId: access.user.id,
       },

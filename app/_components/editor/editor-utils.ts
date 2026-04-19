@@ -77,29 +77,31 @@ function sanitizeBlocks(blocks: EditorBlock[]) {
 }
 
 export function parseInitialContent(initialContent?: string) {
-  if (!initialContent) return undefined;
+  console.log(initialContent);
+  const emptyDoc = [
+    {
+      type: "paragraph",
+      content: [],
+    },
+  ];
 
   try {
-    const parsed: unknown = JSON.parse(initialContent);
+    if (!initialContent) return emptyDoc;
 
-    if (Array.isArray(parsed)) {
-      return sanitizeBlocks(parsed as EditorBlock[]);
+    // If string → parse
+    if (typeof initialContent === "string") {
+      const parsed = JSON.parse(initialContent);
+      return Array.isArray(parsed) ? parsed : emptyDoc;
     }
 
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "content" in parsed &&
-      Array.isArray(parsed.content)
-    ) {
-      return sanitizeBlocks(parsed.content as EditorBlock[]);
+    // If already array → use as-is
+    if (Array.isArray(initialContent)) {
+      return initialContent;
     }
 
-    console.warn("Invalid editor content format:", parsed);
-    return undefined;
-  } catch (error) {
-    console.error("Failed to parse editor content:", error);
-    return undefined;
+    return emptyDoc;
+  } catch {
+    return emptyDoc;
   }
 }
 
