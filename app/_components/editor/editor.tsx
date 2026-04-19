@@ -4,7 +4,6 @@ import type { Block } from "@blocknote/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import "./editor.css";
@@ -39,6 +38,7 @@ interface EditorProps {
   workspaceId: string;
   initialContent?: Block[];
   editable?: boolean;
+  saveState: string;
   meta: {
     title: string;
     status: string;
@@ -59,6 +59,7 @@ export default function Editor({
   editable = true,
   meta,
   onChange,
+  saveState,
 }: EditorProps) {
   const editor = useCreateBlockNote(
     {
@@ -320,58 +321,36 @@ export default function Editor({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge
-                variant="muted"
-                className="px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]"
+                variant={
+                  saveState === "saving"
+                    ? "secondary"
+                    : saveState === "error"
+                      ? "document"
+                      : "outline"
+                }
+                className=" text-xs font-medium  outline-none border-none px-5 py-2 bg-muted"
+              >
+                {saveState === "saving" && "Saving..."}
+                {saveState === "saved" && "Saved"}
+                {saveState === "error" && "Error"}
+                {saveState === "idle" && ""}
+              </Badge>
+              <Badge
+                variant="document"
+                className=" text-xs font-medium  outline-none border-none px-5 py-2"
               >
                 Document
               </Badge>
-
-              <Badge
-                variant="muted"
-                className="px-2.5 py-1 text-xs font-medium"
-              >
-                Version: v{meta.version}
-              </Badge>
-
-              <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-900 dark:bg-emerald-950">
-                <Label className="text-xs text-emerald-700 dark:text-emerald-300">
-                  Author
-                </Label>
-                <Input
-                  value={authorName}
-                  onChange={(event) => handleAuthorChange(event.target.value)}
-                  className="h-auto min-w-16 border-0 bg-transparent px-0 py-0 text-xs font-medium text-emerald-700 shadow-none placeholder:text-emerald-400 focus-visible:ring-0 dark:text-emerald-300"
-                  placeholder="Unknown"
-                />
-              </div>
-
-              <Separator
-                orientation="vertical"
-                className="hidden self-center md:block"
-              />
-
-              <Badge
-                variant="outline"
-                className="px-2.5 py-1 text-xs font-medium"
-              >
-                Created: {createdAtLabel}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="px-2.5 py-1 text-xs font-medium"
-              >
-                Updated: {updatedAtLabel}
-              </Badge>
             </div>
 
-            <div className="inline-flex items-center rounded-full border bg-muted px-2 py-px">
+            <div className="inline-flex items-center rounded-full px-2 gap-2">
               <Select
                 value={status}
                 onValueChange={(value) =>
                   handleStatusChange(value as "DRAFT" | "PUBLISHED")
                 }
               >
-                <SelectTrigger className="h-auto min-h-0 w-auto gap-1 border-0 bg-transparent px-0 py-0 text-[10px] font-medium leading-none uppercase tracking-[0.16em] text-muted-foreground shadow-none focus-visible:ring-0">
+                <SelectTrigger className="h-auto min-h-0  w-auto gap-1 border-0  px-5 bg-muted py-0 text-[10px] font-medium leading-none uppercase tracking-[0.16em]  shadow-none focus-visible:ring-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="p-2">
@@ -389,6 +368,39 @@ export default function Editor({
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              <Separator orientation="vertical" className="w-2" />
+              <Badge
+                variant="muted"
+                className=" text-xs font-medium  outline-none border-none px-5 py-2"
+              >
+                Version: v{meta.version}
+              </Badge>
+              <div className="flex items-center gap-1.5 rounded-full  bg-emerald-50 px-5 py-2 dark:border-emerald-900 dark:bg-emerald-950">
+                <Label className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Author
+                </Label>
+                <Input
+                  value={authorName}
+                  onChange={(event) => handleAuthorChange(event.target.value)}
+                  className="h-auto min-w-16 border-0 bg-transparent px-0 py-0 text-xs font-medium text-emerald-700 shadow-none placeholder:text-emerald-400 focus-visible:ring-0 dark:text-emerald-300"
+                  placeholder="Unknown"
+                />
+              </div>
+              <Separator orientation="vertical" className="w-2" />
+
+              <Badge
+                variant="muted"
+                className=" text-xs font-medium bg-muted outline-none border-none px-5 py-2"
+              >
+                Created: {createdAtLabel}
+              </Badge>
+              <Badge
+                variant="muted"
+                className=" text-xs font-medium bg-muted outline-none border-none px-5 py-2"
+              >
+                Updated: {updatedAtLabel}
+              </Badge>
             </div>
           </div>
         </CardHeader>

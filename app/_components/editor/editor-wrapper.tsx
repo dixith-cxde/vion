@@ -35,10 +35,14 @@ export default function EditorWrapper({
 }: Props) {
   const [content, setContent] = useState(initialContent);
   const debouncedContent = useDebounce(content, 1000);
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("saved");
 
   useEffect(() => {
     async function save() {
       try {
+        setSaveState("saving");
         if (!debouncedContent) return null;
         await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
           method: "PATCH",
@@ -47,7 +51,10 @@ export default function EditorWrapper({
             contentJson: debouncedContent,
           }),
         });
+
+        setSaveState("saved");
       } catch (err) {
+        setSaveState("error");
         console.error("Autosave failed", err);
       }
     }
@@ -64,6 +71,7 @@ export default function EditorWrapper({
       initialContent={initialContent}
       meta={meta}
       onChange={setContent}
+      saveState={saveState}
     />
   );
 }
