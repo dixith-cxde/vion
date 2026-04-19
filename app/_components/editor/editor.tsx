@@ -102,11 +102,14 @@ export default function Editor({
         try {
           if (!workspaceId) return;
 
-          await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+          await fetch(
+            `/api/workspaces/${workspaceId}/documents/${documentId}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            },
+          );
         } catch (error) {
           console.error("Document meta save failed:", error);
         }
@@ -268,6 +271,7 @@ export default function Editor({
     timeoutRef.current = setTimeout(async () => {
       try {
         if (!workspaceId) return;
+        console.log(workspaceId);
 
         await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
           method: "PATCH",
@@ -313,14 +317,14 @@ export default function Editor({
               <Input
                 value={title}
                 onChange={(event) => handleTitleChange(event.target.value)}
-                className="mt-1 h-auto border-0 bg-transparent px-0 py-0 text-[1.4rem] font-semibold tracking-[-0.04em] text-foreground shadow-none focus-visible:ring-0 md:text-[1.65rem]"
+                className="mt-1 h-auto border-0 bg-transparent px-0 py-0 text-[1.4rem] font-semibold tracking-[-0.04em] text-foreground shadow-none focus-visible:ring-0 md:text-[1.65rem] rounded-none"
                 placeholder="Untitled"
               />
               <Textarea
                 value={summary}
                 onChange={(event) => handleSummaryChange(event.target.value)}
                 rows={1}
-                className="mt-1 max-w-3xl min-h-0 resize-none border-0 bg-transparent px-0 py-0 text-sm leading-5 text-muted-foreground shadow-none focus-visible:ring-0"
+                className="mt-1 max-w-3xl min-h-0 resize-none border-0 bg-transparent px-0 py-0 text-sm leading-5 text-muted-foreground shadow-none focus-visible:ring-0 rounded-none"
                 placeholder="Add a short summary"
               />
             </div>
@@ -328,34 +332,49 @@ export default function Editor({
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="muted" className="px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]">
-              Document
-            </Badge>
+              <Badge
+                variant="muted"
+                className="px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]"
+              >
+                Document
+              </Badge>
 
-            <Badge variant="muted" className="px-2.5 py-1 text-xs font-medium">
-              Version: v{meta.version}
-            </Badge>
+              <Badge
+                variant="muted"
+                className="px-2.5 py-1 text-xs font-medium"
+              >
+                Version: v{meta.version}
+              </Badge>
 
-            <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-900 dark:bg-emerald-950">
-              <Label className="text-xs text-emerald-700 dark:text-emerald-300">
-                Author
-              </Label>
-              <Input
-                value={authorName}
-                onChange={(event) => handleAuthorChange(event.target.value)}
-                className="h-auto min-w-16 border-0 bg-transparent px-0 py-0 text-xs font-medium text-emerald-700 shadow-none placeholder:text-emerald-400 focus-visible:ring-0 dark:text-emerald-300"
-                placeholder="Unknown"
+              <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-900 dark:bg-emerald-950">
+                <Label className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Author
+                </Label>
+                <Input
+                  value={authorName}
+                  onChange={(event) => handleAuthorChange(event.target.value)}
+                  className="h-auto min-w-16 border-0 bg-transparent px-0 py-0 text-xs font-medium text-emerald-700 shadow-none placeholder:text-emerald-400 focus-visible:ring-0 dark:text-emerald-300"
+                  placeholder="Unknown"
+                />
+              </div>
+
+              <Separator
+                orientation="vertical"
+                className="hidden self-center md:block"
               />
-            </div>
 
-            <Separator orientation="vertical" className="hidden self-center md:block" />
-
-            <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium">
-              Created: {createdAtLabel}
-            </Badge>
-            <Badge variant="outline" className="px-2.5 py-1 text-xs font-medium">
-              Updated: {updatedAtLabel}
-            </Badge>
+              <Badge
+                variant="outline"
+                className="px-2.5 py-1 text-xs font-medium"
+              >
+                Created: {createdAtLabel}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="px-2.5 py-1 text-xs font-medium"
+              >
+                Updated: {updatedAtLabel}
+              </Badge>
             </div>
 
             <div className="inline-flex items-center rounded-full border bg-muted px-2 py-px">
@@ -369,10 +388,16 @@ export default function Editor({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="p-2">
-                  <SelectItem value="DRAFT" className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]">
+                  <SelectItem
+                    value="DRAFT"
+                    className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]"
+                  >
                     DRAFT
                   </SelectItem>
-                  <SelectItem value="PUBLISHED" className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]">
+                  <SelectItem
+                    value="PUBLISHED"
+                    className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]"
+                  >
                     PUBLISHED
                   </SelectItem>
                 </SelectContent>
@@ -387,7 +412,10 @@ export default function Editor({
             editable={editable}
             theme={lightTheme}
             onChange={handleChange}
-            className={cn("vion-blocknote h-full w-full", !editable && "pointer-events-none")}
+            className={cn(
+              "vion-blocknote h-full w-full",
+              !editable && "pointer-events-none",
+            )}
             sideMenu={editable}
             slashMenu={editable}
             formattingToolbar={editable}

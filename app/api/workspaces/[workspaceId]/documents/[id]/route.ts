@@ -56,7 +56,7 @@ export async function PATCH(
   try {
     const resolvedParams = await params;
     const { workspaceId, id } = resolvedParams;
-
+    console.log(workspaceId);
     await requireWorkspaceAccess(workspaceId);
 
     const parsedParams = paramsSchema.safeParse({ id });
