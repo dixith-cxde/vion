@@ -4,12 +4,47 @@ import { NextResponse } from "next/server";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { updateTaskSchema, taskParamsSchema } from "@/lib/validators/tasks";
 
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ workspaceId: string; taskId: string }> },
+) {
+  try {
+    const { workspaceId, taskId } = await context.params;
+
+    await requireWorkspaceAccess(workspaceId);
+
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        workspaceId,
+      },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        { success: false, error: "Task not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: task,
+    });
+  } catch (err) {
+    console.error("Task GET error:", err);
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error" },
+      { status: 500 },
+    );
+  }
+}
 export async function PATCH(
   req: Request,
   { params }: { params: { workspaceId: string; taskId: string } },
 ) {
   try {
-    const { workspaceId, taskId } = params;
+    const { workspaceId, taskId } = await params;
 
     await requireWorkspaceAccess(workspaceId);
 
@@ -83,7 +118,7 @@ export async function DELETE(
   { params }: { params: { workspaceId: string; taskId: string } },
 ) {
   try {
-    const { workspaceId, taskId } = params;
+    const { workspaceId, taskId } = await params;
 
     await requireWorkspaceAccess(workspaceId);
 
