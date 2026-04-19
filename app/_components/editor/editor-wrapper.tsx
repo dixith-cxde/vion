@@ -1,10 +1,9 @@
 "use client";
 
+import type { Block } from "@blocknote/core";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { useWorkspace } from "../context/workspace-context-provider";
-import { Block } from "@blocknote/core";
 
 const Editor = dynamic(() => import("./editor"), {
   ssr: false,
@@ -37,9 +36,6 @@ export default function EditorWrapper({
   const [content, setContent] = useState(initialContent);
   const debouncedContent = useDebounce(content, 1000);
 
-  // const { activeWorkspace } = useWorkspace();
-  // const workspaceId = activeWorkspace?.id;
-
   useEffect(() => {
     async function save() {
       try {
@@ -64,6 +60,7 @@ export default function EditorWrapper({
   return (
     <Editor
       documentId={documentId}
+      workspaceId={workspaceId}
       initialContent={initialContent}
       meta={meta}
       onChange={setContent}

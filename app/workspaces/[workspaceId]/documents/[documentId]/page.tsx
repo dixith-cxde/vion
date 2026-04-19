@@ -34,18 +34,10 @@ export default async function Page({
   if (!document) {
     throw new Error("Document not found");
   }
+
   const content = isBlockArray(document.contentJson)
     ? document.contentJson
     : undefined;
-  console.log({ content, c: document.contentJson });
-  if (!document.contentJson) {
-    console.log("NO CONTENT YET");
-    return (
-      <div className="w-full h-full flex justify-center items-center">
-        Loading editor...
-      </div>
-    );
-  }
 
   return (
     <div>
