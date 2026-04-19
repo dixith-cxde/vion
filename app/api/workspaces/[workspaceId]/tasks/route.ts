@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: { workspaceId: string } },
 ) {
   try {
-    const { workspaceId } = params;
+    const { workspaceId } = await params;
 
     const { user } = await requireWorkspaceAccess(workspaceId);
 
@@ -77,7 +77,7 @@ export async function GET(
   { params }: { params: { workspaceId: string } },
 ) {
   try {
-    const { workspaceId } = params;
+    const { workspaceId } = await params;
 
     await requireWorkspaceAccess(workspaceId);
 

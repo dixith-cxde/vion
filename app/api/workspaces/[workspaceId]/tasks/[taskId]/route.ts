@@ -57,12 +57,12 @@ export async function PATCH(
       success: true,
       data: updatedTask,
     });
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -118,12 +118,12 @@ export async function DELETE(
       success: true,
       message: "Task deleted",
     });
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return new Response("Forbidden", { status: 403 });
     }
 

@@ -36,7 +36,7 @@ export async function requireWorkspaceAccess(
     where: {
       workspaceId_userId: {
         userId: user.id,
-        workspaceId,
+        workspaceId: workspaceId,
       },
     },
   });
