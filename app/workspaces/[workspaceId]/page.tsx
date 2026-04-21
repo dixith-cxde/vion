@@ -74,7 +74,7 @@ function SectionCard({
           </Badge>
         </div>
         <CardDescription className="line-clamp-1 text-[11px] leading-4">
-            {description}
+          {description}
         </CardDescription>
       </CardHeader>
       <Separator />
@@ -183,7 +183,9 @@ export default function WorkspaceDashboard() {
                     key={doc.id}
                     type="button"
                     onClick={() =>
-                      router.push(`/workspaces/${workspaceId}/documents/${doc.id}`)
+                      router.push(
+                        `/workspaces/${workspaceId}/documents/${doc.id}`,
+                      )
                     }
                     className="flex w-full items-start gap-3 rounded-xl border border-border/70 bg-background px-3 py-3 text-left shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30"
                   >

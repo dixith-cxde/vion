@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 type Workspace = {
   id: string;
@@ -18,6 +18,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const params = useParams();
+  const router = useRouter();
 
   const currentWorkspaceId =
     typeof params?.workspaceId === "string"
@@ -40,6 +41,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     load();
   }, []);
+
+  // DEFAULT WORKSPACE REDIRECT (core fix)
+  useEffect(() => {
+    if (!currentWorkspaceId && workspaces.length > 0) {
+      router.replace(`/workspaces/${workspaces[0].id}`);
+    }
+  }, [currentWorkspaceId, workspaces, router]);
 
   const activeWorkspace = useMemo(() => {
     if (!currentWorkspaceId || workspaces.length === 0) return null;

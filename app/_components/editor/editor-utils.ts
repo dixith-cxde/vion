@@ -1,6 +1,7 @@
+import { Block } from "@blocknote/core";
 import { type Theme } from "@blocknote/mantine";
 
-export type MentionEntityType = "TASK" | "DOCUMENT";
+export type MentionEntityType = "TASK" | "DOCUMENT" | "USER";
 
 export interface MentionEntity {
   id: string;
@@ -76,8 +77,7 @@ function sanitizeBlocks(blocks: EditorBlock[]) {
   }));
 }
 
-export function parseInitialContent(initialContent?: string) {
-  console.log(initialContent);
+export function parseInitialContent(initialContent?: Block[] | string) {
   const emptyDoc = [
     {
       type: "paragraph",
@@ -181,6 +181,7 @@ export function getMentionPath(
   const basePath = workspaceId ? `/workspaces/${workspaceId}` : "";
 
   if (item.type === "TASK") return `${basePath}/tasks/${item.id}`;
+  // else if (item.type === "USER") return `${basePath}/members/${memberId}`;
   return `${basePath}/documents/${item.id}`;
 }
 
@@ -195,11 +196,11 @@ export function getMentionPrefix(type: MentionEntityType): string {
 }
 
 export function replaceMentionTokenInBlock(
-  block: EditorBlock,
+  block: Block,
   item: MentionEntity,
   mentionQuery: string,
   workspaceId?: string | null,
-) {
+): Block["content"] {
   const content = block.content ?? [];
   const token = `@${mentionQuery}`;
   const replacedContent: TextContent[] = [];

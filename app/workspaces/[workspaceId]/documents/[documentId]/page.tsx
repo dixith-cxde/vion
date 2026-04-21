@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import EditorWrapper from "@/app/_components/editor/editor-wrapper";
 import type { Block } from "@blocknote/core";
+import DocumentEditor from "@/app/_components/editor/document-editor";
 
 function isBlockArray(value: unknown): value is Block[] {
   return (
@@ -41,7 +41,7 @@ export default async function Page({
 
   return (
     <div>
-      <EditorWrapper
+      <DocumentEditor
         documentId={documentId}
         workspaceId={workspaceId}
         initialContent={content}

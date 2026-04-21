@@ -5,3 +5,4 @@ export type EditorBlock = {
   content?: any[];
   children?: EditorBlock[];
 };
+export type SaveState = "saved" | "idle" | "saving" | "error";
