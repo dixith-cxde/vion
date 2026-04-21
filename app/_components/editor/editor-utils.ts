@@ -191,6 +191,27 @@ export function getMentionBackgroundColor(
   return type === "TASK" ? "blue" : "purple";
 }
 
+export function getMentionStyles(type: MentionEntityType) {
+  if (type === "TASK") {
+    return {
+      textColor: "#6d28d9", // purple text
+      backgroundColor: "#ede9fe", // purple chip
+    };
+  }
+
+  if (type === "DOCUMENT") {
+    return {
+      textColor: "#b91c1c", // red text
+      backgroundColor: "#fee2e2", // red chip
+    };
+  }
+
+  return {
+    textColor: "#1f2937",
+    backgroundColor: "#e5e7eb",
+  };
+}
+
 export function getMentionPrefix(type: MentionEntityType): string {
   return type === "TASK" ? "T" : "D";
 }
@@ -201,17 +222,21 @@ export function replaceMentionTokenInBlock(
   mentionQuery: string,
   workspaceId?: string | null,
 ): Block["content"] {
-  const content = block.content ?? [];
+  // Ensure it's iterable (BlockNote can have non-array content types)
+  const content = Array.isArray(block.content) ? block.content : [];
+
   const token = `@${mentionQuery}`;
-  const replacedContent: TextContent[] = [];
+  const replacedContent: Block["content"] = [];
   let didReplace = false;
 
   const mentionPath = getMentionPath(item, workspaceId);
   const mentionPrefix = getMentionPrefix(item.type);
+  const styles = getMentionStyles(item.type);
+
   const mentionLabel = `${mentionPrefix} ${item.label}`;
 
-  for (let index = content.length - 1; index >= 0; index -= 1) {
-    const part = content[index];
+  for (let i = content.length - 1; i >= 0; i--) {
+    const part = content[i];
 
     if (
       !didReplace &&
@@ -220,16 +245,22 @@ export function replaceMentionTokenInBlock(
       part.text.includes(token)
     ) {
       const mentionIndex = part.text.lastIndexOf(token);
+
       const before = part.text.slice(0, mentionIndex);
       const after = part.text.slice(mentionIndex + token.length);
 
-      const replacement: TextContent[] = [];
+      const replacement: Block["content"] = [];
 
+      // BEFORE TEXT
       if (before) {
-        replacement.push({ type: "text", text: before, styles: {} });
+        replacement.push({
+          type: "text",
+          text: before,
+          styles: {}, // REQUIRED
+        });
       }
 
-      // Insert as a link node so it is navigable
+      // MENTION NODE (styled link)
       replacement.push({
         type: "link",
         href: mentionPath,
@@ -239,13 +270,21 @@ export function replaceMentionTokenInBlock(
             text: mentionLabel,
             styles: {
               bold: true,
+              textColor: styles.textColor,
+              backgroundColor: styles.backgroundColor,
             },
           },
         ],
       });
 
-      replacement.push({ type: "text", text: " ", styles: {} });
+      // SPACE AFTER
+      replacement.push({
+        type: "text",
+        text: " ",
+        styles: {},
+      });
 
+      // AFTER TEXT
       if (after.trim()) {
         replacement.push({
           type: "text",
@@ -262,6 +301,5 @@ export function replaceMentionTokenInBlock(
     replacedContent.unshift(part);
   }
 
-  if (!didReplace) return content;
-  return replacedContent;
+  return didReplace ? replacedContent : content;
 }

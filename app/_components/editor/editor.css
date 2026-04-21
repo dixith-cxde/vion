@@ -148,3 +148,28 @@
     line-height: 1.9;
     color: #1f2330 !important;
 }
+
+.bn-editor span {
+    border-radius: 10px;
+    padding: 2px 6px;
+}
+
+/* target mention links */
+.bn-editor a {
+    border-radius: 100px;
+    padding: 3px 10px;
+    text-decoration: none;
+    font-size: 0.7em;
+}
+
+/* TASK (purple) */
+.bn-editor a[href*="/tasks/"] {
+    background-color: #ede9fe;
+    color: #6d28d9;
+}
+
+/* DOCUMENT (red) */
+.bn-editor a[href*="/documents/"] {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}

@@ -219,7 +219,19 @@ export default function EditorCore({
   };
 
   return (
-    <div className="relative w-full">
+    <div
+      className="relative w-full h-full "
+      onMouseDown={(e) => {
+        e.preventDefault();
+
+        editor.focus();
+
+        const lastBlock = editor.document[editor.document.length - 1];
+        if (lastBlock) {
+          editor.setTextCursorPosition(lastBlock, "end");
+        }
+      }}
+    >
       <BlockNoteView
         editor={editor}
         editable={editable}
