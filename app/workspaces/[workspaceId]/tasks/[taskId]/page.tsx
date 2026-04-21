@@ -30,6 +30,9 @@ import {
   type TaskStatus,
 } from "@/lib/generated/prisma/client";
 import { Button } from "@/components/ui/button";
+import TaskEditor from "@/app/_components/editor/task-editor";
+import { Block } from "@blocknote/core";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 
 const TASK_STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "DONE"];
 const TASK_LIFECYCLE_OPTIONS: TaskLifecycle[] = [
@@ -111,13 +114,42 @@ export default function TaskPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [initialEditorContent, setInitialEditorContent] = useState<
+    Block[] | undefined
+  >(undefined);
+  const [editorContent, setEditorContent] = useState<Block[] | undefined>(
+    undefined,
+  );
+  const debouncedContent = useDebounce(editorContent, 800);
+
+  useEffect(() => {
+    if (!debouncedContent) return;
+
+    const json = JSON.stringify(debouncedContent);
+    updateTask({ description: json });
+  }, [debouncedContent]);
+
   useEffect(() => {
     async function load() {
       const taskRes = await fetch(
         `/api/workspaces/${workspaceId}/tasks/${taskId}`,
       );
       const taskJson = await taskRes.json();
+
       setForm(taskJson.data);
+
+      // ONLY RUN ON FIRST LOAD
+      try {
+        const parsed = taskJson.data.description
+          ? JSON.parse(taskJson.data.description)
+          : undefined;
+
+        setInitialEditorContent(parsed);
+        setEditorContent(parsed);
+      } catch {
+        setInitialEditorContent(undefined);
+        setEditorContent(undefined);
+      }
 
       const memberRes = await fetch(`/api/workspaces/${workspaceId}/members`);
       const membersJson = await memberRes.json();
@@ -630,36 +662,26 @@ export default function TaskPage() {
           Description
         </p>
 
-        {/* DESCRIPTION */}
-        <textarea
-          value={form.description ?? ""}
-          onChange={(e) => handleField({ description: e.target.value })}
-          // onBlur={() => void updateTask()}
-          placeholder="Write task details, acceptance criteria, or context..."
+        <div
           style={{
-            width: "100%",
-            minHeight: 260,
             background: "#fff",
             border: "1px solid #ececec",
             borderRadius: 12,
-            padding: "16px 18px",
-            fontSize: 13,
-            lineHeight: 1.8,
-            color: "#333",
-            resize: "none",
-            outline: "none",
-            fontFamily: "inherit",
-            boxSizing: "border-box",
-            transition: "border-color 150ms ease",
+            paddingTop: 10,
+            minHeight: 260,
           }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = "#d4d4d8";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = "#ececec";
-            updateTask();
-          }}
-        />
+        >
+          <TaskEditor
+            taskId={taskId}
+            workspaceId={workspaceId}
+            description={initialEditorContent}
+            onChange={(blocks) => {
+              setEditorContent(blocks);
+              // const json = JSON.stringify(blocks);
+              // handleField({ description: json });
+            }}
+          />
+        </div>
       </div>
     </div>
   );

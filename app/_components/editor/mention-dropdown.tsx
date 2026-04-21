@@ -22,18 +22,23 @@ interface MentionDropdownProps {
 }
 
 function getTypeClasses(type: MentionEntity["type"]) {
-  if (type === "TASK") {
-    return "success";
-  }
-
-  return "document";
+  return type === "TASK"
+    ? "success"
+    : type === "USER"
+      ? "secondary"
+      : "document";
+  // if (type === "TASK") return "success";
+  // if (type === "USER") return "secondary";
+  // return "document";
 }
 
 function getGroupedItems(items: MentionEntity[]) {
+  const users = items.filter((item) => item.type === "USER");
   const tasks = items.filter((item) => item.type === "TASK");
   const documents = items.filter((item) => item.type === "DOCUMENT");
 
   return [
+    { label: "Users", items: users },
     { label: "Tasks", items: tasks },
     { label: "Documents", items: documents },
   ].filter((group) => group.items.length > 0);
@@ -54,7 +59,7 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(
       <Card
         ref={ref}
         onMouseDown={(event) => event.preventDefault()}
-        className="absolute left-6 top-24 z-50 w-[22rem] overflow-hidden border-border/70 bg-popover/95 shadow-2xl backdrop-blur-xl"
+        className="absolute left-6 top-10 z-50 w-[22rem] overflow-hidden border-border/70 bg-popover/95 shadow-2xl backdrop-blur-xl"
       >
         <CardHeader className="flex flex-row items-start justify-between gap-3 border-b">
           <div>
@@ -92,13 +97,16 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(
                       variant="ghost"
                       className={cn(
                         "h-auto w-full items-start justify-between rounded-2xl px-3 py-3 text-left",
-                        isActive && "bg-muted text-foreground ring-1 ring-border",
+                        isActive &&
+                          "bg-muted text-foreground ring-1 ring-border",
                       )}
                       onClick={() => onSelect(item)}
                       onMouseEnter={() => onHover(index)}
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{item.label}</p>
+                        <p className="truncate text-sm font-semibold">
+                          {item.label}
+                        </p>
                         <Badge
                           variant={getTypeClasses(item.type)}
                           className="mt-2 uppercase tracking-[0.14em]"

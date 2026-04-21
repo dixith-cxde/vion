@@ -76,10 +76,8 @@ export default function EditorCore({
         const members = (await membersRes.json()) as {
           data?: Array<User>;
         };
-
-        console.log(members);
-
-        setEntities(normalizeEntities(tasks, docs));
+        console.log({ members });
+        setEntities(normalizeEntities(tasks, docs, members));
       } catch (err) {
         console.error("Entity fetch failed", err);
       }

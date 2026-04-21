@@ -159,13 +159,22 @@ export function getMentionQuery(text: string) {
 export function normalizeEntities(
   tasks: EntityApiResponse,
   documents: EntityApiResponse,
+  members: {
+    data?: Array<{ id: string; name: string | null; email: string | null }>;
+  },
 ): MentionEntity[] {
   return [
+    ...(members.data ?? []).map((member) => ({
+      id: member.user.id,
+      label: member.user.name || member.user.email || "Unknown",
+      type: "USER" as const,
+    })),
     ...(tasks.data ?? []).map((task) => ({
       id: task.id,
       label: task.title,
       type: "TASK" as const,
     })),
+
     ...(documents.data ?? []).map((doc) => ({
       id: doc.id,
       label: doc.title,
@@ -180,9 +189,10 @@ export function getMentionPath(
 ): string {
   const basePath = workspaceId ? `/workspaces/${workspaceId}` : "";
 
-  if (item.type === "TASK") return `${basePath}/tasks/${item.id}`;
-  // else if (item.type === "USER") return `${basePath}/members/${memberId}`;
-  return `${basePath}/documents/${item.id}`;
+  return `${basePath}/${item.type === "TASK" ? "tasks" : item.type === "USER" ? "members" : "documents"}/${item.id}`;
+  // if (item.type === "TASK") return `${basePath}/tasks/${item.id}`;
+  // else if (item.type === "USER") return `${basePath}/members/${item.id}`;
+  // return `${basePath}/documents/${item.id}`;
 }
 
 export function getMentionBackgroundColor(
@@ -194,15 +204,22 @@ export function getMentionBackgroundColor(
 export function getMentionStyles(type: MentionEntityType) {
   if (type === "TASK") {
     return {
-      textColor: "#6d28d9", // purple text
-      backgroundColor: "#ede9fe", // purple chip
+      textColor: "#6d28d9",
+      backgroundColor: "#ede9fe",
     };
   }
 
   if (type === "DOCUMENT") {
     return {
-      textColor: "#b91c1c", // red text
-      backgroundColor: "#fee2e2", // red chip
+      textColor: "#b91c1c",
+      backgroundColor: "#fee2e2",
+    };
+  }
+
+  if (type === "USER") {
+    return {
+      textColor: "#065f46",
+      backgroundColor: "#d1fae5",
     };
   }
 
@@ -213,7 +230,7 @@ export function getMentionStyles(type: MentionEntityType) {
 }
 
 export function getMentionPrefix(type: MentionEntityType): string {
-  return type === "TASK" ? "T" : "D";
+  return type === "TASK" ? "T" : type === "DOCUMENT" ? "D" : "U";
 }
 
 export function replaceMentionTokenInBlock(

@@ -160,6 +160,7 @@
     padding: 3px 10px;
     text-decoration: none;
     font-size: 0.7em;
+    cursor: pointer;
 }
 
 /* TASK (purple) */
@@ -172,4 +173,8 @@
 .bn-editor a[href*="/documents/"] {
     background-color: #fee2e2;
     color: #b91c1c;
+}
+.bn-editor a[href*="/members/"] {
+    background-color: #d1fae5; /* light green */
+    color: #065f46; /* dark green text */
 }
