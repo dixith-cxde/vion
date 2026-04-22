@@ -5,13 +5,19 @@ import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { updateTaskSchema, taskParamsSchema } from "@/lib/validators/tasks";
 
 export async function GET(
-  req: Request,
-  context: { params: Promise<{ workspaceId: string; taskId: string }> },
+  _req: Request,
+  context: RouteContext<"/api/workspaces/[workspaceId]/tasks/[taskId]">,
 ) {
   try {
     const { workspaceId, taskId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const task = await prisma.task.findFirst({
       where: {
@@ -41,12 +47,18 @@ export async function GET(
 }
 export async function PATCH(
   req: Request,
-  { params }: { params: { workspaceId: string; taskId: string } },
+  context: RouteContext<"/api/workspaces/[workspaceId]/tasks/[taskId]">,
 ) {
   try {
-    const { workspaceId, taskId } = await params;
+    const { workspaceId, taskId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const parsedParams = taskParamsSchema.safeParse({ taskId });
 
@@ -114,13 +126,19 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { workspaceId: string; taskId: string } },
+  _req: Request,
+  context: RouteContext<"/api/workspaces/[workspaceId]/tasks/[taskId]">,
 ) {
   try {
-    const { workspaceId, taskId } = await params;
+    const { workspaceId, taskId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const parsedParams = taskParamsSchema.safeParse({ taskId });
 

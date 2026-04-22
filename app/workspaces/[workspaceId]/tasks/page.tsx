@@ -72,7 +72,8 @@ export default function TasksPage() {
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 Track execution across lifecycle stages, keep active work visible,
-                and move tasks through the board without losing context.
+                and move tasks through the board in any lifecycle view without
+                losing context.
               </p>
             </div>
           </div>
@@ -121,7 +122,7 @@ export default function TasksPage() {
             <SectionHeader
               eyebrow="Lifecycle"
               title="Task stages"
-              description="Switch between lifecycle groups before managing execution status inside the board."
+              description="Switch between lifecycle groups and manage status directly inside the board for whichever stage you are viewing."
             />
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Sparkles className="size-4" />
@@ -137,7 +138,7 @@ export default function TasksPage() {
           <SectionHeader
             eyebrow="Board"
             title={`${formatLifecycle(view)} workflow`}
-            description="Drag active tasks between status columns, or open a task for its full detail view."
+            description="Drag tasks between status columns in the current lifecycle view, or open a task for its full detail page."
           />
 
           {tasks.length === 0 ? (

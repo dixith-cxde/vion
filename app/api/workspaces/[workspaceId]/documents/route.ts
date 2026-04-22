@@ -49,6 +49,10 @@ export async function POST(
       select: {
         id: true,
         title: true,
+        summary: true,
+        status: true,
+        version: true,
+        createdAt: true,
         updatedAt: true,
       },
     });
@@ -99,6 +103,10 @@ export async function GET(
       select: {
         id: true,
         title: true,
+        summary: true,
+        status: true,
+        version: true,
+        createdAt: true,
         updatedAt: true,
       },
     });

@@ -8,7 +8,7 @@ export function canMoveTask(task: {
   status: TaskStatus;
   lifecycle: TaskLifecycle;
 }) {
-  return task.lifecycle === "ACTIVE";
+  return isKanbanStatus(task.status);
 }
 
 export function getNextStatus(status: TaskStatus): TaskStatus {

@@ -5,12 +5,23 @@ import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 export async function POST(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  context: RouteContext<"/api/workspaces/[workspaceId]/tasks">,
 ) {
   try {
-    const { workspaceId } = await params;
+    const { workspaceId } = await context.params;
 
-    const { user } = await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: access.error,
+        },
+        { status: access.status },
+      );
+    }
+
+    const { user } = access;
 
     const body = await req.json();
 
@@ -51,12 +62,12 @@ export async function POST(
       },
       { status: 201 },
     );
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -73,13 +84,22 @@ export async function POST(
 }
 
 export async function GET(
-  req: Request,
-  { params }: { params: { workspaceId: string } },
+  _req: Request,
+  context: RouteContext<"/api/workspaces/[workspaceId]/tasks">,
 ) {
   try {
-    const { workspaceId } = await params;
+    const { workspaceId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: access.error,
+        },
+        { status: access.status },
+      );
+    }
 
     const tasks = await prisma.task.findMany({
       where: {
@@ -94,12 +114,12 @@ export async function GET(
       success: true,
       data: tasks,
     });
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return new Response("Forbidden", { status: 403 });
     }
 

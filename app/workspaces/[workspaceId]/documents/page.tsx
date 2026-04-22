@@ -3,6 +3,7 @@
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
   Clock3,
   FileText,
   LoaderCircle,
@@ -20,6 +21,10 @@ import { toast } from "@/hooks/use-toast";
 type Document = {
   id: string;
   title: string;
+  summary: string | null;
+  status: string;
+  version: number;
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -301,29 +306,49 @@ export default function DocumentsPage() {
                         `/workspaces/${activeWorkspace?.id}/documents/${doc.id}`,
                       )
                     }
-                    className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-muted/35"
+                    className="flex w-full cursor-pointer items-center gap-4 border-b border-border/60 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-muted/30"
                   >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      <FileText className="size-4 text-muted-foreground" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-sky-200/80 bg-sky-50 text-sky-700">
+                      <FileText className="size-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium text-foreground">
                         {doc.title}
                       </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock3 className="size-3.5" />
-                        Updated {formatDateTime(doc.updatedAt)}
+                      <div className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                        {getDocumentDescription(doc)}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock3 className="size-3.5" />
+                          Updated {formatDateTime(doc.updatedAt)}
+                        </span>
+                        <span>Created {formatDate(doc.createdAt)}</span>
                       </div>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="shrink-0 rounded-lg text-[10px] uppercase tracking-[0.14em]"
-                    >
-                      Open
-                    </Badge>
-                    {index !== filteredDocuments.length - 1 ? (
-                      <span className="sr-only" />
-                    ) : null}
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="rounded-lg border-sky-200/80 bg-sky-50 text-[10px] uppercase tracking-[0.14em] text-sky-700"
+                      >
+                        {formatDocumentStatus(doc.status)}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="rounded-lg text-[10px] uppercase tracking-[0.14em]"
+                      >
+                        V{doc.version}
+                      </Badge>
+                      {index === 0 ? (
+                        <Badge
+                          variant="outline"
+                          className="rounded-lg text-[10px] uppercase tracking-[0.14em]"
+                        >
+                          Latest
+                        </Badge>
+                      ) : null}
+                      <ArrowUpRight className="size-4 text-muted-foreground" />
+                    </div>
                   </button>
                 ))}
             </div>
@@ -425,6 +450,12 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatDocumentStatus(value: string) {
+  return value.replaceAll("_", " ").toLowerCase().replace(/^\w/, (char) =>
+    char.toUpperCase(),
+  );
+}
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -433,4 +464,14 @@ function formatDateTime(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function getDocumentDescription(document: Document) {
+  const summary = document.summary?.trim();
+
+  if (summary) {
+    return summary;
+  }
+
+  return `Version ${document.version} ${formatDocumentStatus(document.status).toLowerCase()} document in this workspace.`;
 }
