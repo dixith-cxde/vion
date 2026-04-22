@@ -2,10 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function PATCH(req: Request) {
   try {
     const user = await getCurrentDBUser();
 
@@ -16,39 +13,45 @@ export async function PATCH(
       );
     }
 
-    const notificationId = params.id;
+    let workspaceId: string | undefined;
 
-    if (!notificationId || typeof notificationId !== "string") {
-      return NextResponse.json(
-        { success: false, message: "INVALID_ID" },
-        { status: 400 },
-      );
+    // Safe body parsing (body may be empty)
+    try {
+      const body = await req.json();
+      workspaceId = body?.workspaceId;
+    } catch {
+      workspaceId = undefined;
     }
 
-    // Single query: update only if owned by user
+    // Build query safely
+    const where: {
+      userId: string;
+      isRead: boolean;
+      workspaceId?: string;
+    } = {
+      userId: user.id,
+      isRead: false,
+    };
+
+    if (workspaceId && typeof workspaceId === "string") {
+      where.workspaceId = workspaceId;
+    }
+
     const result = await prisma.notification.updateMany({
-      where: {
-        id: notificationId,
-        userId: user.id,
-      },
+      where,
       data: {
         isRead: true,
       },
     });
 
-    // If nothing updated → either not found OR not owned
-    if (result.count === 0) {
-      return NextResponse.json(
-        { success: false, message: "NOT_FOUND_OR_FORBIDDEN" },
-        { status: 404 },
-      );
-    }
-
     return NextResponse.json({
       success: true,
+      meta: {
+        updatedCount: result.count,
+      },
     });
   } catch (err) {
-    console.error("PATCH /api/notifications/[id] error:", err);
+    console.error("PATCH /api/notifications/mark-all error:", err);
 
     return NextResponse.json(
       {

@@ -16,6 +16,7 @@ import { useWorkspace } from "@/app/_components/context/workspace-context-provid
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { NotificationPanel } from "@/app/_components/notification/notification-panel";
 
 type DashboardData = {
   documents: {
@@ -88,15 +89,17 @@ export default function WorkspaceDashboard() {
     }
 
     const sortedDocuments = [...data.documents].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
 
     return {
       totalItems:
         data.documents.length + data.tasks.length + data.activity.length,
       doneTasks: data.tasks.filter((task) => task.status === "DONE").length,
-      inProgressTasks: data.tasks.filter((task) => task.status === "IN_PROGRESS")
-        .length,
+      inProgressTasks: data.tasks.filter(
+        (task) => task.status === "IN_PROGRESS",
+      ).length,
       latestDocument: sortedDocuments[0] ?? null,
     };
   }, [data]);
@@ -133,7 +136,9 @@ export default function WorkspaceDashboard() {
               ? `Latest doc updated ${formatDateTime(summary.latestDocument.updatedAt)}`
               : "No recent document activity yet"
           }
-          onOpenDocuments={() => router.push(`/workspaces/${workspaceId}/documents`)}
+          onOpenDocuments={() =>
+            router.push(`/workspaces/${workspaceId}/documents`)
+          }
           onOpenTasks={() => router.push(`/workspaces/${workspaceId}/tasks`)}
         />
 
@@ -180,7 +185,9 @@ export default function WorkspaceDashboard() {
               title="Recent documents"
               description="The latest workspace pages, notes, and reference material."
               actionLabel="View all"
-              onAction={() => router.push(`/workspaces/${workspaceId}/documents`)}
+              onAction={() =>
+                router.push(`/workspaces/${workspaceId}/documents`)
+              }
             >
               {data.documents.length === 0 ? (
                 <EmptyState
@@ -200,7 +207,9 @@ export default function WorkspaceDashboard() {
                       badgeClassName="border-sky-200/80 bg-sky-50 text-sky-700"
                       iconClassName="border-sky-200/80 bg-sky-50 text-sky-700"
                       onClick={() =>
-                        router.push(`/workspaces/${workspaceId}/documents/${doc.id}`)
+                        router.push(
+                          `/workspaces/${workspaceId}/documents/${doc.id}`,
+                        )
                       }
                     />
                   ))}
@@ -234,7 +243,9 @@ export default function WorkspaceDashboard() {
                       badgeClassName={getStatusBadgeClassName(task.status)}
                       iconClassName={getTaskIconClassName(task.status)}
                       onClick={() =>
-                        router.push(`/workspaces/${workspaceId}/tasks/${task.id}`)
+                        router.push(
+                          `/workspaces/${workspaceId}/tasks/${task.id}`,
+                        )
                       }
                     />
                   ))}
@@ -462,7 +473,9 @@ function SurfaceButton({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-foreground">{title}</div>
+        <div className="truncate text-sm font-medium text-foreground">
+          {title}
+        </div>
         <div className="mt-1 text-xs leading-5 text-muted-foreground">
           {description}
         </div>
@@ -524,7 +537,9 @@ function InsightPanel({
           />
           <InsightRow
             label="Latest document"
-            value={latestDocument ? formatDate(latestDocument.updatedAt) : "None"}
+            value={
+              latestDocument ? formatDate(latestDocument.updatedAt) : "None"
+            }
             note={latestDocument?.title ?? "No document updates yet"}
           />
         </div>
@@ -555,11 +570,7 @@ function InsightRow({
   );
 }
 
-function ActivityCard({
-  item,
-}: {
-  item: DashboardData["activity"][number];
-}) {
+function ActivityCard({ item }: { item: DashboardData["activity"][number] }) {
   return (
     <div className="rounded-lg border border-border/70 bg-background px-4 py-4">
       <div className="flex items-start gap-3">
@@ -662,13 +673,15 @@ function formatDateTime(value: string) {
 }
 
 function formatStatus(value: string) {
-  return value.replaceAll("_", " ").toLowerCase().replace(/^\w/, (char) =>
-    char.toUpperCase(),
-  );
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/^\w/, (char) => char.toUpperCase());
 }
 
 function formatRelationship(value: string) {
-  return value.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) =>
-    char.toUpperCase(),
-  );
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }

@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { WorkspaceProvider } from "./_components/context/workspace-context-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+import { SocketProvider } from "./_components/provider/socket-provider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -32,6 +33,7 @@ export default function RootLayout({
         <ClerkProvider>
           <WorkspaceProvider>
             <Navbar />
+            <SocketProvider />
             <main className="min-h-[calc(100vh-56px)]">{children}</main>
           </WorkspaceProvider>
         </ClerkProvider>
