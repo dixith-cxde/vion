@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createNotification } from "@/lib/services/notification.service";
 import { requireWorkspaceAdmin } from "@/lib/services/permissions.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 
@@ -86,15 +87,13 @@ export async function POST(
 
     // Notification (only if user exists)
     if (existingUser) {
-      await prisma.notification.create({
-        data: {
-          userId: existingUser.id,
-          type: "INVITE_RECEIVED",
-          title: "Workspace Invitation",
-          message: "You have been invited to a workspace",
-          workspaceId,
-          entityId: invite.id,
-        },
+      await createNotification({
+        userId: existingUser.id,
+        type: "INVITE_RECEIVED",
+        title: "Workspace Invitation",
+        message: "You have been invited to a workspace",
+        workspaceId,
+        entityId: invite.id,
       });
     }
 

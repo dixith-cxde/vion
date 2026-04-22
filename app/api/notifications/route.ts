@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
 
@@ -33,7 +34,6 @@ export async function GET(req: Request) {
       prisma.notification.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        take: 20,
         select: {
           id: true,
           type: true,
@@ -97,35 +97,15 @@ export async function POST(req: Request) {
       entityId,
     } = body;
 
-    // CREATE IN DB (SOURCE OF TRUTH)
-    const notification = await prisma.notification.create({
-      data: {
-        userId,
-        workspaceId,
-        type,
-        title,
-        message,
-        entityType,
-        entityId,
-      },
+    const notification = await createNotification({
+      userId,
+      workspaceId,
+      type,
+      title,
+      message,
+      entityType,
+      entityId,
     });
-
-    // TRIGGER SOCKET SERVER
-    try {
-      await fetch("http://localhost:4000/emit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId,
-          event: "notification:new",
-          data: notification,
-        }),
-      });
-    } catch (err) {
-      console.error("Socket emit failed:", err);
-    }
 
     return NextResponse.json({
       success: true,

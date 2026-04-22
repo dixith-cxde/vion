@@ -16,7 +16,6 @@ import { useWorkspace } from "@/app/_components/context/workspace-context-provid
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { NotificationPanel } from "@/app/_components/notification/notification-panel";
 
 type DashboardData = {
   documents: {

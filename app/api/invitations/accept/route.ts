@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
 
@@ -104,17 +105,15 @@ export async function POST(req: Request) {
           relationshipType: "MEMBER_OF",
         },
       }),
-
-      prisma.notification.create({
-        data: {
-          userId,
-          type: "INVITE_RECEIVED",
-          title: "Joined Workspace",
-          message: "You have joined the workspace",
-          workspaceId: invite.workspaceId,
-        },
-      }),
     ]);
+
+    await createNotification({
+      userId,
+      type: "INVITE_RECEIVED",
+      title: "Joined Workspace",
+      message: "You have joined the workspace",
+      workspaceId: invite.workspaceId,
+    });
 
     return NextResponse.json({
       success: true,
