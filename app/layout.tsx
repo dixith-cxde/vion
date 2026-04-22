@@ -4,9 +4,10 @@ import "./globals.css";
 import Navbar from "./_components/navbar";
 import { ClerkProvider } from "@clerk/nextjs";
 import { WorkspaceProvider } from "./_components/context/workspace-context-provider";
+import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -34,6 +35,7 @@ export default function RootLayout({
             <main className="min-h-[calc(100vh-56px)]">{children}</main>
           </WorkspaceProvider>
         </ClerkProvider>
+        <Toaster />
       </body>
     </html>
   );

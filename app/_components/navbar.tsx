@@ -8,6 +8,7 @@ import { WorkspaceSwitcher } from "./ui/workspace-switcher";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Settings2Icon } from "lucide-react";
 
 export default function Navbar() {
   const { user, isLoaded } = useUser();
@@ -69,6 +70,10 @@ export default function Navbar() {
 
         {isSignedIn && (
           <>
+            <Link href={`/workspaces/${wsId}/settings/members`}>
+              <Settings2Icon className="size-4 cursor-pointer" />
+            </Link>
+
             <Separator orientation="vertical" className="" />
 
             <WorkspaceSwitcher />

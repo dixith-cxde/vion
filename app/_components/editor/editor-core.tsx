@@ -18,6 +18,7 @@ import {
   type MentionEntity,
 } from "./editor-utils";
 
+import { toast } from "@/hooks/use-toast";
 import { User } from "@/lib/generated/prisma/client";
 
 type EditorContext = {
@@ -50,6 +51,7 @@ export default function EditorCore({
   );
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const entityLoadErrorShownRef = useRef(false);
 
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
@@ -67,6 +69,10 @@ export default function EditorCore({
           fetch(`/api/workspaces/${workspaceId}/members`),
         ]);
 
+        if (!tasksRes.ok || !docsRes.ok || !membersRes.ok) {
+          throw new Error("Failed to load mention entities");
+        }
+
         const tasks = (await tasksRes.json()) as {
           data?: Array<{ id: string; title: string }>;
         };
@@ -76,10 +82,18 @@ export default function EditorCore({
         const members = (await membersRes.json()) as {
           data?: Array<User>;
         };
-        console.log({ members });
+        entityLoadErrorShownRef.current = false;
         setEntities(normalizeEntities(tasks, docs, members));
       } catch (err) {
         console.error("Entity fetch failed", err);
+        if (!entityLoadErrorShownRef.current) {
+          entityLoadErrorShownRef.current = true;
+          toast({
+            title: "Mentions unavailable",
+            description: "Tasks, documents, and members could not be loaded.",
+            variant: "destructive",
+          });
+        }
       }
     }
 
@@ -118,7 +132,7 @@ export default function EditorCore({
       setShowMentions(false);
       setMentionQuery("");
 
-      await fetch("/api/relationships", {
+      const response = await fetch("/api/relationships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -129,8 +143,16 @@ export default function EditorCore({
           relationship_type: "MENTIONS",
         }),
       });
+
+      if (!response.ok) {
+        toast({
+          title: "Mention link failed",
+          description: "The reference was inserted, but the relationship was not saved.",
+          variant: "destructive",
+        });
+      }
     },
-    [editor, mentionQuery, workspaceId],
+    [editor, entityId, entityType, mentionQuery, workspaceId],
   );
 
   useEffect(() => {

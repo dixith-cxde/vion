@@ -27,6 +27,8 @@ model User {
   ownedWorkspaces  Workspace[]       @relation("WorkspaceOwner")
   workspaceMembers WorkspaceMember[]
   invitedMembers   WorkspaceMember[] @relation("WorkspaceInviter")
+  invitations      Invitation[]
+  notifications    Notification[]
 }
 
 model Workspace {
@@ -46,9 +48,11 @@ model Workspace {
   channels      Channel[]
   relationships Relationship[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  invitations   Invitation[]
+  notifications Notification[]
 
   @@index([ownerId])
 }
@@ -72,6 +76,55 @@ model WorkspaceMember {
   @@unique([workspaceId, userId])
   @@index([workspaceId])
   @@index([userId])
+}
+
+model Invitation {
+  id String @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  email String
+  role  Role   @default(MEMBER)
+
+  invitedById String
+  invitedBy   User   @relation(fields: [invitedById], references: [id])
+
+  status InvitationStatus @default(PENDING)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([email])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type NotificationType
+
+  title   String
+  message String
+
+  isRead Boolean @default(false)
+
+  entityType String?
+  entityId   String?
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([workspaceId])
 }
 
 model Task {
@@ -238,4 +291,18 @@ enum TaskLifecycle {
   UPCOMING
   DRAFT
   ARCHIVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_UPDATED
+  INVITE_RECEIVED
+  MENTIONED
+  DOCUMENT_LINKED
 }

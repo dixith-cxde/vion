@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
 
 type Document = {
   id: string;
@@ -38,16 +39,24 @@ export default function DocumentsPage() {
         const res = await fetch(
           `/api/workspaces/${activeWorkspace.id}/documents`,
         );
+        if (!res.ok) {
+          throw new Error("Failed to load documents");
+        }
         const json = await res.json();
         setDocuments(json.data);
       } catch (err) {
         console.error(err);
+        toast({
+          title: "Unable to load documents",
+          description: "Refresh the page and try again.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     }
 
-    fetchDocuments();
+    void fetchDocuments();
   }, [activeWorkspace]);
 
   async function handleCreate() {
@@ -67,11 +76,19 @@ export default function DocumentsPage() {
         },
       );
 
+      if (!res.ok) {
+        throw new Error("Create failed");
+      }
+
       const json = await res.json();
 
-      // SAFETY CHECK
       if (!json.success || !json.data?.id) {
         console.error("Create failed:", json);
+        toast({
+          title: "Document creation failed",
+          description: "A new document could not be created.",
+          variant: "destructive",
+        });
         setCreating(false);
         return;
       }
@@ -81,6 +98,11 @@ export default function DocumentsPage() {
       );
     } catch (err) {
       console.error(err);
+      toast({
+        title: "Document creation failed",
+        description: "A new document could not be created.",
+        variant: "destructive",
+      });
       setCreating(false);
     }
   }
@@ -161,7 +183,7 @@ export default function DocumentsPage() {
             {documents.map((doc) => (
               <Card
                 key={doc.id}
-                className="group cursor-pointer border-border/70 shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30"
+                className="group cursor-pointer border-border/70 shadow-none transition-colors hover:border-foreground/15 hover:bg-muted/30 rounded-lg"
                 onClick={() =>
                   router.push(
                     `/workspaces/${activeWorkspace?.id}/documents/${doc.id}`,

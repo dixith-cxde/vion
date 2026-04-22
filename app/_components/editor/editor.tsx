@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type EditorContext = {
@@ -78,6 +79,8 @@ export default function Editor({
 
   const metaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const entityLoadErrorShownRef = useRef(false);
+  const metaSaveErrorShownRef = useRef(false);
 
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
@@ -111,6 +114,10 @@ export default function Editor({
           fetch(`/api/workspaces/${workspaceId}/documents`),
         ]);
 
+        if (!tasksRes.ok || !docsRes.ok) {
+          throw new Error("Failed to load mention entities");
+        }
+
         const tasks = (await tasksRes.json()) as {
           data?: Array<{ id: string; title: string }>;
         };
@@ -118,9 +125,18 @@ export default function Editor({
           data?: Array<{ id: string; title: string }>;
         };
 
+        entityLoadErrorShownRef.current = false;
         setEntities(normalizeEntities(tasks, docs));
       } catch (err) {
         console.error("Entity fetch failed", err);
+        if (!entityLoadErrorShownRef.current) {
+          entityLoadErrorShownRef.current = true;
+          toast({
+            title: "Mentions unavailable",
+            description: "Tasks and documents could not be loaded.",
+            variant: "destructive",
+          });
+        }
       }
     }
 
@@ -159,13 +175,13 @@ export default function Editor({
         workspaceId,
       );
 
-      editor.updateBlock(block, { content: nextContent as any });
+      editor.updateBlock(block, { content: nextContent });
       editor.setTextCursorPosition(block, "end");
 
       setShowMentions(false);
       setMentionQuery("");
 
-      await fetch("/api/relationships", {
+      const response = await fetch("/api/relationships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -176,8 +192,16 @@ export default function Editor({
           relationship_type: "MENTIONS",
         }),
       });
+
+      if (!response.ok) {
+        toast({
+          title: "Mention link failed",
+          description: "The reference was inserted, but the relationship was not saved.",
+          variant: "destructive",
+        });
+      }
     },
-    [editor, mentionQuery, workspaceId],
+    [editor, entityId, entityType, mentionQuery, workspaceId],
   );
 
   useEffect(() => {
@@ -277,17 +301,32 @@ export default function Editor({
           if (entityType !== "DOCUMENT") return;
           if (!workspaceId) return;
 
-          await fetch(`/api/workspaces/${workspaceId}/documents/${entityId}`, {
+          const response = await fetch(
+            `/api/workspaces/${workspaceId}/documents/${entityId}`,
+            {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
-          });
+            },
+          );
+          if (!response.ok) {
+            throw new Error("Document meta save failed");
+          }
+          metaSaveErrorShownRef.current = false;
         } catch (error) {
           console.error("Document meta save failed:", error);
+          if (!metaSaveErrorShownRef.current) {
+            metaSaveErrorShownRef.current = true;
+            toast({
+              title: "Document update failed",
+              description: "Metadata changes could not be saved.",
+              variant: "destructive",
+            });
+          }
         }
       }, 350);
     },
-    [documentId, workspaceId],
+    [entityId, entityType, workspaceId],
   );
 
   const handleTitleChange = (value: string) => {

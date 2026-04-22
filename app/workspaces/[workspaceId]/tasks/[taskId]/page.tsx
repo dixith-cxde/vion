@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import TaskEditor from "@/app/_components/editor/task-editor";
 import { Block } from "@blocknote/core";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { toast } from "@/hooks/use-toast";
 
 const TASK_STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "DONE"];
 const TASK_LIFECYCLE_OPTIONS: TaskLifecycle[] = [
@@ -82,21 +83,6 @@ const PRIORITY_TEXT: Record<PriorityKey, string> = {
   HIGH: "#ef4444",
 };
 
-const selectTriggerBase: React.CSSProperties = {
-  border: "none",
-  background: "transparent",
-  padding: 0,
-  height: "auto",
-  boxShadow: "none",
-  gap: 4,
-  cursor: "pointer",
-};
-
-const dropdownContent: React.CSSProperties = {
-  borderRadius: 12,
-  padding: 6,
-};
-
 const dropdownItem: React.CSSProperties = {
   borderRadius: 8,
   padding: "8px 12px",
@@ -113,6 +99,8 @@ export default function TaskPage() {
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [initialEditorContent, setInitialEditorContent] = useState<
     Block[] | undefined
@@ -125,37 +113,89 @@ export default function TaskPage() {
   useEffect(() => {
     if (!debouncedContent) return;
 
-    const json = JSON.stringify(debouncedContent);
-    updateTask({ description: json });
-  }, [debouncedContent]);
+    async function saveDescription() {
+      setSaving(true);
+      try {
+        const res = await fetch(
+          `/api/workspaces/${workspaceId}/tasks/${taskId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: JSON.stringify(debouncedContent) }),
+          },
+        );
+        if (!res.ok) {
+          throw new Error("Update failed");
+        }
+        const json = await res.json();
+        setForm(json.data);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } catch (err) {
+        console.error("Update failed:", err);
+        toast({
+          title: "Task update failed",
+          description: "Your changes could not be saved.",
+          variant: "destructive",
+        });
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    void saveDescription();
+  }, [debouncedContent, taskId, workspaceId]);
 
   useEffect(() => {
     async function load() {
-      const taskRes = await fetch(
-        `/api/workspaces/${workspaceId}/tasks/${taskId}`,
-      );
-      const taskJson = await taskRes.json();
-
-      setForm(taskJson.data);
-
-      // ONLY RUN ON FIRST LOAD
       try {
+        setLoadError(null);
+        const taskRes = await fetch(
+          `/api/workspaces/${workspaceId}/tasks/${taskId}`,
+        );
+        if (!taskRes.ok) {
+          throw new Error("Failed to load task");
+        }
+        const taskJson = await taskRes.json();
+
+        setForm(taskJson.data);
+
         const parsed = taskJson.data.description
           ? JSON.parse(taskJson.data.description)
           : undefined;
 
         setInitialEditorContent(parsed);
         setEditorContent(parsed);
-      } catch {
+      } catch (error) {
+        console.error("Failed to load task:", error);
         setInitialEditorContent(undefined);
         setEditorContent(undefined);
+        setLoadError("This task could not be loaded.");
+        toast({
+          title: "Unable to load task",
+          description: "Refresh the page and try again.",
+          variant: "destructive",
+        });
       }
-
-      const memberRes = await fetch(`/api/workspaces/${workspaceId}/members`);
-      const membersJson = await memberRes.json();
-      setMembers(membersJson.data ?? []);
+      try {
+        const memberRes = await fetch(`/api/workspaces/${workspaceId}/members`);
+        if (!memberRes.ok) {
+          throw new Error("Failed to load members");
+        }
+        const membersJson = await memberRes.json();
+        setMembers(membersJson.data ?? []);
+      } catch (error) {
+        console.error("Failed to load members:", error);
+        toast({
+          title: "Unable to load task members",
+          description: "Assignee options are temporarily unavailable.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
     }
-    load();
+    void load();
   }, [workspaceId, taskId]);
 
   async function updateTask(patch?: Partial<Task>) {
@@ -163,29 +203,51 @@ export default function TaskPage() {
     setSaving(true);
     const payload = patch ?? form;
     try {
-      const res = await fetch(
-        `/api/workspaces/${workspaceId}/tasks/${taskId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
+      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        throw new Error("Update failed");
+      }
       const json = await res.json();
       setForm(json.data);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error("Update failed:", err);
+      toast({
+        title: "Task update failed",
+        description: "Your changes could not be saved.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   function handleField(patch: Partial<Task>) {
     setForm((prev) => (prev ? { ...prev, ...patch } : prev));
   }
 
-  if (!form) {
+  if (loading || !form) {
+    if (!loading && loadError) {
+      return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            padding: 24,
+          }}
+        >
+          <div style={{ fontSize: 14, color: "#71717a" }}>{loadError}</div>
+        </div>
+      );
+    }
+
     return (
       <div
         style={{

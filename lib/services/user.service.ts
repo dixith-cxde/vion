@@ -69,3 +69,17 @@ export async function getOrCreateUser() {
 
   return user;
 }
+
+export async function getCurrentDBUser() {
+  const clerkUser = await currentUser();
+
+  if (!clerkUser) return null;
+
+  const user = await prisma.user.findUnique({
+    where: {
+      clerkId: clerkUser.id,
+    },
+  });
+
+  return user;
+}

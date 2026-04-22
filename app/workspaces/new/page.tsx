@@ -7,24 +7,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
 
 export default function CreateWorkspacePage() {
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
 
     if (!name.trim()) {
-      setError("Workspace name is required");
+      toast({
+        title: "Workspace name required",
+        description: "Enter a name before creating the workspace.",
+        variant: "destructive",
+      });
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
       const res = await fetch("/api/workspaces", {
@@ -36,7 +39,11 @@ export default function CreateWorkspacePage() {
       });
 
       if (!res.ok) {
-        setError("Failed to create workspace");
+        toast({
+          title: "Workspace creation failed",
+          description: "The workspace could not be created.",
+          variant: "destructive",
+        });
         setLoading(false);
         return;
       }
@@ -45,7 +52,11 @@ export default function CreateWorkspacePage() {
 
       router.push(`/workspaces/${workspace.id}`);
     } catch {
-      setError("Something went wrong");
+      toast({
+        title: "Workspace creation failed",
+        description: "Something went wrong while creating the workspace.",
+        variant: "destructive",
+      });
       setLoading(false);
     }
   }
@@ -67,9 +78,6 @@ export default function CreateWorkspacePage() {
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-
-            {error && <p className="text-sm text-red-500">{error}</p>}
-
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Creating..." : "Create Workspace"}
             </Button>

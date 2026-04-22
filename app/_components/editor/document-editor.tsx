@@ -6,8 +6,6 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import "./editor.css";
 
-import { type MentionEntity } from "./editor-utils";
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 import EditorWrapper from "./document-editor-wrapper";
 import { SaveState } from "@/types";
 
@@ -50,12 +49,7 @@ export default function DocumentEditor({
   const [saveState, setSaveState] = useState<SaveState>("saved");
 
   const metaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  const [showMentions, setShowMentions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [entities, setEntities] = useState<MentionEntity[]>([]);
+  const metaSaveErrorShownRef = useRef(false);
 
   const [title, setTitle] = useState(meta.title);
   const [summary, setSummary] = useState(meta.summary ?? "");
@@ -93,7 +87,7 @@ export default function DocumentEditor({
         try {
           if (!workspaceId) return;
 
-          await fetch(
+          const response = await fetch(
             `/api/workspaces/${workspaceId}/documents/${documentId}`,
             {
               method: "PATCH",
@@ -101,8 +95,20 @@ export default function DocumentEditor({
               body: JSON.stringify(payload),
             },
           );
+          if (!response.ok) {
+            throw new Error("Document meta save failed");
+          }
+          metaSaveErrorShownRef.current = false;
         } catch (error) {
           console.error("Document meta save failed:", error);
+          if (!metaSaveErrorShownRef.current) {
+            metaSaveErrorShownRef.current = true;
+            toast({
+              title: "Document update failed",
+              description: "Metadata changes could not be saved.",
+              variant: "destructive",
+            });
+          }
         }
       }, 350);
     },
