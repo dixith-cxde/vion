@@ -13,7 +13,11 @@ export function SocketProvider() {
     const socket = getSocket(user.id);
 
     socket.on("notification:new", (data) => {
-      console.log("New notification:", data);
+      window.dispatchEvent(
+        new CustomEvent("notification:new", {
+          detail: data,
+        }),
+      );
     });
 
     return () => {

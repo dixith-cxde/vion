@@ -11,5 +11,9 @@ export function getSocket(userId: string) {
     });
   }
 
+  if (socket.connected) {
+    socket.emit("join", { userId });
+  }
+
   return socket;
 }
