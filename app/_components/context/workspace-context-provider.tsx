@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 
 type Workspace = {
   id: string;
@@ -31,15 +32,23 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     async function load() {
       try {
         const res = await fetch("/api/workspaces");
+        if (!res.ok) {
+          throw new Error("Failed to load workspaces");
+        }
         const data = await res.json();
 
         setWorkspaces(data);
       } catch (err) {
         console.error("Failed to load workspaces", err);
+        toast({
+          title: "Unable to load workspaces",
+          description: "Refresh the page and try again.",
+          variant: "destructive",
+        });
       }
     }
 
-    load();
+    void load();
   }, []);
 
   // DEFAULT WORKSPACE REDIRECT (core fix)
