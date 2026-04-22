@@ -2,11 +2,15 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { CheckSquare2, Sparkles } from "lucide-react";
+import {
+  CheckSquare2,
+  LoaderCircle,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { TaskLifecycle } from "@/lib/generated/prisma/client";
 
@@ -15,34 +19,36 @@ import { groupTasks } from "@/lib/tasks/group-tasks";
 
 import { ViewTabs } from "@/app/_components/tasks/view-tabs";
 import { KanbanBoard } from "@/app/_components/tasks/kanban-view";
+import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
 
 export default function TasksPage() {
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId as string;
+  const { activeWorkspace } = useWorkspace();
 
   const { tasks, loading, createTask, updateStatus } = useTasks(workspaceId);
 
   const [view, setView] = useState<TaskLifecycle>("ACTIVE");
 
-  // ---------- COUNTS ----------
   const counts: Record<TaskLifecycle, number> = {
-    ACTIVE: tasks.filter((t) => t.lifecycle === "ACTIVE").length,
-    PLANNED: tasks.filter((t) => t.lifecycle === "PLANNED").length,
-    UPCOMING: tasks.filter((t) => t.lifecycle === "UPCOMING").length,
-    DRAFT: tasks.filter((t) => t.lifecycle === "DRAFT").length,
-    ARCHIVED: tasks.filter((t) => t.lifecycle === "ARCHIVED").length,
+    ACTIVE: tasks.filter((task) => task.lifecycle === "ACTIVE").length,
+    PLANNED: tasks.filter((task) => task.lifecycle === "PLANNED").length,
+    UPCOMING: tasks.filter((task) => task.lifecycle === "UPCOMING").length,
+    DRAFT: tasks.filter((task) => task.lifecycle === "DRAFT").length,
+    ARCHIVED: tasks.filter((task) => task.lifecycle === "ARCHIVED").length,
   };
 
-  // ---------- FILTER BY LIFECYCLE (CRITICAL CHANGE)
-  const lifecycleTasks = tasks.filter((t) => t.lifecycle === view);
-
-  // ---------- GROUP BY STATUS (KANBAN)
+  const lifecycleTasks = tasks.filter((task) => task.lifecycle === view);
   const grouped = groupTasks(lifecycleTasks);
+  const doneCount = tasks.filter((task) => task.status === "DONE").length;
+  const completionRate =
+    tasks.length === 0 ? "0%" : `${Math.round((doneCount / tasks.length) * 100)}%`;
 
   if (loading) {
     return (
       <div className="px-4 py-6">
-        <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+        <div className="flex min-h-40 items-center justify-center gap-3 text-sm text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" />
           Loading tasks...
         </div>
       </div>
@@ -50,50 +56,188 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      <div className="flex-1 flex flex-col">
-        <Card className="flex-1 flex flex-col rounded-none border-0 shadow-none">
-          {/* HEADER */}
-          <CardHeader className="border-b px-4 py-3">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-lg font-semibold">Workspace Tasks</h1>
-                <p className="text-sm text-muted-foreground">
-                  Track execution and manage lifecycle
-                </p>
-              </div>
-
-              {/* CREATE */}
-              <Button size="lg" onClick={() => createTask("New Task", "TODO")}>
-                New Task
-              </Button>
+    <div className="px-3 py-4 md:px-4 md:py-5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8">
+        <header className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-2">
+            <Badge
+              variant="muted"
+              className="w-fit px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]"
+            >
+              Workspace Tasks
+            </Badge>
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {activeWorkspace?.name ?? "Workspace"} tasks
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                Track execution across lifecycle stages, keep active work visible,
+                and move tasks through the board without losing context.
+              </p>
             </div>
+          </div>
 
-            {/* BADGES */}
-            <div className="flex gap-2 mt-2">
-              <Badge>{tasks.length} tasks</Badge>
-              <Badge>
-                <Sparkles className="mr-1 size-3" />
-                {counts[view]} {view.toLowerCase()}
-              </Badge>
+          <Button
+            onClick={() => createTask("New Task", "TODO")}
+            className="rounded-lg"
+          >
+            <Plus className="size-4" />
+            New task
+          </Button>
+        </header>
+
+        <section className="space-y-4">
+          <SectionHeader
+            eyebrow="Overview"
+            title="Execution summary"
+            description="A quick read on workload, current lifecycle focus, and completion progress."
+          />
+          <div className="grid gap-3 md:grid-cols-4">
+            <StatCard
+              label="Total tasks"
+              value={`${tasks.length}`}
+              hint="All tracked work items"
+            />
+            <StatCard
+              label="Current lifecycle"
+              value={formatLifecycle(view)}
+              hint={`${counts[view]} task${counts[view] === 1 ? "" : "s"} in this stage`}
+            />
+            <StatCard
+              label="Completed"
+              value={`${doneCount}`}
+              hint="Tasks marked done"
+            />
+            <StatCard
+              label="Completion rate"
+              value={completionRate}
+              hint="Based on current task status"
+            />
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-end md:justify-between">
+            <SectionHeader
+              eyebrow="Lifecycle"
+              title="Task stages"
+              description="Switch between lifecycle groups before managing execution status inside the board."
+            />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Sparkles className="size-4" />
+              <span>
+                {counts[view]} visible in {formatLifecycle(view).toLowerCase()}
+              </span>
             </div>
-          </CardHeader>
+          </div>
+          <ViewTabs view={view} setView={setView} counts={counts} />
+        </section>
 
-          {/* CONTENT */}
-          <CardContent className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-            <ViewTabs view={view} setView={setView} counts={counts} />
+        <section className="space-y-4">
+          <SectionHeader
+            eyebrow="Board"
+            title={`${formatLifecycle(view)} workflow`}
+            description="Drag active tasks between status columns, or open a task for its full detail view."
+          />
 
-            {tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-sm text-muted-foreground">
-                <CheckSquare2 className="mb-2" />
-                No tasks yet
-              </div>
-            ) : (
+          {tasks.length === 0 ? (
+            <EmptyState
+              title="No tasks yet"
+              description="Create the first task to start tracking execution, planning, and deliverables for this workspace."
+              actionLabel="Create first task"
+              onAction={() => createTask("New Task", "TODO")}
+            />
+          ) : lifecycleTasks.length === 0 ? (
+            <EmptyState
+              title={`No ${formatLifecycle(view).toLowerCase()} tasks`}
+              description="Switch lifecycle views or add a new task to populate this stage."
+            />
+          ) : (
+            <div className="rounded-lg border border-border/70 p-3 md:p-4">
               <KanbanBoard grouped={grouped} onUpdate={updateStatus} />
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        {eyebrow}
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">
+        {title}
+      </h2>
+      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/70 px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+        {value}
+      </div>
+      <div className="mt-2 text-sm text-muted-foreground">{hint}</div>
+    </div>
+  );
+}
+
+function EmptyState({
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="flex min-h-[24rem] flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-muted">
+        <CheckSquare2 className="size-5 text-muted-foreground" />
+      </div>
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
+      {actionLabel && onAction ? (
+        <Button onClick={onAction} className="mt-5 rounded-lg">
+          {actionLabel}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function formatLifecycle(value: TaskLifecycle) {
+  return value.charAt(0) + value.slice(1).toLowerCase();
 }
