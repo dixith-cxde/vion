@@ -3,7 +3,7 @@ import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const user = await getCurrentDBUser();
 
@@ -14,25 +14,11 @@ export async function GET(req: Request) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
-
-    // Build filter safely
-    const where: {
-      userId: string;
-      workspaceId?: string;
-    } = {
-      userId: user.id,
-    };
-
-    if (workspaceId) {
-      where.workspaceId = workspaceId;
-    }
-
-    // Parallel queries for performance
     const [notifications, unreadCount] = await Promise.all([
       prisma.notification.findMany({
-        where,
+        where: {
+          userId: user.id,
+        },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
@@ -48,7 +34,7 @@ export async function GET(req: Request) {
       }),
       prisma.notification.count({
         where: {
-          ...where,
+          userId: user.id,
           isRead: false,
         },
       }),
@@ -87,15 +73,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const {
-      userId, // receiver
-      workspaceId,
-      type,
-      title,
-      message,
-      entityType,
-      entityId,
-    } = body;
+    const { userId, workspaceId, type, title, message, entityType, entityId } =
+      body;
 
     const notification = await createNotification({
       userId,
@@ -112,7 +91,7 @@ export async function POST(req: Request) {
       data: notification,
     });
   } catch (err) {
-    console.error("POST /api/notification error:", err);
+    console.error("POST /api/notifications error:", err);
 
     return NextResponse.json(
       {

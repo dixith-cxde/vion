@@ -16,20 +16,25 @@ export async function POST(req: Request) {
 
     const userId = user.id;
 
-    const { token } = await req.json();
-    console.log({ user });
+    const { token, invitationId } = await req.json();
 
-    if (!token) {
+    if (!token && !invitationId) {
       return NextResponse.json(
-        { success: false, message: "Token required" },
+        {
+          success: false,
+          message: "Invitation token or invitation id is required",
+        },
         { status: 400 },
       );
     }
 
-    // fetch invitation
-    const invite = await prisma.invitation.findUnique({
-      where: { token },
-    });
+    const invite = invitationId
+      ? await prisma.invitation.findUnique({
+          where: { id: invitationId },
+        })
+      : await prisma.invitation.findUnique({
+          where: { token },
+        });
 
     if (!invite) {
       return NextResponse.json(
@@ -118,6 +123,9 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: "Joined workspace successfully",
+      data: {
+        workspaceId: invite.workspaceId,
+      },
     });
   } catch (err) {
     return NextResponse.json(

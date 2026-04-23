@@ -15,19 +15,16 @@ import {
   type NotificationItem,
   useNotifications,
 } from "@/lib/hooks/use-notification";
+import { useEffect, useRef, useState } from "react";
 
+import { toast } from "@/hooks/use-toast";
 type NotificationPanelProps = {
   workspaceId?: string;
 };
 
 export function NotificationPanel({ workspaceId }: NotificationPanelProps) {
-  const {
-    notifications,
-    unreadCount,
-    loading,
-    markAsRead,
-    markAllAsRead,
-  } = useNotifications({ workspaceId });
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+    useNotifications({ workspaceId });
 
   const unreadNotifications = notifications.filter(
     (notification) => !notification.isRead,
@@ -35,6 +32,24 @@ export function NotificationPanel({ workspaceId }: NotificationPanelProps) {
   const readNotifications = notifications.filter(
     (notification) => notification.isRead,
   );
+
+  // TOAST ON NEW NOTIFICATION
+  const prevCountRef = useRef(0);
+
+  useEffect(() => {
+    if (notifications.length > prevCountRef.current) {
+      const latest = notifications[0];
+
+      if (latest && !latest.isRead) {
+        toast({
+          title: latest.title,
+          description: latest.message,
+        });
+      }
+    }
+
+    prevCountRef.current = notifications.length;
+  }, [notifications]);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
@@ -51,16 +66,16 @@ export function NotificationPanel({ workspaceId }: NotificationPanelProps) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Full workspace feed, with unread items pinned first.
+              Full notification feed, with unread items pinned first.
             </p>
-            {unreadCount > 0 ? (
+            {unreadCount > 0 && (
               <Badge
                 variant="muted"
                 className="mt-1 rounded-md px-2 py-0 text-[10px] tracking-[0.14em]"
               >
                 {unreadCount} unread
               </Badge>
-            ) : null}
+            )}
           </div>
         </div>
 
@@ -88,23 +103,23 @@ export function NotificationPanel({ workspaceId }: NotificationPanelProps) {
           <EmptyState />
         ) : (
           <div className="space-y-4">
-            {unreadNotifications.length > 0 ? (
+            {unreadNotifications.length > 0 && (
               <NotificationGroup
                 title="Unread"
                 count={unreadNotifications.length}
                 notifications={unreadNotifications}
-                onSelect={(notificationId) => void markAsRead(notificationId)}
+                onSelect={(id) => markAsRead(id)}
               />
-            ) : null}
+            )}
 
-            {readNotifications.length > 0 ? (
+            {readNotifications.length > 0 && (
               <NotificationGroup
                 title="Read"
                 count={readNotifications.length}
                 notifications={readNotifications}
-                onSelect={() => {}}
+                onSelect={(id) => markAsRead(id)}
               />
-            ) : null}
+            )}
           </div>
         )}
       </div>
@@ -153,17 +168,76 @@ function NotificationCard({
   onClick: () => void;
 }) {
   const isUnread = !notification.isRead;
+  const [joiningInvite, setJoiningInvite] = useState(false);
+
+  async function handleInvite(e: React.MouseEvent) {
+    e.stopPropagation();
+
+    if (!notification.entityId || joiningInvite) return;
+
+    try {
+      setJoiningInvite(true);
+
+      const res = await fetch("/api/invitations/accept", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId: notification.entityId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to join workspace.");
+      }
+
+      if (isUnread) {
+        onClick();
+      }
+
+      toast({
+        title: "Workspace Joined",
+        description: "You have joined successfully.",
+      });
+
+      if (data.data?.workspaceId) {
+        window.location.assign(`/workspaces/${data.data.workspaceId}`);
+      }
+    } catch (err) {
+      console.error(err);
+
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "Failed to join workspace.",
+        variant: "destructive",
+      });
+    } finally {
+      setJoiningInvite(false);
+    }
+  }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!isUnread}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => {
+        if (isUnread) onClick();
+      }}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && isUnread) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       className={cn(
         "flex w-full items-start gap-3 rounded-xl border px-3 py-3.5 text-left transition-colors",
         isUnread
           ? "cursor-pointer border-border/80 bg-accent/35 shadow-sm hover:bg-accent/50"
-          : "cursor-default border-border/60 bg-background opacity-80",
+          : "cursor-pointer border-border/60 bg-background opacity-80",
       )}
     >
       <div
@@ -183,6 +257,7 @@ function NotificationCard({
             <div className="truncate text-sm font-medium text-foreground">
               {notification.title}
             </div>
+
             <div
               className={cn(
                 "mt-1 text-sm leading-6",
@@ -191,41 +266,43 @@ function NotificationCard({
             >
               {notification.message}
             </div>
+
+            {notification.type === "INVITE_RECEIVED" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleInvite}
+                disabled={joiningInvite}
+                className="mt-2 h-8 rounded-md px-3 text-xs"
+              >
+                {joiningInvite ? "Joining..." : "Accept Invite"}
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 self-start">
-            {isUnread ? (
-              <Badge
-                variant="muted"
-                className="rounded-md px-2 py-0 text-[10px] tracking-[0.14em]"
-              >
-                Unread
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="rounded-md border-border/60 bg-transparent px-2 py-0 text-[10px] tracking-[0.14em] text-muted-foreground"
-              >
-                Read
-              </Badge>
+            <Badge
+              variant={isUnread ? "muted" : "outline"}
+              className="rounded-md px-2 py-0 text-[10px]"
+            >
+              {isUnread ? "Unread" : "Read"}
+            </Badge>
+
+            {isUnread && (
+              <ChevronRight className="size-4 text-muted-foreground" />
             )}
-            {isUnread ? (
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            ) : null}
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge
-            variant="outline"
-            className="rounded-md border-border/70 bg-transparent uppercase tracking-[0.14em] text-muted-foreground"
-          >
+          <Badge variant="outline" className="rounded-md uppercase">
             {formatLabel(notification.type)}
           </Badge>
           <span>{formatNotificationDateTime(notification.createdAt)}</span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -238,8 +315,8 @@ function EmptyState() {
       <h3 className="text-base font-semibold text-foreground">
         No notifications yet
       </h3>
-      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        New workspace activity, alerts, and automated events will appear here.
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        New workspace activity and alerts will appear here.
       </p>
     </div>
   );
@@ -249,7 +326,7 @@ function formatLabel(value: string) {
   return value
     .replaceAll("_", " ")
     .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatNotificationDateTime(value: string) {

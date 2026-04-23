@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  { params }: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
     const user = await getCurrentDBUser();
@@ -25,7 +25,7 @@ export async function GET(
       success: true,
       data: invites,
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

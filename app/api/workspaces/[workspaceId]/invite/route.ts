@@ -6,7 +6,7 @@ import { getCurrentDBUser } from "@/lib/services/user.service";
 
 export async function POST(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  { params }: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
     const { workspaceId } = await params;
@@ -20,7 +20,7 @@ export async function POST(
     }
 
     const userId = user.id;
-    console.log(user);
+
     // Permission guard
     await requireWorkspaceAdmin(workspaceId, userId);
 

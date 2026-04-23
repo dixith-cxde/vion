@@ -22,9 +22,9 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const { workspaceId } = options;
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // fetch initial notifications
   useEffect(() => {
     const controller = new AbortController();
 
@@ -32,30 +32,21 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       setLoading(true);
 
       try {
-        const query = workspaceId
-          ? `?workspaceId=${encodeURIComponent(workspaceId)}`
-          : "";
-        const res = await fetch(`/api/notifications${query}`, {
+        const res = await fetch("/api/notifications", {
           cache: "no-store",
           signal: controller.signal,
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to load notifications");
-        }
+        if (!res.ok) throw new Error("Failed to load notifications");
 
         const data = await res.json();
 
         setNotifications(data.data || []);
-        setUnreadCount(data.meta?.unreadCount || 0);
       } catch (error) {
-        if (controller.signal.aborted) {
-          return;
+        if (!controller.signal.aborted) {
+          console.error("Failed to fetch notifications:", error);
+          setNotifications([]);
         }
-
-        console.error("Failed to fetch notifications:", error);
-        setNotifications([]);
-        setUnreadCount(0);
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -63,41 +54,32 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       }
     }
 
-    void fetchInitial();
+    fetchInitial();
 
-    return () => {
-      controller.abort();
-    };
-  }, [workspaceId]);
+    return () => controller.abort();
+  }, []);
 
+  // listen to realtime notifications (FIXED MERGE LOGIC)
   useEffect(() => {
     function handler(e: Event) {
-      const notification = (e as CustomEvent<NotificationItem>).detail;
-
-      if (
-        workspaceId &&
-        notification.workspaceId &&
-        notification.workspaceId !== workspaceId
-      ) {
-        return;
-      }
+      const incoming = (e as CustomEvent<NotificationItem>).detail;
 
       setNotifications((prev) => {
-        const existingIndex = prev.findIndex(
-          (item) => item.id === notification.id,
-        );
-        const next =
-          existingIndex === -1
-            ? [notification, ...prev]
-            : prev.map((item) =>
-                item.id === notification.id ? notification : item,
-              );
+        const existing = prev.find((n) => n.id === incoming.id);
 
-        setUnreadCount(
-          next.filter((item) => !item.isRead).length,
-        );
+        if (existing) {
+          // merge instead of replace (CRITICAL FIX)
+          return prev.map((n) =>
+            n.id === incoming.id
+              ? {
+                  ...incoming,
+                  isRead: existing.isRead || incoming.isRead,
+                }
+              : n,
+          );
+        }
 
-        return next;
+        return [incoming, ...prev];
       });
     }
 
@@ -108,66 +90,50 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     };
   }, [workspaceId]);
 
+  // mark one as read
   async function markAsRead(notificationId: string) {
-    const target = notifications.find(
-      (notification) => notification.id === notificationId,
-    );
+    const target = notifications.find((n) => n.id === notificationId);
 
-    if (!target || target.isRead) {
-      return;
-    }
+    if (!target || target.isRead) return;
 
     setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === notificationId
-          ? { ...notification, isRead: true }
-          : notification,
-      ),
+      prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
     );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
 
-    const res = await fetch(`/api/notifications/${notificationId}`, {
-      method: "PATCH",
-    });
+    try {
+      const res = await fetch(`/api/notifications/${notificationId}`, {
+        method: "PATCH",
+      });
 
-    if (!res.ok) {
+      if (!res.ok) throw new Error("Failed");
+    } catch {
       setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === notificationId
-            ? { ...notification, isRead: false }
-            : notification,
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, isRead: false } : n,
         ),
       );
-      setUnreadCount((prev) => prev + 1);
     }
   }
 
+  // mark all as read
   async function markAllAsRead() {
-    if (unreadCount === 0) {
-      return;
-    }
+    const prevNotifications = notifications;
 
-    const previousNotifications = notifications;
-    const previousUnreadCount = unreadCount;
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
 
-    setNotifications((prev) =>
-      prev.map((notification) => ({ ...notification, isRead: true })),
-    );
-    setUnreadCount(0);
+    try {
+      const res = await fetch("/api/notifications/mark-all", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    const res = await fetch("/api/notifications/mark-all", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: workspaceId ? JSON.stringify({ workspaceId }) : undefined,
-    });
-
-    if (!res.ok) {
-      setNotifications(previousNotifications);
-      setUnreadCount(previousUnreadCount);
+      if (!res.ok) throw new Error("Failed");
+    } catch {
+      setNotifications(prevNotifications);
     }
   }
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return {
     notifications,

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await getCurrentDBUser();
@@ -13,8 +13,10 @@ export async function DELETE(
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const invite = await prisma.invitation.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!invite) {
@@ -25,11 +27,11 @@ export async function DELETE(
     await requireWorkspaceAdmin(invite.workspaceId, user.id);
 
     await prisma.invitation.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
