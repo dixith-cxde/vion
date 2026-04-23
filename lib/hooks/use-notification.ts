@@ -21,7 +21,9 @@ type UseNotificationsOptions = {
 export function useNotifications(options: UseNotificationsOptions = {}) {
   const { workspaceId } = options;
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [allNotifications, setAllNotifications] = useState<NotificationItem[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
 
   // fetch initial notifications
@@ -41,11 +43,11 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
         const data = await res.json();
 
-        setNotifications(data.data || []);
+        setAllNotifications(data.data || []);
       } catch (error) {
         if (!controller.signal.aborted) {
           console.error("Failed to fetch notifications:", error);
-          setNotifications([]);
+          setAllNotifications([]);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -64,7 +66,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     function handler(e: Event) {
       const incoming = (e as CustomEvent<NotificationItem>).detail;
 
-      setNotifications((prev) => {
+      setAllNotifications((prev) => {
         const existing = prev.find((n) => n.id === incoming.id);
 
         if (existing) {
@@ -88,15 +90,21 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     return () => {
       window.removeEventListener("notification:new", handler);
     };
-  }, [workspaceId]);
+  }, []);
+
+  const notifications = workspaceId
+    ? allNotifications.filter(
+        (notification) => notification.workspaceId === workspaceId,
+      )
+    : allNotifications;
 
   // mark one as read
   async function markAsRead(notificationId: string) {
-    const target = notifications.find((n) => n.id === notificationId);
+    const target = allNotifications.find((n) => n.id === notificationId);
 
     if (!target || target.isRead) return;
 
-    setNotifications((prev) =>
+    setAllNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
     );
 
@@ -107,7 +115,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
       if (!res.ok) throw new Error("Failed");
     } catch {
-      setNotifications((prev) =>
+      setAllNotifications((prev) =>
         prev.map((n) =>
           n.id === notificationId ? { ...n, isRead: false } : n,
         ),
@@ -117,19 +125,24 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   // mark all as read
   async function markAllAsRead() {
-    const prevNotifications = notifications;
+    const prevNotifications = allNotifications;
 
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setAllNotifications((prev) =>
+      prev.map((n) =>
+        workspaceId && n.workspaceId !== workspaceId ? n : { ...n, isRead: true },
+      ),
+    );
 
     try {
       const res = await fetch("/api/notifications/mark-all", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(workspaceId ? { workspaceId } : {}),
       });
 
       if (!res.ok) throw new Error("Failed");
     } catch {
-      setNotifications(prevNotifications);
+      setAllNotifications(prevNotifications);
     }
   }
 

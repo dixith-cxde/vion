@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Poppins, Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "./_components/navbar";
 import { ClerkProvider } from "@clerk/nextjs";
 import { WorkspaceProvider } from "./_components/context/workspace-context-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { SocketProvider } from "./_components/provider/socket-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -31,11 +31,12 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", inter.variable)}>
       <body className={`${poppins.variable} ${poppins.className} antialiased`}>
         <ClerkProvider>
-          <WorkspaceProvider>
-            <Navbar />
-            <SocketProvider />
-            <main className="min-h-[calc(100vh-56px)]">{children}</main>
-          </WorkspaceProvider>
+          <TooltipProvider>
+            <WorkspaceProvider>
+              <SocketProvider />
+              {children}
+            </WorkspaceProvider>
+          </TooltipProvider>
         </ClerkProvider>
         <Toaster />
       </body>
