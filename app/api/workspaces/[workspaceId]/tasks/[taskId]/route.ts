@@ -8,6 +8,30 @@ import {
   resolveWorkspaceAssignee,
 } from "@/lib/services/task-assignment.service";
 
+function serializeTask(
+  task: {
+    assigneeId: string | null;
+    assignee?: {
+      id: string;
+      name: string;
+      email: string;
+      imageUrl: string | null;
+    } | null;
+    createdBy?: {
+      id: string;
+      name: string;
+      email: string;
+      imageUrl: string | null;
+    } | null;
+  } & Record<string, unknown>,
+) {
+  return {
+    ...task,
+    assignedToId: task.assigneeId,
+    assignedTo: task.assignee ?? null,
+  };
+}
+
 export async function GET(
   _req: Request,
   context: RouteContext<"/api/workspaces/[workspaceId]/tasks/[taskId]">,
@@ -28,8 +52,25 @@ export async function GET(
         id: taskId,
         workspaceId,
       },
+      include: {
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+      },
     });
-
     if (!task) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
@@ -39,7 +80,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: task,
+      data: serializeTask(task),
     });
   } catch (err) {
     console.error("Task GET error:", err);
@@ -102,13 +143,18 @@ export async function PATCH(
       );
     }
 
-    const { assigneeId: nextAssigneeId, ...restTaskFields } = parsedBody.data;
+    const {
+      assignedToId,
+      assigneeId: legacyAssigneeId,
+      ...restTaskFields
+    } = parsedBody.data;
     const data: Prisma.TaskUpdateInput = { ...restTaskFields };
+    const nextAssignedToId = assignedToId ?? legacyAssigneeId;
 
-    if (nextAssigneeId !== undefined) {
+    if (nextAssignedToId !== undefined) {
       const { assigneeId } = await resolveWorkspaceAssignee(
         workspaceId,
-        nextAssigneeId,
+        nextAssignedToId,
       );
 
       data.assignee = assigneeId
@@ -125,11 +171,29 @@ export async function PATCH(
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data,
+      include: {
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+      },
     });
 
     await notifyTaskAssignment({
-      assigneeId: updatedTask.assigneeId,
-      previousAssigneeId: existingTask.assigneeId,
+      assignedToId: updatedTask.assigneeId,
+      previousAssignedToId: existingTask.assigneeId,
       taskId: updatedTask.id,
       taskTitle: updatedTask.title,
       workspaceId,
@@ -138,7 +202,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      data: updatedTask,
+      data: serializeTask(updatedTask),
     });
   } catch (err) {
     if (err instanceof Error && err.message === "INVALID_ASSIGNEE") {

@@ -47,12 +47,25 @@ type MemberOption = {
   user: { id: string; name: string | null; email: string | null };
 };
 
+type TaskPerson = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  imageUrl?: string | null;
+};
+
+type TaskRecord = Task & {
+  assignedToId?: string | null;
+  assignedTo?: TaskPerson | null;
+  createdBy?: TaskPerson | null;
+};
+
 type TaskMetaState = {
   title: string;
   status: TaskStatus;
   priority: TaskPriority;
   lifecycle: TaskLifecycle;
-  assigneeId: string | null;
+  assignedToId: string | null;
   dueDate: string;
   estimatedAt: string;
 };
@@ -113,7 +126,7 @@ export default function TaskPage() {
   const workspaceId = params.workspaceId as string;
   const taskId = params.taskId as string;
 
-  const [task, setTask] = useState<Task | null>(null);
+  const [task, setTask] = useState<TaskRecord | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [initialEditorContent, setInitialEditorContent] = useState<
     Block[] | undefined
@@ -137,7 +150,9 @@ export default function TaskPage() {
 
         const taskJson = await taskRes.json();
         setTask(taskJson.data);
-        setInitialEditorContent(safeParseDescription(taskJson.data.description));
+        setInitialEditorContent(
+          safeParseDescription(taskJson.data.description),
+        );
 
         if (memberRes.ok) {
           const membersJson = await memberRes.json();
@@ -190,7 +205,7 @@ export default function TaskPage() {
         status: task.status,
         priority: normalizePriority(task.priority),
         lifecycle: task.lifecycle,
-        assigneeId: task.assigneeId,
+        assignedToId: task.assignedToId ?? task.assigneeId,
         dueDate: formatDateInputValue(task.dueDate),
         estimatedAt:
           typeof task.estimatedAt === "number" ? String(task.estimatedAt) : "",
@@ -214,7 +229,7 @@ function TaskPageContent({
   members,
   initialEditorContent,
 }: {
-  task: Task;
+  task: TaskRecord;
   taskId: string;
   workspaceId: string;
   members: MemberOption[];
@@ -233,7 +248,7 @@ function TaskPageContent({
     status: task.status,
     priority: normalizePriority(task.priority),
     lifecycle: task.lifecycle,
-    assigneeId: task.assigneeId,
+    assignedToId: task.assignedToId ?? task.assigneeId,
     dueDate: formatDateInputValue(task.dueDate),
     estimatedAt:
       typeof task.estimatedAt === "number" ? String(task.estimatedAt) : "",
@@ -270,7 +285,7 @@ function TaskPageContent({
           status: meta.status,
           priority: meta.priority,
           lifecycle: meta.lifecycle,
-          assigneeId: meta.assigneeId,
+          assignedToId: meta.assignedToId,
           dueDate: meta.dueDate ? new Date(meta.dueDate).toISOString() : null,
           estimatedAt: meta.estimatedAt ? Number(meta.estimatedAt) : null,
         };
@@ -402,6 +417,9 @@ function TaskPageContent({
                 Created {createdAtLabel}
               </Badge>
               <Badge className="h-9 rounded-full border-0 bg-muted px-4 text-xs font-medium text-muted-foreground">
+                Created by {formatPersonLabel(task.createdBy)}
+              </Badge>
+              <Badge className="h-9 rounded-full border-0 bg-muted px-4 text-xs font-medium text-muted-foreground">
                 Updated {updatedAtLabel}
               </Badge>
             </div>
@@ -453,23 +471,11 @@ function TaskPageContent({
             ))}
           </TaskSelect>
 
-          <TaskSelect
-            value={meta.assigneeId ?? "__none__"}
-            onValueChange={(value) =>
-              updateMeta({
-                assigneeId: value === "__none__" ? null : value,
-              })
-            }
-            triggerClassName="bg-cyan-50 text-cyan-700"
-            placeholder="Unassigned"
-          >
-            <SelectItem value="__none__">Unassigned</SelectItem>
-            {members.map((member) => (
-              <SelectItem key={member.user.id} value={member.user.id}>
-                {member.user.name || member.user.email}
-              </SelectItem>
-            ))}
-          </TaskSelect>
+          <AssignedToPicker
+            members={members}
+            value={meta.assignedToId}
+            onChange={(value) => updateMeta({ assignedToId: value })}
+          />
 
           <MetaInput
             label="Due"
@@ -551,9 +557,7 @@ function MetaInput({
         className,
       )}
     >
-      <span>
-        {label}
-      </span>
+      <span>{label}</span>
       <Input
         {...props}
         className="h-auto w-auto min-w-[5rem] border-0 bg-transparent p-0 text-xs font-semibold shadow-none focus-visible:ring-0"
@@ -562,10 +566,143 @@ function MetaInput({
   );
 }
 
+function AssignedToPicker({
+  members,
+  value,
+  onChange,
+}: {
+  members: MemberOption[];
+  value: string | null;
+  onChange: (value: string | null) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedMember = useMemo(
+    () => members.find((member) => member.user.id === value) ?? null,
+    [members, value],
+  );
+
+  useEffect(() => {
+    setQuery("");
+  }, [value]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target || !containerRef.current?.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isOpen]);
+
+  const filteredMembers = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return members;
+    }
+
+    return members.filter((member) =>
+      formatMemberLabel(member.user).toLowerCase().includes(normalizedQuery),
+    );
+  }, [members, query]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="flex h-9 min-w-[12rem] items-center rounded-full border-0 bg-cyan-50 px-4 text-xs font-medium text-cyan-700 shadow-none"
+      >
+        Assigned to:{" "}
+        {selectedMember ? formatMemberLabel(selectedMember.user) : "Unassigned"}
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-11 z-30 w-72 rounded-2xl border bg-background p-2 shadow-xl">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search workspace members"
+            className="h-9 rounded-xl border bg-background px-3 text-xs"
+            autoFocus
+          />
+
+          <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(null);
+                setIsOpen(false);
+              }}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-muted"
+            >
+              <span>Unassigned</span>
+              {!value ? (
+                <span className="text-xs text-muted-foreground">Selected</span>
+              ) : null}
+            </button>
+
+            {filteredMembers.map((member) => (
+              <button
+                key={member.user.id}
+                type="button"
+                onClick={() => {
+                  onChange(member.user.id);
+                  setIsOpen(false);
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-muted"
+              >
+                <span>{formatMemberLabel(member.user)}</span>
+                {value === member.user.id ? (
+                  <span className="text-xs text-muted-foreground">
+                    Selected
+                  </span>
+                ) : null}
+              </button>
+            ))}
+
+            {filteredMembers.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">
+                No matching workspace members
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function normalizePriority(value: string): TaskPriority {
   return TASK_PRIORITY_OPTIONS.includes(value as TaskPriority)
     ? (value as TaskPriority)
     : "MEDIUM";
+}
+
+function formatMemberLabel(member: {
+  name: string | null;
+  email: string | null;
+}) {
+  return member.name || member.email || "Unknown member";
+}
+
+function formatPersonLabel(person?: TaskPerson | null) {
+  if (!person?.name) {
+    return "Unknown";
+  }
+
+  return formatMemberLabel(person);
 }
 
 function formatDateInputValue(value: Date | string | null | undefined) {

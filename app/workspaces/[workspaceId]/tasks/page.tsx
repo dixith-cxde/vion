@@ -1,13 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  CheckSquare2,
-  LoaderCircle,
-  Plus,
-  Sparkles,
-} from "lucide-react";
+import { CheckSquare2, LoaderCircle, Plus, Sparkles } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,12 +15,14 @@ import { groupTasks } from "@/lib/tasks/group-tasks";
 import { ViewTabs } from "@/app/_components/tasks/view-tabs";
 import { KanbanBoard } from "@/app/_components/tasks/kanban-view";
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
+import { toast } from "@/hooks/use-toast";
 
 export default function TasksPage() {
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId as string;
   const { activeWorkspace } = useWorkspace();
 
+  const router = useRouter();
   const { tasks, loading, createTask, updateStatus } = useTasks(workspaceId);
 
   const [view, setView] = useState<TaskLifecycle>("ACTIVE");
@@ -42,7 +39,9 @@ export default function TasksPage() {
   const grouped = groupTasks(lifecycleTasks);
   const doneCount = tasks.filter((task) => task.status === "DONE").length;
   const completionRate =
-    tasks.length === 0 ? "0%" : `${Math.round((doneCount / tasks.length) * 100)}%`;
+    tasks.length === 0
+      ? "0%"
+      : `${Math.round((doneCount / tasks.length) * 100)}%`;
 
   if (loading) {
     return (
@@ -71,15 +70,22 @@ export default function TasksPage() {
                 {activeWorkspace?.name ?? "Workspace"} tasks
               </h1>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Track execution across lifecycle stages, keep active work visible,
-                and move tasks through the board in any lifecycle view without
-                losing context.
+                Track execution across lifecycle stages, keep active work
+                visible, and move tasks through the board in any lifecycle view
+                without losing context.
               </p>
             </div>
           </div>
 
           <Button
-            onClick={() => createTask("New Task", "TODO")}
+            onClick={async () => {
+              const taskid = await createTask("New Task", "TODO");
+              if (!taskid) {
+                toast({ title: "Failed to create task" });
+                return;
+              }
+              router.push(`/workspaces/${workspaceId}/tasks/${taskid}`);
+            }}
             className="rounded-lg"
           >
             <Plus className="size-4" />

@@ -10,6 +10,7 @@ export const createTaskSchema = z.object({
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional(),
   dueDate: z.coerce.date().nullable().optional(),
   estimatedAt: z.number().int().positive().nullable().optional(),
+  assignedToId: z.string().uuid().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
 });
 
@@ -23,6 +24,7 @@ export const updateTaskSchema = z.object({
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional(),
   dueDate: z.coerce.date().nullable().optional(),
   estimatedAt: z.number().int().positive().nullable().optional(),
+  assignedToId: z.string().uuid().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
 });
 

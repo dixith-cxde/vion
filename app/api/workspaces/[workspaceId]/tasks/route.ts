@@ -7,6 +7,28 @@ import {
   resolveWorkspaceAssignee,
 } from "@/lib/services/task-assignment.service";
 
+function serializeTask(task: {
+  assigneeId: string | null;
+  assignee?: {
+    id: string;
+    name: string;
+    email: string;
+    imageUrl: string | null;
+  } | null;
+  createdBy?: {
+    id: string;
+    name: string;
+    email: string;
+    imageUrl: string | null;
+  } | null;
+} & Record<string, unknown>) {
+  return {
+    ...task,
+    assignedToId: task.assigneeId,
+    assignedTo: task.assignee ?? null,
+  };
+}
+
 export async function POST(
   req: Request,
   context: RouteContext<"/api/workspaces/[workspaceId]/tasks">,
@@ -51,21 +73,49 @@ export async function POST(
       );
     }
 
+    const requestedAssignedToId =
+      parsed.data.assignedToId ?? parsed.data.assigneeId;
+
     const { assigneeId } = await resolveWorkspaceAssignee(
       workspaceId,
-      parsed.data.assigneeId,
+      requestedAssignedToId,
     );
+
+    const {
+      assignedToId: _assignedToId,
+      assigneeId: _assigneeId,
+      ...taskFields
+    } = parsed.data;
 
     const task = await prisma.task.create({
       data: {
-        ...parsed.data,
+        ...taskFields,
         workspaceId,
         assigneeId: assigneeId ?? null,
+        createdById: user.id,
+      },
+      include: {
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
       },
     });
 
     await notifyTaskAssignment({
-      assigneeId: task.assigneeId,
+      assignedToId: task.assigneeId,
       taskId: task.id,
       taskTitle: task.title,
       workspaceId,
@@ -75,7 +125,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: true,
-        data: task,
+        data: serializeTask(task),
       },
       { status: 201 },
     );
@@ -132,6 +182,24 @@ export async function GET(
       where: {
         workspaceId,
       },
+      include: {
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -139,7 +207,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: tasks,
+      data: tasks.map(serializeTask),
     });
   } catch (err) {
     if (err instanceof Error && err.message === "UNAUTHORIZED") {

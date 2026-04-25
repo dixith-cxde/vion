@@ -3,15 +3,15 @@ import { createNotification } from "@/lib/services/notification.service";
 
 export async function resolveWorkspaceAssignee(
   workspaceId: string,
-  assigneeId: string | null | undefined,
+  assignedToId: string | null | undefined,
 ) {
-  if (assigneeId === undefined) {
+  if (assignedToId === undefined) {
     return {
       assigneeId: undefined,
     };
   }
 
-  if (assigneeId === null) {
+  if (assignedToId === null) {
     return {
       assigneeId: null,
     };
@@ -21,7 +21,7 @@ export async function resolveWorkspaceAssignee(
     where: {
       workspaceId_userId: {
         workspaceId,
-        userId: assigneeId,
+        userId: assignedToId,
       },
     },
     select: {
@@ -39,28 +39,28 @@ export async function resolveWorkspaceAssignee(
 }
 
 export async function notifyTaskAssignment(params: {
-  assigneeId: string | null | undefined;
-  previousAssigneeId?: string | null;
+  assignedToId: string | null | undefined;
+  previousAssignedToId?: string | null;
   taskId: string;
   taskTitle: string;
   workspaceId: string;
   actorLabel: string;
 }) {
   const {
-    assigneeId,
-    previousAssigneeId,
+    assignedToId,
+    previousAssignedToId,
     taskId,
     taskTitle,
     workspaceId,
     actorLabel,
   } = params;
 
-  if (!assigneeId || assigneeId === previousAssigneeId) {
+  if (!assignedToId || assignedToId === previousAssignedToId) {
     return;
   }
 
   await createNotification({
-    userId: assigneeId,
+    userId: assignedToId,
     workspaceId,
     type: "TASK_ASSIGNED",
     title: "Task assigned",

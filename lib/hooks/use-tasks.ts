@@ -48,8 +48,11 @@ export function useTasks(workspaceId: string) {
 
   // ---------- CREATE ----------
   const createTask = useCallback(
-    async (title: string, status: TaskStatus = "TODO") => {
-      if (!title) return;
+    async (
+      title: string,
+      status: TaskStatus = "TODO",
+    ): Promise<string | null> => {
+      if (!title) return null;
 
       const tempId = `temp-${Date.now()}`;
 
@@ -64,6 +67,7 @@ export function useTasks(workspaceId: string) {
         estimatedAt: null,
         type: "TASK",
         workspaceId,
+        createdById: null,
         assigneeId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -93,9 +97,11 @@ export function useTasks(workspaceId: string) {
 
         // replace temp with real
         setTasks((prev) => prev.map((t) => (t.id === tempId ? nextTask : t)));
+        return nextTask.id;
       } catch {
         // rollback
         setTasks((prev) => prev.filter((t) => t.id !== tempId));
+        return null;
       }
     },
     [workspaceId],
@@ -118,13 +124,16 @@ export function useTasks(workspaceId: string) {
       );
 
       try {
-        const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
+        const res = await fetch(
+          `/api/workspaces/${workspaceId}/tasks/${taskId}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ status: nextStatus }),
           },
-          body: JSON.stringify({ status: nextStatus }),
-        });
+        );
         if (!res.ok) {
           throw new Error("Failed to update task status");
         }
