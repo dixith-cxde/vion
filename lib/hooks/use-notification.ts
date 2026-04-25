@@ -92,11 +92,12 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     };
   }, []);
 
-  const notifications = workspaceId
-    ? allNotifications.filter(
-        (notification) => notification.workspaceId === workspaceId,
-      )
-    : allNotifications;
+  // const notifications = workspaceId
+  //   ? allNotifications.filter(
+  //       (notification) => notification.workspaceId === workspaceId,
+  //     )
+  //   : allNotifications;
+  const notifications = allNotifications;
 
   // mark one as read
   async function markAsRead(notificationId: string) {
@@ -129,7 +130,9 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
     setAllNotifications((prev) =>
       prev.map((n) =>
-        workspaceId && n.workspaceId !== workspaceId ? n : { ...n, isRead: true },
+        workspaceId && n.workspaceId !== workspaceId
+          ? n
+          : { ...n, isRead: true },
       ),
     );
 

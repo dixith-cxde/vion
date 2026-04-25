@@ -52,7 +52,7 @@ export function NotificationPanel({ workspaceId }: NotificationPanelProps) {
   }, [notifications]);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+    <section className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3 md:px-5">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-muted/35 text-foreground">
