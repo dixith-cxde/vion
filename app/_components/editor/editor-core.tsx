@@ -192,6 +192,12 @@ function EditorCoreInstance({
   setShowMentions,
   showMentions,
 }: EditorCoreInstanceProps) {
+  const parsedInitialContent = useMemo(
+    () => parseInitialContent(initialContent),
+    [initialContent],
+  );
+  const hasBootstrappedContentRef = useRef(false);
+  const isBootstrappingContentRef = useRef(false);
   const editor = useCreateBlockNote(
     {
       ...(provider
@@ -204,13 +210,29 @@ function EditorCoreInstance({
             },
           }
         : {}),
-      initialContent:
-        !provider || shouldBootstrapContent
-          ? parseInitialContent(initialContent)
-          : undefined,
+      initialContent: provider ? undefined : parsedInitialContent,
     },
     [fragment, provider],
   );
+
+  useEffect(() => {
+    hasBootstrappedContentRef.current = false;
+    isBootstrappingContentRef.current = false;
+  }, [editor]);
+
+  useEffect(() => {
+    if (!provider || !shouldBootstrapContent || hasBootstrappedContentRef.current) {
+      return;
+    }
+
+    hasBootstrappedContentRef.current = true;
+    isBootstrappingContentRef.current = true;
+    editor.replaceBlocks(editor.document, parsedInitialContent);
+
+    queueMicrotask(() => {
+      isBootstrappingContentRef.current = false;
+    });
+  }, [editor, parsedInitialContent, provider, shouldBootstrapContent]);
 
   const selectMention = useCallback(
     async (item: MentionEntity) => {
@@ -327,6 +349,10 @@ function EditorCoreInstance({
   }, [filteredEntities, highlightedIndex, selectMention, showMentions]);
 
   const handleChange = () => {
+    if (isBootstrappingContentRef.current) {
+      return;
+    }
+
     const currentMentionQuery = getMentionQueryAtCursor();
 
     if (currentMentionQuery !== null) {

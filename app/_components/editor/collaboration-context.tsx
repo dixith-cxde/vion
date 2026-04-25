@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
@@ -57,6 +58,10 @@ const CollaborationContext = createContext<CollaborationContextValue | null>(
   null,
 );
 
+function subscribeToNothing() {
+  return () => {};
+}
+
 function getCollaborationServerUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_YJS_WS_URL?.trim();
   if (configuredUrl) {
@@ -75,7 +80,10 @@ function getCollaborationServerUrl() {
   return `${protocol}://${window.location.hostname}:1234`;
 }
 
-function getRoomName(entityType: EditorContext["entityType"], entityId: string) {
+function getRoomName(
+  entityType: EditorContext["entityType"],
+  entityId: string,
+) {
   return `${entityType === "DOCUMENT" ? "doc" : "task"}-${entityId}`;
 }
 
@@ -118,10 +126,7 @@ function readMetaMap<T extends Record<string, MetaValue>>(
   return next;
 }
 
-function areUsersEqual(
-  left: CollaborationUser[],
-  right: CollaborationUser[],
-) {
+function areUsersEqual(left: CollaborationUser[], right: CollaborationUser[]) {
   if (left.length !== right.length) return false;
 
   return left.every((user, index) => {
@@ -184,17 +189,27 @@ export function EditorCollaborationProvider({
     () => getRoomName(context.entityType, context.entityId),
     [context.entityId, context.entityType],
   );
-  const [serverUrl, setServerUrl] = useState<string | null>(null);
-  const [hasResolvedServerUrl, setHasResolvedServerUrl] = useState(false);
-  const mode: CollaborationMode = serverUrl ? "collaborative" : "local";
-  const [status, setStatus] = useState<CollaborationContextValue["status"]>(
-    "connecting",
+  const serverUrl = useSyncExternalStore(
+    subscribeToNothing,
+    getCollaborationServerUrl,
+    () => null,
   );
+  const hasResolvedServerUrl = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+  const mode: CollaborationMode = serverUrl ? "collaborative" : "local";
+  const [status, setStatus] =
+    useState<CollaborationContextValue["status"]>("connecting");
   const [synced, setSynced] = useState(false);
+  const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
   const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
   const [shouldBootstrapContent, setShouldBootstrapContent] = useState(false);
   const [activeUsers, setActiveUsers] = useState<CollaborationUser[]>([]);
   const isMountedRef = useRef(false);
+  const initialContentRef = useRef(initialContent);
+  const initialMetaRef = useRef(initialMeta);
 
   const localUser = useMemo(() => {
     const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -220,11 +235,6 @@ export function EditorCollaborationProvider({
   }, [roomName, serverUrl]);
 
   useEffect(() => {
-    setServerUrl(getCollaborationServerUrl());
-    setHasResolvedServerUrl(true);
-  }, []);
-
-  useEffect(() => {
     isMountedRef.current = true;
 
     return () => {
@@ -233,31 +243,54 @@ export function EditorCollaborationProvider({
   }, []);
 
   useEffect(() => {
+    initialContentRef.current = initialContent;
+  }, [initialContent]);
+
+  useEffect(() => {
+    initialMetaRef.current = initialMeta;
+  }, [initialMeta]);
+
+  useEffect(() => {
+    const scheduleStateUpdate = (callback: () => void) => {
+      queueMicrotask(() => {
+        if (!isMountedRef.current) return;
+        callback();
+      });
+    };
+
     if (!hasResolvedServerUrl) {
-      setStatus("connecting");
-      setSynced(false);
-      setHasSyncedOnce(false);
-      setShouldBootstrapContent(false);
-      setActiveUsers([]);
+      scheduleStateUpdate(() => {
+        setStatus("connecting");
+        setSynced(false);
+        setHasConnectedOnce(false);
+        setHasSyncedOnce(false);
+        setShouldBootstrapContent(false);
+        setActiveUsers([]);
+      });
       return;
     }
 
-    setStatus(mode === "collaborative" ? "connecting" : "disconnected");
-    setSynced(mode === "local");
-    setHasSyncedOnce(mode === "local");
-    setShouldBootstrapContent(
-      mode === "local" && (initialContent?.length ?? 0) > 0,
-    );
-    setActiveUsers([]);
+    scheduleStateUpdate(() => {
+      setStatus(mode === "collaborative" ? "connecting" : "disconnected");
+      setSynced(mode === "local");
+      setHasConnectedOnce(mode === "local");
+      setHasSyncedOnce(mode === "local");
+      setShouldBootstrapContent(
+        mode === "local" && (initialContentRef.current?.length ?? 0) > 0,
+      );
+      setActiveUsers([]);
+    });
 
     if (!session.provider) {
+      const seedMeta = initialMetaRef.current;
+
       if (
         session.meta.size === 0 &&
-        initialMeta &&
-        Object.keys(initialMeta).length > 0
+        seedMeta &&
+        Object.keys(seedMeta).length > 0
       ) {
         session.doc.transact(() => {
-          for (const [key, value] of toMetaEntries(initialMeta)) {
+          for (const [key, value] of toMetaEntries(seedMeta)) {
             session.meta.set(key, value);
           }
         });
@@ -270,19 +303,16 @@ export function EditorCollaborationProvider({
 
     const provider = session.provider;
 
-    const scheduleStateUpdate = (callback: () => void) => {
-      queueMicrotask(() => {
-        if (!isMountedRef.current) return;
-        callback();
-      });
-    };
-
     const handleStatus = ({
       status: nextStatus,
     }: {
       status: CollaborationContextValue["status"];
     }) => {
       scheduleStateUpdate(() => {
+        if (nextStatus === "connected") {
+          setHasConnectedOnce(true);
+        }
+
         setStatus((currentStatus) =>
           currentStatus === nextStatus ? currentStatus : nextStatus,
         );
@@ -305,7 +335,7 @@ export function EditorCollaborationProvider({
 
         const fragmentIsEmpty = session.fragment.toArray().length === 0;
         const nextShouldBootstrap =
-          fragmentIsEmpty && (initialContent?.length ?? 0) > 0;
+          fragmentIsEmpty && (initialContentRef.current?.length ?? 0) > 0;
 
         setShouldBootstrapContent((currentValue) =>
           currentValue === nextShouldBootstrap
@@ -313,13 +343,15 @@ export function EditorCollaborationProvider({
             : nextShouldBootstrap,
         );
 
+        const seedMeta = initialMetaRef.current;
+
         if (
           session.meta.size === 0 &&
-          initialMeta &&
-          Object.keys(initialMeta).length > 0
+          seedMeta &&
+          Object.keys(seedMeta).length > 0
         ) {
           session.doc.transact(() => {
-            for (const [key, value] of toMetaEntries(initialMeta)) {
+            for (const [key, value] of toMetaEntries(seedMeta)) {
               session.meta.set(key, value);
             }
           });
@@ -330,44 +362,44 @@ export function EditorCollaborationProvider({
     const handleAwarenessChange = () => {
       const users = dedupeUsers(
         Array.from(provider.awareness.getStates().entries())
-        .map(([clientId, state]) => {
-          if (!state || typeof state !== "object" || !("user" in state)) {
-            return null;
-          }
+          .map(([clientId, state]) => {
+            if (!state || typeof state !== "object" || !("user" in state)) {
+              return null;
+            }
 
-          const awarenessUser = (state as { user?: Record<string, unknown> })
-            .user;
+            const awarenessUser = (state as { user?: Record<string, unknown> })
+              .user;
 
-          if (!awarenessUser || typeof awarenessUser !== "object") {
-            return null;
-          }
+            if (!awarenessUser || typeof awarenessUser !== "object") {
+              return null;
+            }
 
-          const id =
-            typeof awarenessUser.id === "string"
-              ? awarenessUser.id
-              : String(clientId);
-          const name =
-            typeof awarenessUser.name === "string"
-              ? awarenessUser.name
-              : "User";
-          const color =
-            typeof awarenessUser.color === "string"
-              ? awarenessUser.color
-              : "#3b82f6";
-          const imageUrl =
-            typeof awarenessUser.imageUrl === "string"
-              ? awarenessUser.imageUrl
-              : null;
+            const id =
+              typeof awarenessUser.id === "string"
+                ? awarenessUser.id
+                : String(clientId);
+            const name =
+              typeof awarenessUser.name === "string"
+                ? awarenessUser.name
+                : "User";
+            const color =
+              typeof awarenessUser.color === "string"
+                ? awarenessUser.color
+                : "#3b82f6";
+            const imageUrl =
+              typeof awarenessUser.imageUrl === "string"
+                ? awarenessUser.imageUrl
+                : null;
 
-          return {
-            clientId,
-            id,
-            name,
-            color,
-            imageUrl,
-          } satisfies CollaborationUser;
-        })
-        .filter((value): value is CollaborationUser => value !== null),
+            return {
+              clientId,
+              id,
+              name,
+              color,
+              imageUrl,
+            } satisfies CollaborationUser;
+          })
+          .filter((value): value is CollaborationUser => value !== null),
       );
 
       scheduleStateUpdate(() => {
@@ -407,13 +439,7 @@ export function EditorCollaborationProvider({
       provider.destroy();
       session.doc.destroy();
     };
-  }, [
-    hasResolvedServerUrl,
-    initialContent,
-    initialMeta,
-    mode,
-    session,
-  ]);
+  }, [hasResolvedServerUrl, mode, session]);
 
   useEffect(() => {
     if (session.provider) {
@@ -444,7 +470,9 @@ export function EditorCollaborationProvider({
           },
         ]);
 
-        return areUsersEqual(currentUsers, nextUsers) ? currentUsers : nextUsers;
+        return areUsersEqual(currentUsers, nextUsers)
+          ? currentUsers
+          : nextUsers;
       });
     });
   }, [
@@ -466,7 +494,9 @@ export function EditorCollaborationProvider({
       mode,
       status,
       synced,
-      editorReady: hasResolvedServerUrl && (mode === "local" || hasSyncedOnce),
+      editorReady:
+        hasResolvedServerUrl &&
+        (mode === "local" || hasConnectedOnce || hasSyncedOnce),
       shouldBootstrapContent,
       localUser,
       activeUsers,
@@ -480,6 +510,7 @@ export function EditorCollaborationProvider({
       mode,
       roomName,
       session,
+      hasConnectedOnce,
       hasResolvedServerUrl,
       hasSyncedOnce,
       shouldBootstrapContent,
