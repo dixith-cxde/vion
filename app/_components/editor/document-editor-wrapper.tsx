@@ -72,11 +72,6 @@ export default function EditorWrapper({
 
   return (
     <EditorCore
-      context={{
-        entityType: "DOCUMENT",
-        entityId: documentId,
-        workspaceId,
-      }}
       initialContent={initialContent}
       editable={true}
       onChange={setContent}

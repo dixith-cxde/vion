@@ -14,5 +14,6 @@ export const updateDocumentSchema = z.object({
   title: z.string().min(1).optional(),
   summary: z.string().optional(),
   status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+  version: z.number().int().min(1).optional(),
   authorName: z.string().min(1).optional(),
 });

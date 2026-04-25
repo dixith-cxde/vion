@@ -5,12 +5,18 @@ import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 export async function POST(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
-    const { workspaceId } = params;
+    const { workspaceId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const body = await req.json();
 
@@ -18,7 +24,7 @@ export async function POST(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.errors[0].message },
+        { error: parsed.error.issues[0]?.message ?? "Invalid payload" },
         { status: 400 },
       );
     }
@@ -32,19 +38,24 @@ export async function POST(
       success: true,
       data: relationship,
     });
-  } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    if (err.message === "FORBIDDEN") {
+    if (err instanceof Error && err.message === "FORBIDDEN") {
       return new Response("Forbidden", { status: 403 });
     }
 
     console.error(err);
 
     return NextResponse.json(
-      { error: "Failed to create relationship" },
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Failed to create relationship",
+      },
       { status: 500 },
     );
   }

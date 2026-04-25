@@ -1,15 +1,20 @@
 "use client";
 
 import type { Block } from "@blocknote/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import "./editor.css";
 
+import {
+  EditorCollaborationProvider,
+  useCollaborativeMeta,
+} from "./collaboration-context";
+import { CollaborationPresence } from "./collaboration-presence";
+import EditorWrapper from "./document-editor-wrapper";
+
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,14 +25,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import EditorWrapper from "./document-editor-wrapper";
 import { SaveState } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface EditorProps {
   documentId: string;
   workspaceId: string;
   initialContent?: Block[];
-  editable?: boolean;
   meta: {
     title: string;
     status: string;
@@ -40,223 +44,252 @@ interface EditorProps {
   };
 }
 
+type DocumentMetaState = {
+  title: string;
+  summary: string;
+  status: "DRAFT" | "PUBLISHED";
+  version: number;
+  authorName: string;
+};
+
+function formatStaticDateLabel(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(value));
+}
+
 export default function DocumentEditor({
   documentId,
   workspaceId,
   initialContent,
   meta,
 }: EditorProps) {
+  return (
+    <EditorCollaborationProvider
+      context={{
+        entityType: "DOCUMENT",
+        entityId: documentId,
+        workspaceId,
+      }}
+      initialContent={initialContent}
+      initialMeta={{
+        title: meta.title,
+        summary: meta.summary ?? "",
+        status: meta.status,
+        version: meta.version,
+        authorName: meta.authorName ?? "",
+      }}
+    >
+      <DocumentEditorContent
+        documentId={documentId}
+        workspaceId={workspaceId}
+        initialContent={initialContent}
+        meta={meta}
+      />
+    </EditorCollaborationProvider>
+  );
+}
+
+function DocumentEditorContent({
+  documentId,
+  workspaceId,
+  initialContent,
+  meta,
+}: EditorProps) {
   const [saveState, setSaveState] = useState<SaveState>("saved");
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveErrorShownRef = useRef(false);
+  const { meta: collaborativeMeta, updateMeta } =
+    useCollaborativeMeta<DocumentMetaState>({
+      title: meta.title,
+      summary: meta.summary ?? "",
+      status: (meta.status as "DRAFT" | "PUBLISHED") ?? "DRAFT",
+      version: meta.version,
+      authorName: meta.authorName ?? "",
+    });
 
-  const metaTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const metaSaveErrorShownRef = useRef(false);
+  const createdAtLabel = useMemo(
+    () => formatStaticDateLabel(meta.createdAt),
+    [meta.createdAt],
+  );
 
-  const [title, setTitle] = useState(meta.title);
-  const [summary, setSummary] = useState(meta.summary ?? "");
-  const [status, setStatus] = useState(meta.status);
-  const [authorName, setAuthorName] = useState(meta.authorName ?? "");
-
-  const createdAtLabel = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(meta.createdAt));
-
-  const updatedAtLabel = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(meta.updatedAt));
+  const updatedAtLabel = useMemo(
+    () => formatStaticDateLabel(meta.updatedAt),
+    [meta.updatedAt],
+  );
 
   useEffect(() => {
     return () => {
-      if (metaTimeoutRef.current) clearTimeout(metaTimeoutRef.current);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
   }, []);
 
-  const saveDocumentMeta = useCallback(
-    (payload: {
-      title?: string;
-      summary?: string;
-      status?: string;
-      authorName?: string;
-    }) => {
-      if (metaTimeoutRef.current) clearTimeout(metaTimeoutRef.current);
+  useEffect(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
 
-      metaTimeoutRef.current = setTimeout(async () => {
-        try {
-          if (!workspaceId) return;
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setSaveState("saving");
 
-          const response = await fetch(
-            `/api/workspaces/${workspaceId}/documents/${documentId}`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            },
-          );
-          if (!response.ok) {
-            throw new Error("Document meta save failed");
-          }
-          metaSaveErrorShownRef.current = false;
-        } catch (error) {
-          console.error("Document meta save failed:", error);
-          if (!metaSaveErrorShownRef.current) {
-            metaSaveErrorShownRef.current = true;
-            toast({
-              title: "Document update failed",
-              description: "Metadata changes could not be saved.",
-              variant: "destructive",
-            });
-          }
+        const payload = {
+          title: collaborativeMeta.title.trim() || "Untitled",
+          summary: collaborativeMeta.summary,
+          status: collaborativeMeta.status,
+          version: collaborativeMeta.version,
+          ...(collaborativeMeta.authorName.trim()
+            ? { authorName: collaborativeMeta.authorName.trim() }
+            : {}),
+        };
+
+        const response = await fetch(
+          `/api/workspaces/${workspaceId}/documents/${documentId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Document meta save failed");
         }
-      }, 350);
-    },
-    [documentId, workspaceId],
-  );
 
-  const handleTitleChange = (value: string) => {
-    setTitle(value);
-    const nextTitle = value.trim();
-    if (!nextTitle) return;
-    saveDocumentMeta({ title: nextTitle });
-  };
+        saveErrorShownRef.current = false;
+        setSaveState("saved");
+      } catch (error) {
+        console.error("Document meta save failed:", error);
+        setSaveState("error");
 
-  const handleStatusChange = (value: "DRAFT" | "PUBLISHED") => {
-    setStatus(value);
-    saveDocumentMeta({ status: value });
-  };
+        if (!saveErrorShownRef.current) {
+          saveErrorShownRef.current = true;
+          toast({
+            title: "Document update failed",
+            description: "Metadata changes could not be saved.",
+            variant: "destructive",
+          });
+        }
+      }
+    }, 450);
 
-  const handleSummaryChange = (value: string) => {
-    setSummary(value);
-    saveDocumentMeta({ summary: value });
-  };
-
-  const handleAuthorChange = (value: string) => {
-    setAuthorName(value);
-    const nextAuthorName = value.trim();
-    if (!nextAuthorName) return;
-    saveDocumentMeta({ authorName: nextAuthorName });
-  };
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [collaborativeMeta, documentId, workspaceId]);
 
   return (
-    <div className="relative vion-editor-shell w-full">
-      <Card className="flex h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-none border-0 shadow-none md:rounded-none">
-        <CardHeader className="sticky top-0 z-20 gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur md:px-5 md:py-2">
-          <div className="flex flex-col gap-2">
-            <div className="min-w-0 flex-1">
-              <Input
-                value={title}
-                onChange={(event) => handleTitleChange(event.target.value)}
-                className="mt-1 h-auto rounded-none border-0 bg-transparent px-0 py-0 text-[1.4rem] font-semibold tracking-[-0.04em] text-foreground shadow-none focus-visible:ring-0 md:text-[1.65rem]"
-                placeholder="Untitled"
-              />
-              <Textarea
-                value={summary}
-                onChange={(event) => handleSummaryChange(event.target.value)}
-                rows={1}
-                className="mt-1 min-h-0 max-w-3xl resize-none rounded-none border-0 bg-transparent px-0 py-0 text-sm leading-5 text-muted-foreground shadow-none focus-visible:ring-0"
-                placeholder="Add a short summary"
-              />
-            </div>
+    <div className="flex h-[calc(100vh-4rem)] flex-col bg-background">
+      <div className="border-b px-4 py-4 md:px-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <Input
+              value={collaborativeMeta.title}
+              onChange={(event) => updateMeta({ title: event.target.value })}
+              className="h-auto border-0 bg-transparent px-0 text-[2rem] font-semibold tracking-[-0.04em] shadow-none focus-visible:ring-0 md:text-[2.5rem]"
+              placeholder="Untitled"
+            />
+            <Textarea
+              value={collaborativeMeta.summary}
+              onChange={(event) => updateMeta({ summary: event.target.value })}
+              rows={1}
+              className="mt-2 min-h-0 max-w-3xl resize-none border-0 bg-transparent px-0 text-sm leading-6 text-muted-foreground shadow-none focus-visible:ring-0"
+              placeholder="Add a short summary"
+            />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge
-                variant={
-                  saveState === "saving"
-                    ? "secondary"
-                    : saveState === "error"
-                      ? "document"
-                      : "outline"
-                }
-                className=" text-xs font-medium  outline-none border-none px-5 py-2 bg-muted"
-              >
-                {saveState === "saving" && "Saving..."}
-                {saveState === "saved" && "Saved"}
-                {saveState === "error" && "Error"}
-                {saveState === "idle" && ""}
-              </Badge>
-              <Badge
-                variant="document"
-                className=" text-xs font-medium  outline-none border-none px-5 py-2"
-              >
-                Document
-              </Badge>
-            </div>
+          <CollaborationPresence />
+        </div>
 
-            <div className="inline-flex items-center rounded-full px-2 gap-2">
-              <Select
-                value={status}
-                onValueChange={(value) =>
-                  handleStatusChange(value as "DRAFT" | "PUBLISHED")
-                }
-              >
-                <SelectTrigger className="h-auto min-h-0  w-auto gap-1 border-0  px-5 bg-muted py-0 text-[10px] font-medium leading-none uppercase tracking-[0.16em]  shadow-none focus-visible:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="p-2">
-                  <SelectItem
-                    value="DRAFT"
-                    className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]"
-                  >
-                    DRAFT
-                  </SelectItem>
-                  <SelectItem
-                    value="PUBLISHED"
-                    className="min-h-0 rounded-xl px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]"
-                  >
-                    PUBLISHED
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="mt-4 flex flex-wrap items-center gap-2.5">
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-9 rounded-full border-0 px-4 text-xs font-medium",
+              saveState === "saving" && "bg-amber-50 text-amber-700",
+              saveState === "saved" && "bg-emerald-50 text-emerald-700",
+              saveState === "error" && "bg-rose-50 text-rose-700",
+            )}
+          >
+            {saveState === "saving"
+              ? "Saving..."
+              : saveState === "error"
+                ? "Error"
+                : "Saved"}
+          </Badge>
+          <Select
+            value={collaborativeMeta.status}
+            onValueChange={(value) =>
+              updateMeta({ status: value as DocumentMetaState["status"] })
+            }
+          >
+            <SelectTrigger
+              className={cn(
+                "h-9 min-w-32 rounded-full border-0 px-4 text-xs font-medium shadow-none focus-visible:ring-0",
+                collaborativeMeta.status === "PUBLISHED"
+                  ? "bg-blue-50 text-blue-700"
+                  : "bg-zinc-100 text-zinc-700",
+              )}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DRAFT">Draft</SelectItem>
+              <SelectItem value="PUBLISHED">Published</SelectItem>
+            </SelectContent>
+          </Select>
+          <label className="flex h-9 items-center gap-2 rounded-full bg-violet-50 px-4 text-xs font-medium text-violet-700">
+            <span>Version</span>
+            <Input
+              type="number"
+              min="1"
+              value={String(collaborativeMeta.version)}
+              onChange={(event) =>
+                updateMeta({
+                  version: Math.max(1, Number(event.target.value) || 1),
+                })
+              }
+              className="h-auto w-12 border-0 bg-transparent p-0 text-xs font-semibold text-violet-700 shadow-none focus-visible:ring-0"
+            />
+          </label>
+          <Badge className="h-9 rounded-full border-0 bg-muted px-4 text-xs font-medium text-muted-foreground">
+            Created {createdAtLabel}
+          </Badge>
+          <Badge className="h-9 rounded-full border-0 bg-muted px-4 text-xs font-medium text-muted-foreground">
+            Updated {updatedAtLabel}
+          </Badge>
+        </div>
 
-              <Separator orientation="vertical" className="w-2" />
-              <Badge
-                variant="muted"
-                className=" text-xs font-medium  outline-none border-none px-5 py-2"
-              >
-                Version: v{meta.version}
-              </Badge>
-              <div className="flex items-center gap-1.5 rounded-full  bg-emerald-50 px-5 py-2 dark:border-emerald-900 dark:bg-emerald-950">
-                <Label className="text-xs text-emerald-700 dark:text-emerald-300">
-                  Author
-                </Label>
-                <Input
-                  value={authorName}
-                  onChange={(event) => handleAuthorChange(event.target.value)}
-                  className="h-auto min-w-16 border-0 bg-transparent px-0 py-0 text-xs font-medium text-emerald-700 shadow-none placeholder:text-emerald-400 focus-visible:ring-0 dark:text-emerald-300"
-                  placeholder="Unknown"
-                />
-              </div>
-              <Separator orientation="vertical" className="w-2" />
-
-              <Badge
-                variant="muted"
-                className=" text-xs font-medium bg-muted outline-none border-none px-5 py-2"
-              >
-                Created: {createdAtLabel}
-              </Badge>
-              <Badge
-                variant="muted"
-                className=" text-xs font-medium bg-muted outline-none border-none px-5 py-2"
-              >
-                Updated: {updatedAtLabel}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="min-h-0 flex-1 overflow-y-auto px-2 py-2 md:px-3 md:py-3">
-          <EditorWrapper
-            documentId={documentId}
-            workspaceId={workspaceId}
-            initialContent={initialContent}
-            setSaveState={setSaveState}
+        <div className="mt-3 flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+          <span className="text-xs font-medium">Author</span>
+          <Input
+            value={collaborativeMeta.authorName}
+            onChange={(event) =>
+              updateMeta({ authorName: event.target.value })
+            }
+            className="h-auto max-w-56 border-0 bg-transparent px-0 text-sm font-medium text-emerald-700 shadow-none focus-visible:ring-0"
+            placeholder="Unknown"
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="min-h-0 flex-1 overflow-hidden px-3 py-3 md:px-4">
+        <EditorWrapper
+          documentId={documentId}
+          workspaceId={workspaceId}
+          initialContent={initialContent}
+          setSaveState={setSaveState}
+        />
+      </div>
     </div>
   );
 }

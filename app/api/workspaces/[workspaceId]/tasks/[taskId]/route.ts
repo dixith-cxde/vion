@@ -3,6 +3,10 @@ import { type Prisma } from "@/lib/generated/prisma/client";
 import { NextResponse } from "next/server";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { updateTaskSchema, taskParamsSchema } from "@/lib/validators/tasks";
+import {
+  notifyTaskAssignment,
+  resolveWorkspaceAssignee,
+} from "@/lib/services/task-assignment.service";
 
 export async function GET(
   _req: Request,
@@ -84,6 +88,11 @@ export async function PATCH(
         id: taskId,
         workspaceId,
       },
+      select: {
+        id: true,
+        title: true,
+        assigneeId: true,
+      },
     });
 
     if (!existingTask) {
@@ -93,11 +102,38 @@ export async function PATCH(
       );
     }
 
-    const data: Prisma.TaskUpdateInput = { ...parsedBody.data };
+    const { assigneeId: nextAssigneeId, ...restTaskFields } = parsedBody.data;
+    const data: Prisma.TaskUpdateInput = { ...restTaskFields };
+
+    if (nextAssigneeId !== undefined) {
+      const { assigneeId } = await resolveWorkspaceAssignee(
+        workspaceId,
+        nextAssigneeId,
+      );
+
+      data.assignee = assigneeId
+        ? {
+            connect: {
+              id: assigneeId,
+            },
+          }
+        : {
+            disconnect: true,
+          };
+    }
 
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data,
+    });
+
+    await notifyTaskAssignment({
+      assigneeId: updatedTask.assigneeId,
+      previousAssigneeId: existingTask.assigneeId,
+      taskId: updatedTask.id,
+      taskTitle: updatedTask.title,
+      workspaceId,
+      actorLabel: access.user.email,
     });
 
     return NextResponse.json({
@@ -105,6 +141,16 @@ export async function PATCH(
       data: updatedTask,
     });
   } catch (err) {
+    if (err instanceof Error && err.message === "INVALID_ASSIGNEE") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Assignee must be a member of the workspace",
+        },
+        { status: 400 },
+      );
+    }
+
     if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }

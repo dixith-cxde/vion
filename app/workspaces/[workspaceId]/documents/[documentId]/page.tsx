@@ -18,7 +18,7 @@ function isBlockArray(value: unknown): value is Block[] {
 export default async function Page({
   params,
 }: {
-  params: { workspaceId: string; documentId: string };
+  params: Promise<{ workspaceId: string; documentId: string }>;
 }) {
   const { workspaceId, documentId } = await params;
   const document = await prisma.document.findFirst({

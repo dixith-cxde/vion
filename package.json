@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:next": "next dev",
+    "collab": "ts-node web-socket/collab.ts",
     "socket": "ts-node web-socket/socket.ts",
     "build": "next build",
     "start": "next start",

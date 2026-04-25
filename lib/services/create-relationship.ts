@@ -57,6 +57,21 @@ export async function createRelationship(data: CreateRelationshipInput) {
     relationshipType,
   } = data;
 
+  const existingRelationship = await prisma.relationship.findFirst({
+    where: {
+      workspaceId,
+      sourceEntityType,
+      sourceEntityId,
+      targetEntityType,
+      targetEntityId,
+      relationshipType,
+    },
+  });
+
+  if (existingRelationship) {
+    return existingRelationship;
+  }
+
   const source = await validateEntity(
     sourceEntityType,
     sourceEntityId,

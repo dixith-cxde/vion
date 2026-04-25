@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
-type EntityType = "TASK" | "DOCUMENT" | "MESSAGE" | "COMMIT";
+type ResolvableRelationship = {
+  sourceEntityType: string;
+  sourceEntityId: string;
+  targetEntityType: string;
+  targetEntityId: string;
+};
 
-export async function resolveEntityLabels(
-  relationships: {
-    sourceEntityType: string;
-    sourceEntityId: string;
-    targetEntityType: string;
-    targetEntityId: string;
-  }[],
+export async function resolveEntityLabels<TRelationship extends ResolvableRelationship>(
+  relationships: TRelationship[],
 ) {
   const taskIds = new Set<string>();
   const documentIds = new Set<string>();

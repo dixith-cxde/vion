@@ -1,7 +1,11 @@
 "use client";
 
 import type { Block } from "@blocknote/core";
-import EditorCore from "./editor-core";
+import dynamic from "next/dynamic";
+
+const EditorCore = dynamic(() => import("./editor-core"), {
+  ssr: false,
+});
 
 type Props = {
   taskId: string;
@@ -16,21 +20,9 @@ export default function TaskEditor({
   description: initialContent,
   onChange,
 }: Props) {
-  // let parsed: Block[] | undefined;
-
-  // try {
-  //   parsed = description ? JSON.parse(description) : undefined;
-  // } catch {
-  //   parsed = undefined;
-  // }
-
   return (
     <EditorCore
-      context={{
-        entityType: "TASK",
-        entityId: taskId,
-        workspaceId,
-      }}
+      key={`${workspaceId}:${taskId}`}
       initialContent={initialContent}
       editable={true}
       onChange={onChange}

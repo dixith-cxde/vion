@@ -126,7 +126,7 @@ export default function Editor({
         };
 
         entityLoadErrorShownRef.current = false;
-        setEntities(normalizeEntities(tasks, docs));
+        setEntities(normalizeEntities(tasks, docs, { data: [] }));
       } catch (err) {
         console.error("Entity fetch failed", err);
         if (!entityLoadErrorShownRef.current) {
@@ -181,17 +181,24 @@ export default function Editor({
       setShowMentions(false);
       setMentionQuery("");
 
-      const response = await fetch("/api/relationships", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source_entity_type: entityType,
-          source_entity_id: entityId,
-          target_entity_type: item.type,
-          target_entity_id: item.id,
-          relationship_type: "MENTIONS",
-        }),
-      });
+      if (item.type === "USER") {
+        return;
+      }
+
+      const response = await fetch(
+        `/api/workspaces/${workspaceId}/relationships`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceEntityType: entityType,
+            sourceEntityId: entityId,
+            targetEntityType: item.type,
+            targetEntityId: item.id,
+            relationshipType: "REFERENCES",
+          }),
+        },
+      );
 
       if (!response.ok) {
         toast({

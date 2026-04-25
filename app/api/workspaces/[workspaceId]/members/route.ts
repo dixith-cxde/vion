@@ -9,7 +9,13 @@ export async function GET(
   try {
     const { workspaceId } = await context.params;
 
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+    if ("error" in access) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
 
     const members = await prisma.workspaceMember.findMany({
       where: { workspaceId },

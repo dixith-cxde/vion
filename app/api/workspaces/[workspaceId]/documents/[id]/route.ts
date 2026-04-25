@@ -49,6 +49,18 @@ function extractMentionRefs(value: unknown): MentionRef[] {
   return Array.from(mentions.values());
 }
 
+function hasPrismaCode(
+  error: unknown,
+  code: string,
+): error is { code: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === code
+  );
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ workspaceId: string; id: string }> },
@@ -104,6 +116,7 @@ export async function PATCH(
       title?: string;
       summary?: string;
       status?: "DRAFT" | "PUBLISHED";
+      version?: number;
       author?: {
         update: {
           name: string;
@@ -125,6 +138,10 @@ export async function PATCH(
 
     if (documentFields.status !== undefined) {
       documentData.status = documentFields.status;
+    }
+
+    if (documentFields.version !== undefined) {
+      documentData.version = documentFields.version;
     }
 
     if (authorName !== undefined && existingDocument.authorId) {
@@ -207,12 +224,7 @@ export async function PATCH(
   } catch (err: unknown) {
     console.error("Document PATCH error:", err);
 
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as any).code === "P2025"
-    ) {
+    if (hasPrismaCode(err, "P2025")) {
       return NextResponse.json(
         { success: false, error: "Document not found" },
         { status: 404 },

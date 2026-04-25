@@ -18,6 +18,23 @@ interface EntityApiResponse {
   data?: EntityApiItem[];
 }
 
+type MemberSummary = {
+  id: string;
+  name: string | null;
+  email: string | null;
+};
+
+interface MemberApiItem {
+  user?: MemberSummary;
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+}
+
+interface MemberApiResponse {
+  data?: MemberApiItem[];
+}
+
 interface TextContent {
   type: string;
   text?: string;
@@ -159,14 +176,17 @@ export function getMentionQuery(text: string) {
 export function normalizeEntities(
   tasks: EntityApiResponse,
   documents: EntityApiResponse,
-  members: {
-    data?: Array<{ id: string; name: string | null; email: string | null }>;
-  },
+  members?: MemberApiResponse,
 ): MentionEntity[] {
   return [
-    ...(members.data ?? []).map((member) => ({
-      id: member.user.id,
-      label: member.user.name || member.user.email || "Unknown",
+    ...(members?.data ?? []).map((member) => ({
+      id: member.user?.id ?? member.id ?? "",
+      label:
+        member.user?.name ||
+        member.user?.email ||
+        member.name ||
+        member.email ||
+        "Unknown",
       type: "USER" as const,
     })),
     ...(tasks.data ?? []).map((task) => ({
@@ -180,7 +200,7 @@ export function normalizeEntities(
       label: doc.title,
       type: "DOCUMENT" as const,
     })),
-  ];
+  ].filter((entity) => entity.id.length > 0);
 }
 
 export function getMentionPath(
@@ -327,17 +347,71 @@ export function extractMentions(blocks: Block[]) {
     entityId: string;
   }[] = [];
 
-  function walk(nodes: any[]) {
+  type MentionNode = {
+    type?: string;
+    href?: string;
+    props?: {
+      entityType?: string;
+      entityId?: string;
+    };
+    content?: unknown[];
+    children?: unknown[];
+  };
+
+  function parseMentionHref(href?: string) {
+    if (!href) return null;
+
+    const taskMatch = href.match(/\/tasks\/([0-9a-f-]{36})(?:$|[/?#])/i);
+    if (taskMatch) {
+      return {
+        entityType: "TASK",
+        entityId: taskMatch[1],
+      };
+    }
+
+    const documentMatch = href.match(
+      /\/documents\/([0-9a-f-]{36})(?:$|[/?#])/i,
+    );
+    if (documentMatch) {
+      return {
+        entityType: "DOCUMENT",
+        entityId: documentMatch[1],
+      };
+    }
+
+    return null;
+  }
+
+  function walk(nodes: unknown[]) {
     for (const node of nodes) {
-      if (node.type === "mention") {
+      if (!node || typeof node !== "object") continue;
+
+      const mentionNode = node as MentionNode;
+
+      if (mentionNode.type === "mention") {
         mentions.push({
-          entityType: node.props?.entityType,
-          entityId: node.props?.entityId,
+          entityType: mentionNode.props?.entityType ?? "",
+          entityId: mentionNode.props?.entityId ?? "",
         });
       }
 
-      if (node.content) walk(node.content);
-      if (node.children) walk(node.children);
+      if (mentionNode.type === "link") {
+        const parsedMention = parseMentionHref(
+          typeof mentionNode.href === "string" ? mentionNode.href : undefined,
+        );
+
+        if (parsedMention) {
+          mentions.push(parsedMention);
+        }
+      }
+
+      if (Array.isArray(mentionNode.content)) {
+        walk(mentionNode.content);
+      }
+
+      if (Array.isArray(mentionNode.children)) {
+        walk(mentionNode.children);
+      }
     }
   }
 

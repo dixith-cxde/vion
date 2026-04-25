@@ -2,6 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { createTaskSchema } from "@/lib/validators/tasks";
 import { NextResponse } from "next/server";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import {
+  notifyTaskAssignment,
+  resolveWorkspaceAssignee,
+} from "@/lib/services/task-assignment.service";
 
 export async function POST(
   req: Request,
@@ -47,12 +51,25 @@ export async function POST(
       );
     }
 
+    const { assigneeId } = await resolveWorkspaceAssignee(
+      workspaceId,
+      parsed.data.assigneeId,
+    );
+
     const task = await prisma.task.create({
       data: {
         ...parsed.data,
         workspaceId,
-        assigneeId: user.id,
+        assigneeId: assigneeId ?? null,
       },
+    });
+
+    await notifyTaskAssignment({
+      assigneeId: task.assigneeId,
+      taskId: task.id,
+      taskTitle: task.title,
+      workspaceId,
+      actorLabel: user.email,
     });
 
     return NextResponse.json(
@@ -63,6 +80,16 @@ export async function POST(
       { status: 201 },
     );
   } catch (err) {
+    if (err instanceof Error && err.message === "INVALID_ASSIGNEE") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Assignee must be a member of the workspace",
+        },
+        { status: 400 },
+      );
+    }
+
     if (err instanceof Error && err.message === "UNAUTHORIZED") {
       return new Response("Unauthorized", { status: 401 });
     }

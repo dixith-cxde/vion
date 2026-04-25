@@ -20,10 +20,10 @@ type GraphEdge = {
 
 export async function GET(
   req: Request,
-  { params }: { params: { workspaceId: string } },
+  context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {
-    const { workspaceId } = params;
+    const { workspaceId } = await context.params;
 
     const access = await requireWorkspaceAccess(workspaceId);
 
