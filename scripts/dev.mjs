@@ -3,6 +3,7 @@ import path from "node:path";
 
 const rootDir = process.cwd();
 const nodeBin = process.execPath;
+const collabHealthUrl = "http://127.0.0.1:1234/health";
 
 const collabEntry = path.join(
   rootDir,
@@ -58,11 +59,25 @@ function startProcess(name, command, args) {
   return child;
 }
 
-const collab = startProcess("collab", nodeBin, [
-  collabEntry,
-  "web-socket/collab.ts",
-]);
-const next = startProcess("next", nodeBin, [nextEntry, "dev"]);
+async function waitForCollabServer() {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      const response = await fetch(collabHealthUrl, { cache: "no-store" });
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // Ignore connection errors while the server is still starting.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error("Collaboration server did not become ready in time");
+}
+
+const collab = startProcess("collab", nodeBin, [collabEntry, "web-socket/collab.ts"]);
+let next = null;
 
 function shutdown(signal) {
   if (shuttingDown) {
@@ -71,8 +86,18 @@ function shutdown(signal) {
 
   shuttingDown = true;
   collab.kill(signal);
-  next.kill(signal);
+  next?.kill(signal);
 }
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+try {
+  await waitForCollabServer();
+  next = startProcess("next", nodeBin, [nextEntry, "dev"]);
+} catch (error) {
+  shuttingDown = true;
+  collab.kill("SIGTERM");
+  console.error(error);
+  process.exit(1);
+}

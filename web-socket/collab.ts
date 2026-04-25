@@ -6,6 +6,7 @@ import * as syncProtocol from "y-protocols/sync";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as encoding from "lib0/encoding";
 import * as decoding from "lib0/decoding";
+import cors from "cors";
 
 const messageSync = 0;
 const messageAwareness = 1;
@@ -25,6 +26,12 @@ type AwarenessUpdate = {
 };
 
 const app = express();
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
+);
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 const rooms = new Map<string, Room>();
@@ -43,7 +50,10 @@ function broadcast(room: Room, payload: Uint8Array, exclude?: WebSocket) {
   });
 }
 
-function createSyncMessage(doc: Y.Doc, write: (encoder: encoding.Encoder) => void) {
+function createSyncMessage(
+  doc: Y.Doc,
+  write: (encoder: encoding.Encoder) => void,
+) {
   const encoder = encoding.createEncoder();
   encoding.writeVarUint(encoder, messageSync);
   write(encoder);
@@ -86,30 +96,33 @@ function getRoom(name: string) {
     broadcast(room, payload, origin instanceof WebSocket ? origin : undefined);
   });
 
-  awareness.on("update", ({ added, updated, removed }: AwarenessUpdate, origin: unknown) => {
-    const changedClients = [...added, ...updated, ...removed];
+  awareness.on(
+    "update",
+    ({ added, updated, removed }: AwarenessUpdate, origin: unknown) => {
+      const changedClients = [...added, ...updated, ...removed];
 
-    if (changedClients.length === 0) {
-      return;
-    }
-
-    if (origin instanceof WebSocket) {
-      const trackedClients =
-        room.connectionClients.get(origin) ?? new Set<number>();
-
-      for (const clientId of added) {
-        trackedClients.add(clientId);
+      if (changedClients.length === 0) {
+        return;
       }
 
-      for (const clientId of removed) {
-        trackedClients.delete(clientId);
+      if (origin instanceof WebSocket) {
+        const trackedClients =
+          room.connectionClients.get(origin) ?? new Set<number>();
+
+        for (const clientId of added) {
+          trackedClients.add(clientId);
+        }
+
+        for (const clientId of removed) {
+          trackedClients.delete(clientId);
+        }
+
+        room.connectionClients.set(origin, trackedClients);
       }
 
-      room.connectionClients.set(origin, trackedClients);
-    }
-
-    broadcast(room, createAwarenessMessage(awareness, changedClients));
-  });
+      broadcast(room, createAwarenessMessage(awareness, changedClients));
+    },
+  );
 
   rooms.set(name, room);
   return room;
@@ -163,7 +176,10 @@ wss.on("connection", (socket, request) => {
 
   const awarenessClients = Array.from(room.awareness.getStates().keys());
   if (awarenessClients.length > 0) {
-    sendMessage(socket, createAwarenessMessage(room.awareness, awarenessClients));
+    sendMessage(
+      socket,
+      createAwarenessMessage(room.awareness, awarenessClients),
+    );
   }
 
   socket.on("message", (rawMessage) => {
@@ -213,7 +229,10 @@ wss.on("connection", (socket, request) => {
       case messageQueryAwareness: {
         const clientIds = Array.from(room.awareness.getStates().keys());
         if (clientIds.length > 0) {
-          sendMessage(socket, createAwarenessMessage(room.awareness, clientIds));
+          sendMessage(
+            socket,
+            createAwarenessMessage(room.awareness, clientIds),
+          );
         }
         break;
       }
@@ -232,10 +251,12 @@ wss.on("connection", (socket, request) => {
   });
 });
 
-const host = process.env.HOST ?? "0.0.0.0";
+const host = process.env.HOST?.trim() || undefined;
 const port = Number(process.env.PORT ?? "1234");
 
 server.listen(port, host, () => {
-  const displayHost = host === "0.0.0.0" ? "localhost" : host;
-  console.log(`Yjs collaboration server running on ws://${displayHost}:${port}`);
+  const displayHost = host ?? "localhost";
+  console.log(
+    `Yjs collaboration server running on ws://${displayHost}:${port}`,
+  );
 });

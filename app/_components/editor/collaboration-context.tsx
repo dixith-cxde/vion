@@ -53,31 +53,170 @@ type CollaborationContextValue = {
 };
 
 type CollaborationMode = CollaborationContextValue["mode"];
+type CollaborationServerSnapshot = {
+  enabled: boolean;
+  resolved: boolean;
+  url: string | null;
+};
 
 const CollaborationContext = createContext<CollaborationContextValue | null>(
   null,
 );
 
-function subscribeToNothing() {
-  return () => {};
+const COLLAB_SERVER_PORT = "1234";
+const EMPTY_SERVER_SNAPSHOT: CollaborationServerSnapshot = {
+  enabled: false,
+  resolved: false,
+  url: null,
+};
+const collaborationServerListeners = new Set<() => void>();
+let collaborationServerSnapshot = EMPTY_SERVER_SNAPSHOT;
+let collaborationServerResolvePromise: Promise<void> | null = null;
+let collaborationServerRetryTimeout: number | null = null;
+
+function emitCollaborationServerSnapshot(
+  nextSnapshot: CollaborationServerSnapshot,
+) {
+  if (
+    collaborationServerSnapshot.enabled === nextSnapshot.enabled &&
+    collaborationServerSnapshot.resolved === nextSnapshot.resolved &&
+    collaborationServerSnapshot.url === nextSnapshot.url
+  ) {
+    return;
+  }
+
+  collaborationServerSnapshot = nextSnapshot;
+  collaborationServerListeners.forEach((listener) => listener());
 }
 
-function getCollaborationServerUrl() {
+function subscribeToCollaborationServer(listener: () => void) {
+  collaborationServerListeners.add(listener);
+  return () => {
+    collaborationServerListeners.delete(listener);
+  };
+}
+
+function getCollaborationServerSnapshot() {
+  return collaborationServerSnapshot;
+}
+
+function getServerCollaborationServerSnapshot() {
+  return EMPTY_SERVER_SNAPSHOT;
+}
+
+function getCollaborationServerUrlCandidates() {
   const configuredUrl = process.env.NEXT_PUBLIC_YJS_WS_URL?.trim();
   if (configuredUrl) {
-    return configuredUrl;
+    return [configuredUrl];
   }
 
   if (typeof window === "undefined") {
-    return null;
+    return [];
   }
 
   if (process.env.NODE_ENV !== "development") {
-    return null;
+    return [];
   }
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${protocol}://${window.location.hostname}:1234`;
+  const hostCandidates = new Set([window.location.hostname]);
+
+  if (window.location.hostname === "localhost") {
+    hostCandidates.add("127.0.0.1");
+  }
+
+  if (window.location.hostname === "127.0.0.1") {
+    hostCandidates.add("localhost");
+  }
+
+  return Array.from(hostCandidates, (hostname) =>
+    `${protocol}://${hostname}:${COLLAB_SERVER_PORT}`,
+  );
+}
+
+function toHealthCheckUrl(serverUrl: string) {
+  const healthProtocol = serverUrl.startsWith("wss://") ? "https://" : "http://";
+  return `${healthProtocol}${serverUrl.replace(/^wss?:\/\//, "")}/health`;
+}
+
+async function isCollaborationServerReachable(serverUrl: string) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const response = await fetch(toHealthCheckUrl(serverUrl), {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function scheduleCollaborationServerRetry() {
+  if (typeof window === "undefined" || collaborationServerRetryTimeout !== null) {
+    return;
+  }
+
+  collaborationServerRetryTimeout = window.setTimeout(() => {
+    collaborationServerRetryTimeout = null;
+    void ensureCollaborationServerUrl();
+  }, 1000);
+}
+
+async function ensureCollaborationServerUrl() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const candidates = getCollaborationServerUrlCandidates();
+  if (candidates.length === 0) {
+    emitCollaborationServerSnapshot({
+      enabled: false,
+      resolved: true,
+      url: null,
+    });
+    return;
+  }
+
+  if (collaborationServerSnapshot.url) {
+    return;
+  }
+
+  emitCollaborationServerSnapshot({
+    enabled: true,
+    resolved: false,
+    url: null,
+  });
+
+  if (collaborationServerResolvePromise) {
+    return collaborationServerResolvePromise;
+  }
+
+  collaborationServerResolvePromise = (async () => {
+    for (const candidate of candidates) {
+      const isReachable = await isCollaborationServerReachable(candidate);
+      if (!isReachable) {
+        continue;
+      }
+
+      emitCollaborationServerSnapshot({
+        enabled: true,
+        resolved: true,
+        url: candidate,
+      });
+      collaborationServerResolvePromise = null;
+      return;
+    }
+
+    collaborationServerResolvePromise = null;
+    scheduleCollaborationServerRetry();
+  })();
+
+  return collaborationServerResolvePromise;
 }
 
 function getRoomName(
@@ -189,17 +328,15 @@ export function EditorCollaborationProvider({
     () => getRoomName(context.entityType, context.entityId),
     [context.entityId, context.entityType],
   );
-  const serverUrl = useSyncExternalStore(
-    subscribeToNothing,
-    getCollaborationServerUrl,
-    () => null,
+  const collaborationServer = useSyncExternalStore(
+    subscribeToCollaborationServer,
+    getCollaborationServerSnapshot,
+    getServerCollaborationServerSnapshot,
   );
-  const hasResolvedServerUrl = useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
-  const mode: CollaborationMode = serverUrl ? "collaborative" : "local";
+  const serverUrl = collaborationServer.url;
+  const hasResolvedServerUrl = collaborationServer.resolved;
+  const mode: CollaborationMode =
+    collaborationServer.enabled || serverUrl ? "collaborative" : "local";
   const [status, setStatus] =
     useState<CollaborationContextValue["status"]>("connecting");
   const [synced, setSynced] = useState(false);
@@ -236,6 +373,7 @@ export function EditorCollaborationProvider({
 
   useEffect(() => {
     isMountedRef.current = true;
+    void ensureCollaborationServerUrl();
 
     return () => {
       isMountedRef.current = false;
