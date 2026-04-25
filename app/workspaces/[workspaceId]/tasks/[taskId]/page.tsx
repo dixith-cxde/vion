@@ -14,6 +14,7 @@ import {
   User2,
   Zap,
 } from "lucide-react";
+import { extractMentions } from "@/app/_components/editor/editor-utils";
 
 import {
   Select,
@@ -115,24 +116,46 @@ export default function TaskPage() {
 
     async function saveDescription() {
       setSaving(true);
+
       try {
+        if (!debouncedContent) return;
+        const mentions = extractMentions(debouncedContent);
+
+        // 1. save description
         const res = await fetch(
           `/api/workspaces/${workspaceId}/tasks/${taskId}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description: JSON.stringify(debouncedContent) }),
+            body: JSON.stringify({
+              description: JSON.stringify(debouncedContent),
+            }),
           },
         );
+
         if (!res.ok) {
           throw new Error("Update failed");
         }
+
         const json = await res.json();
         setForm(json.data);
+
+        // 2. save relationships (CRITICAL)
+        await fetch("/api/relationships/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceEntityType: "TASK",
+            sourceEntityId: taskId,
+            mentions,
+          }),
+        });
+
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (err) {
         console.error("Update failed:", err);
+
         toast({
           title: "Task update failed",
           description: "Your changes could not be saved.",
@@ -160,9 +183,7 @@ export default function TaskPage() {
 
         setForm(taskJson.data);
 
-        const parsed = taskJson.data.description
-          ? JSON.parse(taskJson.data.description)
-          : undefined;
+        const parsed = safeParseDescription(taskJson.data.description);
 
         setInitialEditorContent(parsed);
         setEditorContent(parsed);
@@ -203,11 +224,14 @@ export default function TaskPage() {
     setSaving(true);
     const payload = patch ?? form;
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `/api/workspaces/${workspaceId}/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       if (!res.ok) {
         throw new Error("Update failed");
       }
@@ -783,4 +807,21 @@ function PropRow({
       <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
   );
+}
+
+function safeParseDescription(value: any) {
+  if (!value) return undefined;
+
+  if (typeof value === "object") return value;
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      console.warn("Invalid JSON description:", value);
+      return undefined;
+    }
+  }
+
+  return undefined;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 
 type Workspace = {
@@ -19,6 +19,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
 
   const currentWorkspaceId =
@@ -51,12 +52,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     void load();
   }, []);
 
-  // DEFAULT WORKSPACE REDIRECT (core fix)
   useEffect(() => {
-    if (!currentWorkspaceId && workspaces.length > 0) {
+    const shouldRedirectToDefaultWorkspace =
+      pathname === "/" || pathname === "/workspaces";
+
+    if (
+      shouldRedirectToDefaultWorkspace &&
+      !currentWorkspaceId &&
+      workspaces.length > 0
+    ) {
       router.replace(`/workspaces/${workspaces[0].id}`);
     }
-  }, [currentWorkspaceId, workspaces, router]);
+  }, [currentWorkspaceId, pathname, workspaces, router]);
 
   const activeWorkspace = useMemo(() => {
     if (!currentWorkspaceId || workspaces.length === 0) return null;

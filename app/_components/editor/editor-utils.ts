@@ -320,3 +320,27 @@ export function replaceMentionTokenInBlock(
 
   return didReplace ? replacedContent : content;
 }
+
+export function extractMentions(blocks: Block[]) {
+  const mentions: {
+    entityType: string;
+    entityId: string;
+  }[] = [];
+
+  function walk(nodes: any[]) {
+    for (const node of nodes) {
+      if (node.type === "mention") {
+        mentions.push({
+          entityType: node.props?.entityType,
+          entityId: node.props?.entityId,
+        });
+      }
+
+      if (node.content) walk(node.content);
+      if (node.children) walk(node.children);
+    }
+  }
+
+  walk(blocks);
+  return mentions;
+}

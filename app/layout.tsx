@@ -3,6 +3,7 @@ import { Poppins, Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { WorkspaceProvider } from "./_components/context/workspace-context-provider";
+import { AppSidebarShell } from "./_components/sidebar/app-sidebar-shell";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { SocketProvider } from "./_components/provider/socket-provider";
@@ -34,7 +35,7 @@ export default function RootLayout({
           <TooltipProvider>
             <WorkspaceProvider>
               <SocketProvider />
-              {children}
+              <AppSidebarShell>{children}</AppSidebarShell>
             </WorkspaceProvider>
           </TooltipProvider>
         </ClerkProvider>
