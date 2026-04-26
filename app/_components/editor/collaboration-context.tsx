@@ -10,7 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
@@ -45,18 +44,8 @@ type CollaborationContextValue = {
   synced: boolean;
   editorReady: boolean;
   shouldBootstrapContent: boolean;
-  localUser: {
-    name: string;
-    color: string;
-  };
+  localUser: { name: string; color: string };
   activeUsers: CollaborationUser[];
-};
-
-type CollaborationMode = CollaborationContextValue["mode"];
-type CollaborationServerSnapshot = {
-  enabled: boolean;
-  resolved: boolean;
-  url: string | null;
 };
 
 const CollaborationContext = createContext<CollaborationContextValue | null>(
@@ -64,90 +53,34 @@ const CollaborationContext = createContext<CollaborationContextValue | null>(
 );
 
 const COLLAB_SERVER_PORT = "1234";
-const EMPTY_SERVER_SNAPSHOT: CollaborationServerSnapshot = {
-  enabled: false,
-  resolved: false,
-  url: null,
-};
-const collaborationServerListeners = new Set<() => void>();
-let collaborationServerSnapshot = EMPTY_SERVER_SNAPSHOT;
-let collaborationServerResolvePromise: Promise<void> | null = null;
-let collaborationServerRetryTimeout: number | null = null;
-
-function emitCollaborationServerSnapshot(
-  nextSnapshot: CollaborationServerSnapshot,
-) {
-  if (
-    collaborationServerSnapshot.enabled === nextSnapshot.enabled &&
-    collaborationServerSnapshot.resolved === nextSnapshot.resolved &&
-    collaborationServerSnapshot.url === nextSnapshot.url
-  ) {
-    return;
-  }
-
-  collaborationServerSnapshot = nextSnapshot;
-  collaborationServerListeners.forEach((listener) => listener());
-}
-
-function subscribeToCollaborationServer(listener: () => void) {
-  collaborationServerListeners.add(listener);
-  return () => {
-    collaborationServerListeners.delete(listener);
-  };
-}
-
-function getCollaborationServerSnapshot() {
-  return collaborationServerSnapshot;
-}
-
-function getServerCollaborationServerSnapshot() {
-  return EMPTY_SERVER_SNAPSHOT;
-}
 
 function getCollaborationServerUrlCandidates() {
   const configuredUrl = process.env.NEXT_PUBLIC_YJS_WS_URL?.trim();
-  if (configuredUrl) {
-    return [configuredUrl];
-  }
-
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  if (process.env.NODE_ENV !== "development") {
-    return [];
-  }
+  if (configuredUrl) return [configuredUrl];
+  if (typeof window === "undefined") return [];
+  if (process.env.NODE_ENV !== "development") return [];
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const hostCandidates = new Set([window.location.hostname]);
-
-  if (window.location.hostname === "localhost") {
-    hostCandidates.add("127.0.0.1");
-  }
-
-  if (window.location.hostname === "127.0.0.1") {
-    hostCandidates.add("localhost");
-  }
+  if (window.location.hostname === "localhost") hostCandidates.add("127.0.0.1");
+  if (window.location.hostname === "127.0.0.1") hostCandidates.add("localhost");
 
   return Array.from(
     hostCandidates,
-    (hostname) => `${protocol}://${hostname}:${COLLAB_SERVER_PORT}`,
+    (h) => `${protocol}://${h}:${COLLAB_SERVER_PORT}`,
   );
-}
-
-function toHealthCheckUrl(serverUrl: string) {
-  const healthProtocol = serverUrl.startsWith("wss://")
-    ? "https://"
-    : "http://";
-  return `${healthProtocol}${serverUrl.replace(/^wss?:\/\//, "")}/health`;
 }
 
 async function isCollaborationServerReachable(serverUrl: string) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 1500);
+  const healthProtocol = serverUrl.startsWith("wss://")
+    ? "https://"
+    : "http://";
+  const healthUrl = `${healthProtocol}${serverUrl.replace(/^wss?:\/\//, "")}/health`;
 
   try {
-    const response = await fetch(toHealthCheckUrl(serverUrl), {
+    const response = await fetch(healthUrl, {
       cache: "no-store",
       signal: controller.signal,
     });
@@ -157,72 +90,6 @@ async function isCollaborationServerReachable(serverUrl: string) {
   } finally {
     window.clearTimeout(timeout);
   }
-}
-
-function scheduleCollaborationServerRetry() {
-  if (
-    typeof window === "undefined" ||
-    collaborationServerRetryTimeout !== null
-  ) {
-    return;
-  }
-
-  collaborationServerRetryTimeout = window.setTimeout(() => {
-    collaborationServerRetryTimeout = null;
-    void ensureCollaborationServerUrl();
-  }, 1000);
-}
-
-async function ensureCollaborationServerUrl() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const candidates = getCollaborationServerUrlCandidates();
-  if (candidates.length === 0) {
-    emitCollaborationServerSnapshot({
-      enabled: false,
-      resolved: true,
-      url: null,
-    });
-    return;
-  }
-
-  if (collaborationServerSnapshot.url) {
-    return;
-  }
-
-  emitCollaborationServerSnapshot({
-    enabled: true,
-    resolved: false,
-    url: null,
-  });
-
-  if (collaborationServerResolvePromise) {
-    return collaborationServerResolvePromise;
-  }
-
-  collaborationServerResolvePromise = (async () => {
-    for (const candidate of candidates) {
-      const isReachable = await isCollaborationServerReachable(candidate);
-      if (!isReachable) {
-        continue;
-      }
-
-      emitCollaborationServerSnapshot({
-        enabled: true,
-        resolved: true,
-        url: candidate,
-      });
-      collaborationServerResolvePromise = null;
-      return;
-    }
-
-    collaborationServerResolvePromise = null;
-    scheduleCollaborationServerRetry();
-  })();
-
-  return collaborationServerResolvePromise;
 }
 
 function getRoomName(
@@ -236,25 +103,24 @@ function getDisplayName(
   fullName: string | null | undefined,
   email: string | null | undefined,
 ) {
-  return fullName?.trim() || email?.trim() || "User";
+  if (fullName?.trim()) return fullName.trim();
+  if (email?.trim()) return email.split("@")[0] ?? email.trim();
+  return "User";
 }
 
 function getColorSeed(value: string) {
   let hash = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = value.charCodeAt(index) + ((hash << 5) - hash);
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
   }
-
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue} 72% 52%)`;
+  return `hsl(${Math.abs(hash) % 360} 72% 52%)`;
 }
 
 function toMetaEntries(
   values: Record<string, MetaValue | undefined>,
 ): Array<[string, MetaValue]> {
-  return Object.entries(values).flatMap(([key, value]) =>
-    value === undefined ? [] : [[key, value]],
+  return Object.entries(values).flatMap(([k, v]) =>
+    v === undefined ? [] : [[k, v]],
   );
 }
 
@@ -263,57 +129,41 @@ function readMetaMap<T extends Record<string, MetaValue>>(
   fallback: T,
 ) {
   const next = { ...fallback } as T;
-
-  for (const [key, value] of map.entries()) {
-    (next as Record<string, MetaValue>)[key] = value;
+  for (const [k, v] of map.entries()) {
+    (next as Record<string, MetaValue>)[k] = v;
   }
-
   return next;
 }
 
-function areUsersEqual(left: CollaborationUser[], right: CollaborationUser[]) {
-  if (left.length !== right.length) return false;
-
-  return left.every((user, index) => {
-    const comparison = right[index];
-
+function areUsersEqual(a: CollaborationUser[], b: CollaborationUser[]) {
+  if (a.length !== b.length) return false;
+  return a.every((u, i) => {
+    const v = b[i];
     return (
-      comparison &&
-      user.clientId === comparison.clientId &&
-      user.id === comparison.id &&
-      user.name === comparison.name &&
-      user.color === comparison.color &&
-      user.imageUrl === comparison.imageUrl
+      v &&
+      u.clientId === v.clientId &&
+      u.id === v.id &&
+      u.name === v.name &&
+      u.color === v.color
     );
   });
 }
 
 function dedupeUsers(users: CollaborationUser[]) {
-  const uniqueUsers = new Map<string, CollaborationUser>();
-
-  for (const user of users) {
-    const isGuest = user.id.startsWith("guest");
-    const existing = uniqueUsers.get(user.id);
-
+  const map = new Map<string, CollaborationUser>();
+  for (const u of users) {
+    const existing = map.get(u.id);
     if (!existing) {
-      // Skip guest ONLY if you want strict filtering
-      if (isGuest) continue;
-
-      uniqueUsers.set(user.id, user);
-      continue;
+      map.set(u.id, u);
+    } else {
+      map.set(u.id, {
+        ...existing,
+        ...u,
+        imageUrl: u.imageUrl ?? existing.imageUrl,
+      });
     }
-
-    // Case 2: existing user, merge safely
-    uniqueUsers.set(user.id, {
-      ...existing,
-      ...user,
-      imageUrl: user.imageUrl ?? existing.imageUrl,
-    });
   }
-
-  return Array.from(uniqueUsers.values()).sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 type ProviderProps = {
@@ -330,40 +180,21 @@ export function EditorCollaborationProvider({
   children,
 }: ProviderProps) {
   const { user } = useUser();
+
   const roomName = useMemo(
     () => getRoomName(context.entityType, context.entityId),
     [context.entityId, context.entityType],
   );
-  const collaborationServer = useSyncExternalStore(
-    subscribeToCollaborationServer,
-    getCollaborationServerSnapshot,
-    getServerCollaborationServerSnapshot,
-  );
-  const serverUrl = collaborationServer.url;
-  const hasResolvedServerUrl = collaborationServer.resolved;
-  const mode: CollaborationMode =
-    collaborationServer.enabled || serverUrl ? "collaborative" : "local";
-  const [status, setStatus] =
-    useState<CollaborationContextValue["status"]>("connecting");
-  const [synced, setSynced] = useState(false);
-  const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
-  const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
-  const [shouldBootstrapContent, setShouldBootstrapContent] = useState(false);
-  const [activeUsers, setActiveUsers] = useState<CollaborationUser[]>([]);
-  const isMountedRef = useRef(false);
-  const initialContentRef = useRef(initialContent);
-  const initialMetaRef = useRef(initialMeta);
 
   const localUser = useMemo(() => {
     const email = user?.primaryEmailAddress?.emailAddress ?? null;
-
     return {
       name: getDisplayName(user?.fullName, email),
       color: getColorSeed(user?.id ?? roomName),
     };
   }, [roomName, user?.fullName, user?.id, user?.primaryEmailAddress]);
 
-  // At the top of EditorCollaborationProvider, before the session memo
+  // Step 1 — resolve server URL locally, once
   const [resolvedServerUrl, setResolvedServerUrl] = useState<string | null>(
     null,
   );
@@ -400,238 +231,195 @@ export function EditorCollaborationProvider({
     }
 
     void resolve();
-
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Step 2 — build session only once server is resolved
   const nullSession = useMemo(() => {
     const doc = new Y.Doc();
     return {
       doc,
-      provider: null,
+      provider: null as WebsocketProvider | null,
       fragment: doc.getXmlFragment("document"),
       meta: doc.getMap<MetaValue>("meta"),
     };
   }, []);
 
-  const activeSession = useMemo(() => {
-    if (!serverResolved) return null;
+  const [session, setSession] = useState<typeof nullSession>(nullSession);
+
+  useEffect(() => {
+    if (!serverResolved) return;
 
     const doc = new Y.Doc();
     const provider = resolvedServerUrl
       ? new WebsocketProvider(resolvedServerUrl, roomName, doc)
       : null;
 
-    return {
+    const next = {
       doc,
       provider,
       fragment: doc.getXmlFragment("document"),
       meta: doc.getMap<MetaValue>("meta"),
     };
+
+    setSession(next);
+
+    return () => {
+      provider?.awareness.setLocalState(null);
+      provider?.destroy();
+      doc.destroy();
+    };
   }, [roomName, resolvedServerUrl, serverResolved]);
-  // const session = useMemo(() => {
-  //   const doc = new Y.Doc();
 
-  //   // Only create provider if serverUrl is actually resolved
-  //   const resolvedUrl = serverUrl ?? null;
-  //   const provider = resolvedUrl
-  //     ? new WebsocketProvider(resolvedUrl, roomName, doc)
-  //     : null;
+  const mode: "collaborative" | "local" = resolvedServerUrl
+    ? "collaborative"
+    : "local";
 
-  //   return {
-  //     doc,
-  //     provider,
-  //     fragment: doc.getXmlFragment("document"),
-  //     meta: doc.getMap<MetaValue>("meta"),
-  //   };
-  // }, [roomName, serverUrl]); // serverUrl is now only set after resolution
+  const [status, setStatus] =
+    useState<CollaborationContextValue["status"]>("connecting");
+  const [synced, setSynced] = useState(false);
+  const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
+  const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
+  const [shouldBootstrapContent, setShouldBootstrapContent] = useState(false);
+  const [activeUsers, setActiveUsers] = useState<CollaborationUser[]>([]);
 
-  const session = activeSession ?? nullSession;
+  const initialContentRef = useRef(initialContent);
+  const initialMetaRef = useRef(initialMeta);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    initialContentRef.current = initialContent;
+  }, [initialContent]);
+  useEffect(() => {
+    initialMetaRef.current = initialMeta;
+  }, [initialMeta]);
+  useEffect(() => {
     isMountedRef.current = true;
-    void ensureCollaborationServerUrl();
-
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
+  // Step 3 — wire provider events
   useEffect(() => {
-    initialContentRef.current = initialContent;
-  }, [initialContent]);
+    const { provider, doc, fragment, meta } = session;
 
-  useEffect(() => {
-    initialMetaRef.current = initialMeta;
-  }, [initialMeta]);
-
-  useEffect(() => {
-    const scheduleStateUpdate = (callback: () => void) => {
+    const schedule = (fn: () => void) => {
       queueMicrotask(() => {
-        if (!isMountedRef.current) return;
-        callback();
+        if (isMountedRef.current) fn();
       });
     };
 
-    if (!hasResolvedServerUrl) {
-      scheduleStateUpdate(() => {
-        setStatus("connecting");
-        setSynced(false);
-        setHasConnectedOnce(false);
-        setHasSyncedOnce(false);
-        setShouldBootstrapContent(false);
-        setActiveUsers([]);
+    if (!provider) {
+      // Local mode
+      schedule(() => {
+        setStatus("disconnected");
+        setSynced(true);
+        setHasConnectedOnce(true);
+        setHasSyncedOnce(true);
+
+        const needsBootstrap = (initialContentRef.current?.length ?? 0) > 0;
+        setShouldBootstrapContent(needsBootstrap);
+
+        const seedMeta = initialMetaRef.current;
+        if (meta.size === 0 && seedMeta && Object.keys(seedMeta).length > 0) {
+          doc.transact(() => {
+            for (const [k, v] of toMetaEntries(seedMeta)) meta.set(k, v);
+          });
+        }
       });
       return;
     }
 
-    scheduleStateUpdate(() => {
-      setStatus(mode === "collaborative" ? "connecting" : "disconnected");
-      setSynced(mode === "local");
-      setHasConnectedOnce(mode === "local");
-      setHasSyncedOnce(mode === "local");
-      setShouldBootstrapContent(
-        mode === "local" && (initialContentRef.current?.length ?? 0) > 0,
-      );
-      setActiveUsers([]);
-    });
-
-    if (!session.provider) {
-      const seedMeta = initialMetaRef.current;
-
-      if (
-        session.meta.size === 0 &&
-        seedMeta &&
-        Object.keys(seedMeta).length > 0
-      ) {
-        session.doc.transact(() => {
-          for (const [key, value] of toMetaEntries(seedMeta)) {
-            session.meta.set(key, value);
-          }
-        });
-      }
-
-      return () => {
-        session.doc.destroy();
-      };
+    // Set awareness immediately before any events fire
+    if (user) {
+      provider.awareness.setLocalStateField("user", {
+        id: user.id,
+        name: localUser.name,
+        color: localUser.color,
+        imageUrl: user.imageUrl ?? null,
+      });
     }
 
-    const provider = session.provider;
-
     const handleStatus = ({
-      status: nextStatus,
+      status: s,
     }: {
       status: CollaborationContextValue["status"];
     }) => {
-      scheduleStateUpdate(() => {
-        if (nextStatus === "connected") {
+      schedule(() => {
+        if (s === "connected") {
           setHasConnectedOnce(true);
+          // Re-set awareness on reconnect
+          if (user) {
+            provider.awareness.setLocalStateField("user", {
+              id: user.id,
+              name: localUser.name,
+              color: localUser.color,
+              imageUrl: user.imageUrl ?? null,
+            });
+          }
         }
-
-        setStatus((currentStatus) =>
-          currentStatus === nextStatus ? currentStatus : nextStatus,
-        );
+        setStatus(s);
       });
     };
 
     const handleSync = (isSynced: boolean) => {
-      scheduleStateUpdate(() => {
-        setSynced((currentSynced) =>
-          currentSynced === isSynced ? currentSynced : isSynced,
-        );
+      schedule(() => {
+        setSynced(isSynced);
         if (isSynced) {
           setHasSyncedOnce(true);
-        }
+          const isEmpty = fragment.toArray().length === 0;
+          setShouldBootstrapContent(
+            isEmpty && (initialContentRef.current?.length ?? 0) > 0,
+          );
 
-        if (!isSynced) {
+          const seedMeta = initialMetaRef.current;
+          if (meta.size === 0 && seedMeta && Object.keys(seedMeta).length > 0) {
+            doc.transact(() => {
+              for (const [k, v] of toMetaEntries(seedMeta)) meta.set(k, v);
+            });
+          }
+        } else {
           setShouldBootstrapContent(false);
-          return;
-        }
-
-        const fragmentIsEmpty = session.fragment.toArray().length === 0;
-        const nextShouldBootstrap =
-          fragmentIsEmpty && (initialContentRef.current?.length ?? 0) > 0;
-
-        setShouldBootstrapContent((currentValue) =>
-          currentValue === nextShouldBootstrap
-            ? currentValue
-            : nextShouldBootstrap,
-        );
-
-        const seedMeta = initialMetaRef.current;
-
-        if (
-          session.meta.size === 0 &&
-          seedMeta &&
-          Object.keys(seedMeta).length > 0
-        ) {
-          session.doc.transact(() => {
-            for (const [key, value] of toMetaEntries(seedMeta)) {
-              session.meta.set(key, value);
-            }
-          });
         }
       });
     };
 
-    const handleAwarenessChange = () => {
+    const handleAwareness = () => {
       const users = dedupeUsers(
         Array.from(provider.awareness.getStates().entries())
           .map(([clientId, state]) => {
-            if (!state || typeof state !== "object" || !("user" in state)) {
+            if (!state || typeof state !== "object" || !("user" in state))
               return null;
-            }
+            const u = (state as { user?: Record<string, unknown> }).user;
+            if (!u || typeof u.id !== "string") return null;
 
-            const awarenessUser = (state as { user?: Record<string, unknown> })
-              .user;
-
-            if (
-              !awarenessUser ||
-              typeof awarenessUser !== "object" ||
-              typeof awarenessUser.id !== "string"
-            ) {
-              return null;
-            }
-
-            const id = awarenessUser.id;
-            const name =
-              typeof awarenessUser.name === "string"
-                ? awarenessUser.name
-                : "User";
-            const color =
-              typeof awarenessUser.color === "string"
-                ? awarenessUser.color
-                : "#3b82f6";
-            const imageUrl =
-              typeof awarenessUser.imageUrl === "string"
-                ? awarenessUser.imageUrl
-                : null;
+            // Only show authenticated users (non-guest)
+            if ((u.id as string).startsWith("guest")) return null;
 
             return {
               clientId,
-              id,
-              name,
-              color,
-              imageUrl,
+              id: u.id as string,
+              name: typeof u.name === "string" ? u.name : "User",
+              color: typeof u.color === "string" ? u.color : "#3b82f6",
+              imageUrl: typeof u.imageUrl === "string" ? u.imageUrl : null,
             } satisfies CollaborationUser;
           })
-          .filter((value): value is CollaborationUser => value !== null),
+          .filter((v): v is CollaborationUser => v !== null),
       );
-      console.log({ users });
 
-      scheduleStateUpdate(() => {
-        setActiveUsers((currentUsers) =>
-          areUsersEqual(currentUsers, users) ? currentUsers : users,
-        );
+      schedule(() => {
+        setActiveUsers((cur) => (areUsersEqual(cur, users) ? cur : users));
       });
     };
 
     provider.on("status", handleStatus);
     provider.on("sync", handleSync);
-    provider.awareness.on("change", handleAwarenessChange);
+    provider.awareness.on("change", handleAwareness);
 
+    // Fire initial state
     handleStatus({
       status: provider.wsconnected
         ? "connected"
@@ -640,7 +428,7 @@ export function EditorCollaborationProvider({
           : "disconnected",
     });
     handleSync(provider.synced);
-    handleAwarenessChange();
+    handleAwareness();
 
     if (
       !provider.wsconnected &&
@@ -653,70 +441,11 @@ export function EditorCollaborationProvider({
     return () => {
       provider.off("status", handleStatus);
       provider.off("sync", handleSync);
-      provider.awareness.off("change", handleAwarenessChange);
-      provider.awareness.setLocalState(null);
-      provider.destroy();
-      session.doc.destroy();
+      provider.awareness.off("change", handleAwareness);
     };
-  }, [hasResolvedServerUrl, mode, session]);
+  }, [session, localUser.name, localUser.color, user]);
 
-  useEffect(() => {
-    if (session.provider) {
-      if (!user) return;
-      session.provider.awareness.setLocalStateField("user", {
-        id: user.id,
-        name: localUser.name,
-        color: localUser.color,
-        imageUrl: user?.imageUrl ?? null,
-      });
-      return;
-    }
-
-    // ONLY for true local mode
-    if (mode !== "local") return;
-
-    // setActiveUsers([
-    //   {
-    //     clientId: session.doc.clientID,
-    //     id: user?.id ?? `guest-${session.doc.clientID}`,
-    //     name: localUser.name,
-    //     color: localUser.color,
-    //     imageUrl: user?.imageUrl ?? null,
-    //   },
-    // ]);
-    // if (!hasResolvedServerUrl) {
-    //   return;
-    // }
-
-    // queueMicrotask(() => {
-    //   if (!isMountedRef.current) return;
-
-    //   setActiveUsers((currentUsers) => {
-    //     const nextUsers = dedupeUsers([
-    //       {
-    //         clientId: session.doc.clientID,
-    //         id: user?.id ?? `guest-${session.doc.clientID}`,
-    //         name: localUser.name,
-    //         color: localUser.color,
-    //         imageUrl: user?.imageUrl ?? null,
-    //       },
-    //     ]);
-
-    //     return areUsersEqual(currentUsers, nextUsers)
-    //       ? currentUsers
-    //       : nextUsers;
-    //   });
-    // });
-  }, [
-    hasResolvedServerUrl,
-    localUser.color,
-    localUser.name,
-    session,
-    user?.id,
-    user?.imageUrl,
-  ]);
-
-  const value = useMemo(
+  const value = useMemo<CollaborationContextValue>(
     () => ({
       ...session,
       entityId: context.entityId,
@@ -728,27 +457,26 @@ export function EditorCollaborationProvider({
       synced,
       editorReady:
         serverResolved &&
-        session !== null &&
         (mode === "local" || hasConnectedOnce || hasSyncedOnce),
       shouldBootstrapContent,
       localUser,
       activeUsers,
     }),
     [
-      activeUsers,
+      session,
       context.entityId,
       context.entityType,
       context.workspaceId,
-      localUser,
-      mode,
       roomName,
-      session,
-      hasConnectedOnce,
-      hasResolvedServerUrl,
-      hasSyncedOnce,
-      shouldBootstrapContent,
+      mode,
       status,
       synced,
+      serverResolved,
+      hasConnectedOnce,
+      hasSyncedOnce,
+      shouldBootstrapContent,
+      localUser,
+      activeUsers,
     ],
   );
 
@@ -761,13 +489,11 @@ export function EditorCollaborationProvider({
 
 export function useEditorCollaboration() {
   const context = useContext(CollaborationContext);
-
   if (!context) {
     throw new Error(
       "useEditorCollaboration must be used within EditorCollaborationProvider",
     );
   }
-
   return context;
 }
 
@@ -783,47 +509,29 @@ export function useCollaborativeMeta<T extends Record<string, MetaValue>>(
   }, [initialMeta]);
 
   useEffect(() => {
-    const updateState = () => {
-      const nextState = readMetaMap(meta, initialMetaRef.current);
-
-      setState((currentState) => {
-        const currentEntries = Object.entries(currentState);
-        const nextEntries = Object.entries(nextState);
-
-        if (currentEntries.length !== nextEntries.length) {
-          return nextState;
-        }
-
-        const hasChanged = nextEntries.some(
-          ([key, value]) => currentState[key as keyof T] !== value,
+    const update = () => {
+      const next = readMetaMap(meta, initialMetaRef.current);
+      setState((cur) => {
+        const changed = Object.entries(next).some(
+          ([k, v]) => cur[k as keyof T] !== v,
         );
-
-        return hasChanged ? nextState : currentState;
+        return changed ? next : cur;
       });
     };
 
-    updateState();
-    meta.observe(updateState);
-
-    return () => {
-      meta.unobserve(updateState);
-    };
+    update();
+    meta.observe(update);
+    return () => meta.unobserve(update);
   }, [meta]);
 
   const updateMeta = useCallback(
     (patch: Partial<T>) => {
       doc.transact(() => {
-        for (const [key, value] of toMetaEntries(patch)) {
-          meta.set(key, value);
-        }
+        for (const [k, v] of toMetaEntries(patch)) meta.set(k, v);
       });
     },
     [doc, meta],
   );
 
-  return {
-    meta: state,
-    updateMeta,
-    synced,
-  };
+  return { meta: state, updateMeta, synced };
 }
