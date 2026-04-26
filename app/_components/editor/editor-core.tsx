@@ -30,6 +30,7 @@ import {
 
 import { toast } from "@/hooks/use-toast";
 import { User } from "@/lib/generated/prisma/client";
+import { useUser } from "@clerk/nextjs";
 
 interface EditorProps {
   initialContent?: Block[];
@@ -43,6 +44,7 @@ export default function EditorCore({
   editable = true,
   onChange,
 }: EditorProps) {
+  const { isLoaded: clerkLoaded } = useUser();
   const {
     entityId,
     entityType,
@@ -127,7 +129,7 @@ export default function EditorCore({
     );
   }
 
-  if (!editorReady) {
+  if (!editorReady || !clerkLoaded) {
     return (
       <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
         Connecting collaboration...
@@ -214,7 +216,10 @@ function EditorCoreInstance({
             collaboration: {
               provider,
               fragment,
-              user: localUser,
+              user: {
+                name: localUser.name ?? "eren",
+                color: localUser.color,
+              },
               showCursorLabels: "always" as const,
             },
           }

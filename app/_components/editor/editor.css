@@ -178,3 +178,109 @@
     background-color: #d1fae5; /* light green */
     color: #065f46; /* dark green text */
 }
+/* Collaboration cursor labels */
+.bn-editor .collaboration-cursor__label {
+    position: absolute;
+    top: -1.4em;
+    left: -1px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+    line-height: 1.4;
+}
+
+.bn-editor .collaboration-cursor__caret {
+    position: relative;
+    border-left: 2px solid;
+    border-right: none;
+    margin-left: -1px;
+    word-break: normal;
+    pointer-events: none;
+}
+
+/* ── Collaboration cursors ── */
+.bn-editor .ProseMirror .collaboration-cursor__caret {
+    border-left: 2px solid;
+    border-right: none;
+    margin-left: -1px;
+    margin-right: -1px;
+    position: relative;
+    word-break: normal;
+    pointer-events: none;
+    display: inline-block;
+    width: 0;
+}
+
+.bn-editor .ProseMirror .collaboration-cursor__label {
+    border-radius: 4px 4px 4px 0;
+    color: #fff;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 600;
+    left: -1px;
+    line-height: 1.4;
+    padding: 2px 6px;
+    position: absolute;
+    top: -1.6em;
+    user-select: none;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+    display: block;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Prevent mention chip styles from leaking onto cursor labels */
+.bn-editor .ProseMirror .collaboration-cursor__label[style] {
+    background-color: unset;
+    border: none;
+    box-shadow: none;
+    border-radius: 4px 4px 4px 0;
+    padding: 2px 6px;
+}
+
+/* Collaboration cursor caret — thin line */
+.bn-editor .ProseMirror [data-collaboration-cursor] {
+    position: relative;
+    overflow: visible;
+}
+
+/* The caret line itself */
+.bn-editor .ProseMirror .collaboration-cursor__caret {
+    display: inline-block;
+    position: relative;
+    width: 2px;
+    margin-left: -1px;
+    margin-right: -1px;
+    pointer-events: none;
+    word-break: normal;
+    overflow: visible;
+}
+
+/* The username label above the caret */
+.bn-editor .ProseMirror .collaboration-cursor__label {
+    display: block;
+    position: absolute;
+    top: -1.8em;
+    left: 0;
+    padding: 2px 7px;
+    border-radius: 4px 4px 4px 0;
+    font-size: 11px;
+    font-weight: 600;
+    font-style: normal;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: #fff !important;
+    pointer-events: none;
+    user-select: none;
+    z-index: 999;
+    opacity: 1 !important;
+    visibility: visible !important;
+    /* background-color comes from BlockNote inline style */
+}
