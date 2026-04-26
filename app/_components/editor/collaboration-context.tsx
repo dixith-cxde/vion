@@ -363,12 +363,65 @@ export function EditorCollaborationProvider({
     };
   }, [roomName, user?.fullName, user?.id, user?.primaryEmailAddress]);
 
-  const session = useMemo(() => {
-    const doc = new Y.Doc();
-    const fallbackUrl = getCollaborationServerUrlCandidates()[0];
+  // At the top of EditorCollaborationProvider, before the session memo
+  const [resolvedServerUrl, setResolvedServerUrl] = useState<string | null>(
+    null,
+  );
+  const [serverResolved, setServerResolved] = useState(false);
 
-    const provider = fallbackUrl
-      ? new WebsocketProvider(fallbackUrl, roomName, doc)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolve() {
+      const candidates = getCollaborationServerUrlCandidates();
+
+      if (candidates.length === 0) {
+        if (!cancelled) {
+          setResolvedServerUrl(null);
+          setServerResolved(true);
+        }
+        return;
+      }
+
+      for (const candidate of candidates) {
+        const reachable = await isCollaborationServerReachable(candidate);
+        if (cancelled) return;
+        if (reachable) {
+          setResolvedServerUrl(candidate);
+          setServerResolved(true);
+          return;
+        }
+      }
+
+      if (!cancelled) {
+        setResolvedServerUrl(null);
+        setServerResolved(true);
+      }
+    }
+
+    void resolve();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const nullSession = useMemo(() => {
+    const doc = new Y.Doc();
+    return {
+      doc,
+      provider: null,
+      fragment: doc.getXmlFragment("document"),
+      meta: doc.getMap<MetaValue>("meta"),
+    };
+  }, []);
+
+  const activeSession = useMemo(() => {
+    if (!serverResolved) return null;
+
+    const doc = new Y.Doc();
+    const provider = resolvedServerUrl
+      ? new WebsocketProvider(resolvedServerUrl, roomName, doc)
       : null;
 
     return {
@@ -377,7 +430,25 @@ export function EditorCollaborationProvider({
       fragment: doc.getXmlFragment("document"),
       meta: doc.getMap<MetaValue>("meta"),
     };
-  }, [roomName, serverUrl]);
+  }, [roomName, resolvedServerUrl, serverResolved]);
+  // const session = useMemo(() => {
+  //   const doc = new Y.Doc();
+
+  //   // Only create provider if serverUrl is actually resolved
+  //   const resolvedUrl = serverUrl ?? null;
+  //   const provider = resolvedUrl
+  //     ? new WebsocketProvider(resolvedUrl, roomName, doc)
+  //     : null;
+
+  //   return {
+  //     doc,
+  //     provider,
+  //     fragment: doc.getXmlFragment("document"),
+  //     meta: doc.getMap<MetaValue>("meta"),
+  //   };
+  // }, [roomName, serverUrl]); // serverUrl is now only set after resolution
+
+  const session = activeSession ?? nullSession;
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -656,7 +727,8 @@ export function EditorCollaborationProvider({
       status,
       synced,
       editorReady:
-        hasResolvedServerUrl &&
+        serverResolved &&
+        session !== null &&
         (mode === "local" || hasConnectedOnce || hasSyncedOnce),
       shouldBootstrapContent,
       localUser,

@@ -48,6 +48,7 @@ export default function EditorCore({
     entityType,
     fragment,
     editorReady,
+    mode,
     localUser,
     provider,
     roomName,
@@ -117,6 +118,14 @@ export default function EditorCore({
     filteredEntities.length > 0
       ? Math.min(activeIndex, filteredEntities.length - 1)
       : 0;
+
+  if (!editorReady && mode === "collaborative") {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+        Connecting...
+      </div>
+    );
+  }
 
   if (!editorReady) {
     return (
@@ -221,7 +230,11 @@ function EditorCoreInstance({
   }, [editor]);
 
   useEffect(() => {
-    if (!provider || !shouldBootstrapContent || hasBootstrappedContentRef.current) {
+    if (
+      !provider ||
+      !shouldBootstrapContent ||
+      hasBootstrappedContentRef.current
+    ) {
       return;
     }
 
@@ -274,7 +287,8 @@ function EditorCoreInstance({
       if (!response.ok) {
         toast({
           title: "Mention link failed",
-          description: "The reference was inserted, but the relationship was not saved.",
+          description:
+            "The reference was inserted, but the relationship was not saved.",
           variant: "destructive",
         });
       }
