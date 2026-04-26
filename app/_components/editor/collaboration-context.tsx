@@ -290,13 +290,11 @@ function areUsersEqual(left: CollaborationUser[], right: CollaborationUser[]) {
 
 function dedupeUsers(users: CollaborationUser[]) {
   const uniqueUsers = new Map<string, CollaborationUser>();
-  console.log(users);
+
   for (const user of users) {
     const isGuest = user.id.startsWith("guest");
-
     const existing = uniqueUsers.get(user.id);
 
-    // Case 1: first time seeing this id
     if (!existing) {
       // Skip guest ONLY if you want strict filtering
       if (isGuest) continue;
@@ -518,14 +516,15 @@ export function EditorCollaborationProvider({
             const awarenessUser = (state as { user?: Record<string, unknown> })
               .user;
 
-            if (!awarenessUser || typeof awarenessUser !== "object") {
+            if (
+              !awarenessUser ||
+              typeof awarenessUser !== "object" ||
+              typeof awarenessUser.id !== "string"
+            ) {
               return null;
             }
 
-            const id =
-              typeof awarenessUser.id === "string"
-                ? awarenessUser.id
-                : String(clientId);
+            const id = awarenessUser.id;
             const name =
               typeof awarenessUser.name === "string"
                 ? awarenessUser.name
@@ -549,6 +548,7 @@ export function EditorCollaborationProvider({
           })
           .filter((value): value is CollaborationUser => value !== null),
       );
+      console.log({ users });
 
       scheduleStateUpdate(() => {
         setActiveUsers((currentUsers) =>
@@ -591,8 +591,9 @@ export function EditorCollaborationProvider({
 
   useEffect(() => {
     if (session.provider) {
+      if (!user) return;
       session.provider.awareness.setLocalStateField("user", {
-        id: user?.id ?? `guest-${session.doc.clientID}`,
+        id: user.id,
         name: localUser.name,
         color: localUser.color,
         imageUrl: user?.imageUrl ?? null,
