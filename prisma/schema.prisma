@@ -17,11 +17,11 @@ model User {
 
   createdAt DateTime @default(now())
 
-  tasks        Task[] @relation("TaskAssignee")
-  createdTasks Task[] @relation("TaskCreator")
-  documents Document[]
-  messages  Message[]
-  commits   Commit[]
+  tasks        Task[]     @relation("TaskAssignee")
+  createdTasks Task[]     @relation("TaskCreator")
+  documents    Document[]
+  messages     Message[]
+  commits      Commit[]
 
   githubAccount GitHubAccount?
 
@@ -146,10 +146,10 @@ model Task {
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   createdById String?
-  createdBy   User? @relation("TaskCreator", fields: [createdById], references: [id])
+  createdBy   User?   @relation("TaskCreator", fields: [createdById], references: [id])
 
   assigneeId String?
-  assignee   User? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
