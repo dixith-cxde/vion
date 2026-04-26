@@ -434,8 +434,11 @@ export function EditorCollaborationProvider({
 
     const handleAwareness = () => {
       if (!isMountedRef.current) return;
-      const users = readAwarenessUsers();
-      setActiveUsers((cur) => (areUsersEqual(cur, users) ? cur : users));
+      queueMicrotask(() => {
+        if (!isMountedRef.current) return;
+        const users = readAwarenessUsers();
+        setActiveUsers((cur) => (areUsersEqual(cur, users) ? cur : users));
+      });
     };
 
     // Heartbeat to keep awareness alive (y-websocket clears idle entries)
