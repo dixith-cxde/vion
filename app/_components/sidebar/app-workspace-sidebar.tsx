@@ -144,7 +144,7 @@ export function AppWorkspaceSidebar({ pathname }: { pathname: string }) {
               </div>
               <div className="text-xs text-sidebar-foreground/70">
                 {user?.hasVerifiedEmailAddress ? (
-                  <p className="flex items-center gap-1">
+                  <p className="flex items-center gap-1 truncate">
                     {user.primaryEmailAddress?.toString()}
                     <Verified className="size-5 fill-blue-600 stroke-white" />
                   </p>

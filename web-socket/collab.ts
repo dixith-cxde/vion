@@ -33,7 +33,21 @@ app.use(
   }),
 );
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (request, socket, head) => {
+  const url = new URL(request.url ?? "/", "http://localhost");
+  const roomName = decodeURIComponent(url.pathname.slice(1));
+
+  if (!roomName) {
+    socket.destroy();
+    return;
+  }
+
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit("connection", ws, request);
+  });
+});
 const rooms = new Map<string, Room>();
 
 function sendMessage(socket: WebSocket, payload: Uint8Array) {
@@ -251,8 +265,12 @@ wss.on("connection", (socket, request) => {
   });
 });
 
-const host = process.env.HOST?.trim() || undefined;
+const host = process.env.HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.PORT ?? "1234");
+
+wss.on("connection", (socket, request) => {
+  console.log("WS CONNECT:", request.url);
+});
 
 server.listen(port, host, () => {
   const displayHost = host ?? "localhost";

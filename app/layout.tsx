@@ -32,12 +32,7 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", inter.variable)}>
       <body className={`${poppins.variable} ${poppins.className} antialiased`}>
         <ClerkProvider>
-          <TooltipProvider>
-            <WorkspaceProvider>
-              <SocketProvider />
-              <AppSidebarShell>{children}</AppSidebarShell>
-            </WorkspaceProvider>
-          </TooltipProvider>
+          <TooltipProvider>{children}</TooltipProvider>
         </ClerkProvider>
         <Toaster />
       </body>
