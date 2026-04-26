@@ -233,18 +233,29 @@ function EditorCoreInstance({
     if (
       !provider ||
       !shouldBootstrapContent ||
-      hasBootstrappedContentRef.current
+      hasBootstrappedContentRef.current ||
+      !parsedInitialContent ||
+      parsedInitialContent.length === 0
     ) {
       return;
     }
 
+    // Guard immediately before any async gap
     hasBootstrappedContentRef.current = true;
-    isBootstrappingContentRef.current = true;
-    editor.replaceBlocks(editor.document, parsedInitialContent);
 
-    queueMicrotask(() => {
-      isBootstrappingContentRef.current = false;
-    });
+    try {
+      isBootstrappingContentRef.current = true;
+      editor.replaceBlocks(editor.document, parsedInitialContent);
+    } catch (err) {
+      console.warn("Bootstrap failed:", err);
+      hasBootstrappedContentRef.current = false;
+    } finally {
+      // Use setTimeout instead of queueMicrotask to ensure
+      // ProseMirror has finished processing the transaction
+      setTimeout(() => {
+        isBootstrappingContentRef.current = false;
+      }, 0);
+    }
   }, [editor, parsedInitialContent, provider, shouldBootstrapContent]);
 
   const selectMention = useCallback(
@@ -390,11 +401,18 @@ function EditorCoreInstance({
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
 
-        editor.focus();
-
-        const lastBlock = editor.document[editor.document.length - 1];
-        if (lastBlock) {
-          editor.setTextCursorPosition(lastBlock, "end");
+        try {
+          editor.focus();
+          const blocks = editor.document;
+          if (blocks.length > 0) {
+            const lastBlock = blocks[blocks.length - 1];
+            if (lastBlock) {
+              editor.setTextCursorPosition(lastBlock, "end");
+            }
+          }
+        } catch (err) {
+          // Document not ready yet, focus only
+          editor.focus();
         }
       }}
     >
