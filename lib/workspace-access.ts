@@ -5,6 +5,7 @@ type AccessSuccess = {
   user: {
     id: string;
     email: string;
+    name: string;
   };
   membership: {
     id: string;
@@ -59,6 +60,7 @@ export async function requireWorkspaceAccess(
     user: {
       id: user.id,
       email: user.email,
+      name: user.name,
     },
     membership: {
       id: membership.id,

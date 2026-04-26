@@ -145,6 +145,7 @@ export default function TaskPage() {
         ]);
 
         if (!taskRes.ok) {
+          toast({ title: "Failed to load tasks" });
           throw new Error("Failed to load task");
         }
 
@@ -176,8 +177,9 @@ export default function TaskPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center gap-2">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <p>Loading Task...</p>
       </div>
     );
   }

@@ -129,13 +129,16 @@ function getCollaborationServerUrlCandidates() {
     hostCandidates.add("localhost");
   }
 
-  return Array.from(hostCandidates, (hostname) =>
-    `${protocol}://${hostname}:${COLLAB_SERVER_PORT}`,
+  return Array.from(
+    hostCandidates,
+    (hostname) => `${protocol}://${hostname}:${COLLAB_SERVER_PORT}`,
   );
 }
 
 function toHealthCheckUrl(serverUrl: string) {
-  const healthProtocol = serverUrl.startsWith("wss://") ? "https://" : "http://";
+  const healthProtocol = serverUrl.startsWith("wss://")
+    ? "https://"
+    : "http://";
   return `${healthProtocol}${serverUrl.replace(/^wss?:\/\//, "")}/health`;
 }
 
@@ -157,7 +160,10 @@ async function isCollaborationServerReachable(serverUrl: string) {
 }
 
 function scheduleCollaborationServerRetry() {
-  if (typeof window === "undefined" || collaborationServerRetryTimeout !== null) {
+  if (
+    typeof window === "undefined" ||
+    collaborationServerRetryTimeout !== null
+  ) {
     return;
   }
 
@@ -284,29 +290,31 @@ function areUsersEqual(left: CollaborationUser[], right: CollaborationUser[]) {
 
 function dedupeUsers(users: CollaborationUser[]) {
   const uniqueUsers = new Map<string, CollaborationUser>();
-
+  console.log(users);
   for (const user of users) {
-    const currentUser = uniqueUsers.get(user.id);
+    const isGuest = user.id.startsWith("guest");
 
-    if (!currentUser) {
+    const existing = uniqueUsers.get(user.id);
+
+    // Case 1: first time seeing this id
+    if (!existing) {
+      // Skip guest ONLY if you want strict filtering
+      if (isGuest) continue;
+
       uniqueUsers.set(user.id, user);
       continue;
     }
 
-    const nextImageUrl = currentUser.imageUrl ?? user.imageUrl;
-
+    // Case 2: existing user, merge safely
     uniqueUsers.set(user.id, {
-      ...currentUser,
-      imageUrl: nextImageUrl,
-      name:
-        currentUser.name === "User" && user.name !== "User"
-          ? user.name
-          : currentUser.name,
+      ...existing,
+      ...user,
+      imageUrl: user.imageUrl ?? existing.imageUrl,
     });
   }
 
-  return Array.from(uniqueUsers.values()).sort((left, right) =>
-    left.name.localeCompare(right.name),
+  return Array.from(uniqueUsers.values()).sort((a, b) =>
+    a.name.localeCompare(b.name),
   );
 }
 
@@ -359,8 +367,10 @@ export function EditorCollaborationProvider({
 
   const session = useMemo(() => {
     const doc = new Y.Doc();
-    const provider = serverUrl
-      ? new WebsocketProvider(serverUrl, roomName, doc)
+    const fallbackUrl = getCollaborationServerUrlCandidates()[0];
+
+    const provider = fallbackUrl
+      ? new WebsocketProvider(fallbackUrl, roomName, doc)
       : null;
 
     return {
@@ -590,29 +600,41 @@ export function EditorCollaborationProvider({
       return;
     }
 
-    if (!hasResolvedServerUrl) {
-      return;
-    }
+    // ONLY for true local mode
+    if (mode !== "local") return;
 
-    queueMicrotask(() => {
-      if (!isMountedRef.current) return;
+    // setActiveUsers([
+    //   {
+    //     clientId: session.doc.clientID,
+    //     id: user?.id ?? `guest-${session.doc.clientID}`,
+    //     name: localUser.name,
+    //     color: localUser.color,
+    //     imageUrl: user?.imageUrl ?? null,
+    //   },
+    // ]);
+    // if (!hasResolvedServerUrl) {
+    //   return;
+    // }
 
-      setActiveUsers((currentUsers) => {
-        const nextUsers = dedupeUsers([
-          {
-            clientId: session.doc.clientID,
-            id: user?.id ?? `guest-${session.doc.clientID}`,
-            name: localUser.name,
-            color: localUser.color,
-            imageUrl: user?.imageUrl ?? null,
-          },
-        ]);
+    // queueMicrotask(() => {
+    //   if (!isMountedRef.current) return;
 
-        return areUsersEqual(currentUsers, nextUsers)
-          ? currentUsers
-          : nextUsers;
-      });
-    });
+    //   setActiveUsers((currentUsers) => {
+    //     const nextUsers = dedupeUsers([
+    //       {
+    //         clientId: session.doc.clientID,
+    //         id: user?.id ?? `guest-${session.doc.clientID}`,
+    //         name: localUser.name,
+    //         color: localUser.color,
+    //         imageUrl: user?.imageUrl ?? null,
+    //       },
+    //     ]);
+
+    //     return areUsersEqual(currentUsers, nextUsers)
+    //       ? currentUsers
+    //       : nextUsers;
+    //   });
+    // });
   }, [
     hasResolvedServerUrl,
     localUser.color,

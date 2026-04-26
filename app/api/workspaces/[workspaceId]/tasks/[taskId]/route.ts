@@ -197,7 +197,7 @@ export async function PATCH(
       taskId: updatedTask.id,
       taskTitle: updatedTask.title,
       workspaceId,
-      actorLabel: access.user.email,
+      actorLabel: access.user.name,
     });
 
     return NextResponse.json({
