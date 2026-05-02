@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { updateDocumentSchema } from "@/lib/validators/documents";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import { createNotification } from "@/lib/services/notification.service";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
@@ -25,21 +26,44 @@ function extractMentionRefs(value: unknown): MentionRef[] {
 
     if (!node || typeof node !== "object") return;
 
-    const record = node as Record<string, unknown>;
-    const styles =
-      record.styles && typeof record.styles === "object"
-        ? (record.styles as Record<string, unknown>)
-        : null;
+    const record = node as Record<string, any>;
 
-    if (
-      styles?.mention === true &&
-      typeof styles.mentionId === "string" &&
-      typeof styles.mentionType === "string"
-    ) {
-      mentions.set(`${styles.mentionType}:${styles.mentionId}`, {
-        id: styles.mentionId,
-        type: styles.mentionType,
-      });
+    // ✅ HANDLE LINK-BASED MENTIONS
+    if (record.type === "link" && typeof record.href === "string") {
+      const href: string = record.href;
+
+      // USER mention
+      if (href.includes("/members/")) {
+        const id = href.split("/members/")[1];
+        if (id) {
+          mentions.set(`USER:${id}`, {
+            id,
+            type: "USER",
+          });
+        }
+      }
+
+      // TASK mention
+      if (href.includes("/tasks/")) {
+        const id = href.split("/tasks/")[1];
+        if (id) {
+          mentions.set(`TASK:${id}`, {
+            id,
+            type: "TASK",
+          });
+        }
+      }
+
+      // DOCUMENT mention (if you support it)
+      if (href.includes("/documents/")) {
+        const id = href.split("/documents/")[1];
+        if (id) {
+          mentions.set(`DOCUMENT:${id}`, {
+            id,
+            type: "DOCUMENT",
+          });
+        }
+      }
     }
 
     Object.values(record).forEach(visit);
@@ -68,7 +92,6 @@ export async function PATCH(
   try {
     const resolvedParams = await params;
     const { workspaceId, id } = resolvedParams;
-    console.log(workspaceId);
     await requireWorkspaceAccess(workspaceId);
 
     const parsedParams = paramsSchema.safeParse({ id });
@@ -163,6 +186,10 @@ export async function PATCH(
     if (documentFields.contentJson !== undefined) {
       const nextMentions = extractMentionRefs(documentFields.contentJson);
 
+      const userMentions = nextMentions.filter((m) => m.type === "USER");
+      const otherMentions = nextMentions.filter((m) => m.type !== "USER");
+
+      // ===== REFERENCES (TASK / DOCUMENT) =====
       const existingRelationships = await prisma.relationship.findMany({
         where: {
           workspaceId,
@@ -177,7 +204,7 @@ export async function PATCH(
         },
       });
 
-      const nextKeys = new Set(nextMentions.map((m) => `${m.type}:${m.id}`));
+      const nextKeys = new Set(otherMentions.map((m) => `${m.type}:${m.id}`));
 
       const existingKeys = new Set(
         existingRelationships.map(
@@ -191,15 +218,13 @@ export async function PATCH(
         )
         .map((r) => r.id);
 
-      const relationshipsToCreate = nextMentions.filter(
+      const relationshipsToCreate = otherMentions.filter(
         (m) => !existingKeys.has(`${m.type}:${m.id}`),
       );
 
       if (relationshipIdsToDelete.length > 0) {
         await prisma.relationship.deleteMany({
-          where: {
-            id: { in: relationshipIdsToDelete },
-          },
+          where: { id: { in: relationshipIdsToDelete } },
         });
       }
 
@@ -215,8 +240,107 @@ export async function PATCH(
           })),
         });
       }
-    }
 
+      // ===== USER MENTIONS =====
+      const existingUserRelationships = await prisma.relationship.findMany({
+        where: {
+          workspaceId,
+          sourceEntityType: "DOCUMENT",
+          sourceEntityId: parsedParams.data.id,
+          relationshipType: "MENTIONS",
+          targetEntityType: "USER",
+        },
+        select: {
+          id: true,
+          targetEntityId: true,
+        },
+      });
+
+      const nextUserIds = new Set(userMentions.map((m) => m.id));
+      const existingUserIds = new Set(
+        existingUserRelationships.map((r) => r.targetEntityId),
+      );
+
+      const userRelsToDelete = existingUserRelationships.filter(
+        (r) => !nextUserIds.has(r.targetEntityId),
+      );
+
+      const userMentionsToCreate = userMentions.filter(
+        (m) => !existingUserIds.has(m.id),
+      );
+
+      // CREATE USER REL + NOTIFICATION
+      for (const m of userMentionsToCreate) {
+        const rel = await prisma.relationship.create({
+          data: {
+            workspaceId,
+            sourceEntityType: "DOCUMENT",
+            sourceEntityId: parsedParams.data.id,
+            targetEntityType: "USER",
+            targetEntityId: m.id,
+            relationshipType: "MENTIONS",
+          },
+        });
+
+        await createNotification({
+          userId: m.id,
+          workspaceId,
+          type: "MENTIONED",
+          title: "You were mentioned",
+          message: `You were mentioned in @${document.title}`,
+          entityType: "DOCUMENT",
+          entityId: parsedParams.data.id,
+        });
+      }
+
+      // DELETE USER REL + NOTIFICATION
+      for (const rel of userRelsToDelete) {
+        // 1. get notification BEFORE deleting
+        const notifications = await prisma.notification.findMany({
+          where: {
+            relationshipId: rel.id,
+          },
+          select: {
+            id: true,
+            userId: true,
+          },
+        });
+
+        // 2. delete notifications
+        await prisma.notification.deleteMany({
+          where: {
+            relationshipId: rel.id,
+          },
+        });
+
+        // 3. emit removal event
+        for (const n of notifications) {
+          const user = await prisma.user.findUnique({
+            where: { id: n.userId },
+            select: { clerkId: true },
+          });
+
+          if (user?.clerkId) {
+            await fetch("http://localhost:4000/emit", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userId: user.clerkId,
+                event: "notification:remove",
+                data: { id: n.id },
+              }),
+            });
+          }
+        }
+
+        // 4. delete relationship
+        await prisma.relationship.delete({
+          where: { id: rel.id },
+        });
+      }
+    }
     return NextResponse.json({
       success: true,
       data: document,

@@ -30,9 +30,11 @@ app.use(express.json());
 
 app.post("/emit", (req, res) => {
   const { userId, event, data } = req.body;
+  console.log("EMIT API HIT:", req.body);
 
   io.to(userId).emit(event, data);
 
+  console.log("Emitting to:", userId);
   res.json({ success: true });
 });
 

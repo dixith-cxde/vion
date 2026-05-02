@@ -122,6 +122,8 @@ model Notification {
   workspaceId String?
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
 
+  relationshipId String? @unique // ← ADD THIS
+
   createdAt DateTime @default(now())
 
   @@index([userId])
