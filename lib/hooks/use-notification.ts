@@ -28,15 +28,13 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   // fetch initial notifications
   useEffect(() => {
-    const controller = new AbortController();
-
     async function fetchInitial() {
       setLoading(true);
 
       try {
         const res = await fetch("/api/notifications", {
           cache: "no-store",
-          signal: controller.signal,
+          credentials: "include",
         });
 
         if (!res.ok) throw new Error("Failed to load notifications");
@@ -45,20 +43,49 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
         setAllNotifications(data.data || []);
       } catch (error) {
-        if (!controller.signal.aborted) {
-          console.error("Failed to fetch notifications:", error);
-          setAllNotifications([]);
-        }
+        console.error("Failed to fetch notifications:", error);
+        setAllNotifications([]);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
     fetchInitial();
+  }, []);
 
-    return () => controller.abort();
+  useEffect(() => {
+    function handler(e: Event) {
+      const { id, isRead } = (
+        e as CustomEvent<{
+          id: string;
+          isRead: boolean;
+        }>
+      ).detail;
+
+      setAllNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead } : n)),
+      );
+    }
+
+    window.addEventListener("notification:update", handler);
+
+    return () => {
+      window.removeEventListener("notification:update", handler);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handler(e: Event) {
+      const { id } = (e as CustomEvent<{ id: string }>).detail;
+
+      setAllNotifications((prev) => prev.filter((n) => n.id !== id));
+    }
+
+    window.addEventListener("notification:remove", handler);
+
+    return () => {
+      window.removeEventListener("notification:remove", handler);
+    };
   }, []);
 
   // listen to realtime notifications (FIXED MERGE LOGIC)

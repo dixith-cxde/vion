@@ -29,8 +29,17 @@ export async function createNotification(input: CreateNotificationInput) {
       entityId: input.entityId,
     },
   });
+  console.log("NOTIFICATION CREATED:", notification.id);
 
-  void emitNotification(notification.userId, notification);
+  const user = await prisma.user.findUnique({
+    where: { id: notification.userId },
+    select: { clerkId: true },
+  });
+
+  if (user?.clerkId) {
+    console.log("EMITTING TO SOCKET:", user.clerkId);
+    await emitNotification(user.clerkId, notification);
+  }
 
   return notification;
 }
