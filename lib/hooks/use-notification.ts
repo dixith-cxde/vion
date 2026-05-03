@@ -61,10 +61,36 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
           isRead: boolean;
         }>
       ).detail;
+      console.log("UPDATE NOTIFICATION: ", { isRead, id });
+      setAllNotifications((prev) => {
+        const updated = prev.map((n) => (n.id === id ? { ...n, isRead } : n));
 
-      setAllNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead } : n)),
-      );
+        return [...updated];
+      });
+    }
+
+    window.addEventListener("notification:update", handler);
+
+    return () => {
+      window.removeEventListener("notification:update", handler);
+    };
+  }, []);
+
+  // HANDLE READ/UNREAD TOGGLE (THIS IS MISSING → CAUSES YOUR BUG)
+  useEffect(() => {
+    function handler(e: Event) {
+      const { id, isRead } = (
+        e as CustomEvent<{
+          id: string;
+          isRead: boolean;
+        }>
+      ).detail;
+
+      setAllNotifications((prev) => {
+        const updated = prev.map((n) => (n.id === id ? { ...n, isRead } : n));
+
+        return [...updated]; // force re-render
+      });
     }
 
     window.addEventListener("notification:update", handler);

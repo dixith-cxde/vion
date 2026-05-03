@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  ArchiveRestoreIcon,
   BellRing,
   CheckCheck,
+  CheckCircleIcon,
   ChevronRight,
   Inbox,
   LoaderCircle,
+  Trash2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,22 +18,47 @@ import {
   type NotificationItem,
   useNotifications,
 } from "@/lib/hooks/use-notification";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { toast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import ToolTipComponent from "../ui/tool-tip";
 type NotificationPanelProps = {
   workspaceId?: string;
 };
+
+function parseMentionText(message: string) {
+  const regex = /@#\{(.+?)\}/;
+  const match = message.match(regex);
+
+  if (!match) {
+    return { before: message, mention: null, after: "" };
+  }
+
+  return {
+    before: message.slice(0, match.index),
+    mention: match[1], // document name
+    after: message.slice((match.index ?? 0) + match[0].length),
+  };
+}
 
 export function NotificationPanel({ workspaceId }: NotificationPanelProps) {
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
     useNotifications({ workspaceId });
 
-  const unreadNotifications = notifications.filter(
-    (notification) => !notification.isRead,
+  const unreadNotifications = useMemo(
+    () => notifications.filter((n) => !n.isRead),
+    [notifications],
   );
-  const readNotifications = notifications.filter(
-    (notification) => notification.isRead,
+
+  const readNotifications = useMemo(
+    () => notifications.filter((n) => n.isRead),
+    [notifications],
   );
 
   // TOAST ON NEW NOTIFICATION
@@ -169,6 +197,81 @@ function NotificationCard({
 }) {
   const isUnread = !notification.isRead;
   const [joiningInvite, setJoiningInvite] = useState(false);
+  const router = useRouter();
+  const { before, mention, after } = parseMentionText(notification.message);
+
+  async function toggleRead(e: React.MouseEvent) {
+    e.stopPropagation();
+
+    // UI update
+    const optimisticState = !notification.isRead;
+
+    window.dispatchEvent(
+      new CustomEvent("notification:update", {
+        detail: {
+          id: notification.id,
+          isRead: optimisticState,
+        },
+      }),
+    );
+
+    try {
+      // backend sync
+      const res = await fetch(`/api/notifications/${notification.id}`, {
+        method: "PATCH",
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+
+      const actualState = data?.data?.isRead;
+
+      // 3. reconcile (fix if mismatch)
+      if (actualState !== optimisticState) {
+        window.dispatchEvent(
+          new CustomEvent("notification:update", {
+            detail: {
+              id: notification.id,
+              isRead: actualState,
+            },
+          }),
+        );
+      }
+    } catch (err) {
+      console.error("Toggle failed:", err);
+
+      // 4. rollback on failure
+      window.dispatchEvent(
+        new CustomEvent("notification:update", {
+          detail: {
+            id: notification.id,
+            isRead: !optimisticState,
+          },
+        }),
+      );
+    }
+  }
+
+  async function deleteNotification(e: React.MouseEvent) {
+    e.stopPropagation();
+
+    try {
+      const res = await fetch(`/api/notifications/${notification.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error();
+
+      window.dispatchEvent(
+        new CustomEvent("notification:remove", {
+          detail: { id: notification.id },
+        }),
+      );
+    } catch {
+      console.error("Failed to delete notification");
+    }
+  }
 
   async function handleInvite(e: React.MouseEvent) {
     e.stopPropagation();
@@ -224,15 +327,15 @@ function NotificationCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={() => {
-        if (isUnread) onClick();
-      }}
-      onKeyDown={(event) => {
-        if ((event.key === "Enter" || event.key === " ") && isUnread) {
-          event.preventDefault();
-          onClick();
-        }
-      }}
+      // onClick={() => {
+      //   if (isUnread) onClick();
+      // }}
+      // onKeyDown={(event) => {
+      //   if ((event.key === "Enter" || event.key === " ") && isUnread) {
+      //     event.preventDefault();
+      //     onClick();
+      //   }
+      // }}
       className={cn(
         "flex w-full items-start gap-3 rounded-xl border px-3 py-3.5 text-left transition-colors",
         isUnread
@@ -264,7 +367,28 @@ function NotificationCard({
                 isUnread ? "text-foreground/80" : "text-muted-foreground",
               )}
             >
-              {notification.message}
+              <span>{before}</span>
+
+              {mention && (
+                <span
+                  className="text-blue-600 cursor-pointer hover:underline font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation(); // prevent card click
+                    if (
+                      notification.entityType === "DOCUMENT" &&
+                      notification.entityId
+                    ) {
+                      router.push(
+                        `/workspaces/${notification.workspaceId}/documents/${notification.entityId}`,
+                      );
+                    }
+                  }}
+                >
+                  @{mention}
+                </span>
+              )}
+
+              <span>{after}</span>
             </div>
 
             {notification.type === "INVITE_RECEIVED" && (
@@ -289,9 +413,30 @@ function NotificationCard({
               {isUnread ? "Unread" : "Read"}
             </Badge>
 
-            {isUnread && (
-              <ChevronRight className="size-4 text-muted-foreground" />
-            )}
+            <>
+              {isUnread ? (
+                <ToolTipComponent tooltipContent="Mark as Read">
+                  <Button variant={"ghost"} onClick={toggleRead}>
+                    <CheckCircleIcon className="size-3" />
+                  </Button>
+                </ToolTipComponent>
+              ) : (
+                <ToolTipComponent tooltipContent="Mark as unread">
+                  <Button variant={"ghost"} onClick={toggleRead}>
+                    <ArchiveRestoreIcon className="size-4 z-10" />
+                  </Button>
+                </ToolTipComponent>
+              )}
+            </>
+            {/* Delete */}
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={deleteNotification}
+              className="size-7 text-red-500"
+            >
+              <Trash2 />
+            </Button>
           </div>
         </div>
 
