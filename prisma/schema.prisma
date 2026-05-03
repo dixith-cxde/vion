@@ -29,7 +29,12 @@ model User {
   workspaceMembers WorkspaceMember[]
   invitedMembers   WorkspaceMember[] @relation("WorkspaceInviter")
   invitations      Invitation[]
-  notifications    Notification[]
+
+  // notifications received
+  receivedNotifications Notification[] @relation("NotificationReceiver")
+
+  // notifications sent
+  sentNotifications Notification[] @relation("NotificationSender")
 }
 
 model Workspace {
@@ -107,7 +112,7 @@ model Notification {
   id String @id @default(uuid())
 
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation("NotificationReceiver", fields: [userId], references: [id])
 
   type NotificationType
 
@@ -122,7 +127,10 @@ model Notification {
   workspaceId String?
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
 
-  relationshipId String? @unique // ← ADD THIS
+  senderId String?
+  sender   User?   @relation("NotificationSender", fields: [senderId], references: [id])
+
+  relationshipId String? @unique
 
   createdAt DateTime @default(now())
 

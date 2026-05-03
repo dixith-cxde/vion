@@ -12,6 +12,11 @@ export type NotificationItem = {
   entityId: string | null;
   workspaceId: string | null;
   createdAt: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    imageUrl: string | null;
+  } | null;
 };
 
 type UseNotificationsOptions = {
@@ -40,6 +45,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         if (!res.ok) throw new Error("Failed to load notifications");
 
         const data = await res.json();
+        console.log(data);
 
         setAllNotifications(data.data || []);
       } catch (error) {

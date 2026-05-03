@@ -5,6 +5,7 @@ import { z } from "zod";
 import { updateDocumentSchema } from "@/lib/validators/documents";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { createNotification } from "@/lib/services/notification.service";
+import { getCurrentDBUser } from "@/lib/services/user.service";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
@@ -94,6 +95,7 @@ export async function PATCH(
     const { workspaceId, id } = resolvedParams;
     await requireWorkspaceAccess(workspaceId);
 
+    const currentUser = await getCurrentDBUser();
     const parsedParams = paramsSchema.safeParse({ id });
 
     if (!parsedParams.success) {
@@ -284,6 +286,7 @@ export async function PATCH(
 
         await createNotification({
           userId: m.id,
+          senderId: currentUser?.id,
           workspaceId,
           type: "MENTIONED",
           title: "You were mentioned",

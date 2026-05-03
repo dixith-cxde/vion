@@ -89,6 +89,7 @@ export async function POST(
     if (existingUser) {
       await createNotification({
         userId: existingUser.id,
+        senderId: userId,
         type: "INVITE_RECEIVED",
         title: "Workspace Invitation",
         message: "You have been invited to a workspace",

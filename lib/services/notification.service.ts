@@ -9,6 +9,7 @@ type NotificationType =
 
 type CreateNotificationInput = {
   userId: string;
+  senderId?: string;
   workspaceId?: string | null;
   type: NotificationType;
   title: string;
@@ -21,6 +22,7 @@ export async function createNotification(input: CreateNotificationInput) {
   const notification = await prisma.notification.create({
     data: {
       userId: input.userId,
+      senderId: input.senderId ?? null,
       workspaceId: input.workspaceId,
       type: input.type,
       title: input.title,

@@ -44,7 +44,7 @@ export async function notifyTaskAssignment(params: {
   taskId: string;
   taskTitle: string;
   workspaceId: string;
-  actorLabel: string;
+  actorId: string;
 }) {
   const {
     assignedToId,
@@ -52,7 +52,7 @@ export async function notifyTaskAssignment(params: {
     taskId,
     taskTitle,
     workspaceId,
-    actorLabel,
+    actorId,
   } = params;
 
   if (!assignedToId || assignedToId === previousAssignedToId) {
@@ -61,10 +61,11 @@ export async function notifyTaskAssignment(params: {
 
   await createNotification({
     userId: assignedToId,
+    senderId: actorId,
     workspaceId,
     type: "TASK_ASSIGNED",
-    title: "Task assigned",
-    message: `${actorLabel} assigned you to "${taskTitle}".`,
+    title: "assigned you to",
+    message: "",
     entityType: "TASK",
     entityId: taskId,
   });

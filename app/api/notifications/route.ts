@@ -30,6 +30,14 @@ export async function GET() {
           entityId: true,
           workspaceId: true,
           createdAt: true,
+
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+            },
+          },
         },
       }),
       prisma.notification.count({
@@ -78,6 +86,7 @@ export async function POST(req: Request) {
 
     const notification = await createNotification({
       userId,
+      senderId: sender.id,
       workspaceId,
       type,
       title,
