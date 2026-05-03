@@ -197,15 +197,22 @@ function NotificationCard({
 }) {
   const isUnread = !notification.isRead;
   const [joiningInvite, setJoiningInvite] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<
+    "toggle" | "delete" | null
+  >(null);
+
   const router = useRouter();
   const { before, mention, after } = parseMentionText(notification.message);
 
   async function toggleRead(e: React.MouseEvent) {
     e.stopPropagation();
 
-    // UI update
+    if (loadingAction) return;
+    setLoadingAction("toggle");
+
     const optimisticState = !notification.isRead;
 
+    // optimistic UI
     window.dispatchEvent(
       new CustomEvent("notification:update", {
         detail: {
@@ -216,7 +223,6 @@ function NotificationCard({
     );
 
     try {
-      // backend sync
       const res = await fetch(`/api/notifications/${notification.id}`, {
         method: "PATCH",
       });
@@ -224,10 +230,8 @@ function NotificationCard({
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-
       const actualState = data?.data?.isRead;
 
-      // 3. reconcile (fix if mismatch)
       if (actualState !== optimisticState) {
         window.dispatchEvent(
           new CustomEvent("notification:update", {
@@ -238,10 +242,8 @@ function NotificationCard({
           }),
         );
       }
-    } catch (err) {
-      console.error("Toggle failed:", err);
-
-      // 4. rollback on failure
+    } catch {
+      // rollback
       window.dispatchEvent(
         new CustomEvent("notification:update", {
           detail: {
@@ -250,11 +252,16 @@ function NotificationCard({
           },
         }),
       );
+    } finally {
+      setLoadingAction(null);
     }
   }
 
   async function deleteNotification(e: React.MouseEvent) {
     e.stopPropagation();
+
+    if (loadingAction) return;
+    setLoadingAction("delete");
 
     try {
       const res = await fetch(`/api/notifications/${notification.id}`, {
@@ -268,8 +275,8 @@ function NotificationCard({
           detail: { id: notification.id },
         }),
       );
-    } catch {
-      console.error("Failed to delete notification");
+    } finally {
+      setLoadingAction(null);
     }
   }
 
@@ -297,10 +304,6 @@ function NotificationCard({
         throw new Error(data.message || "Failed to join workspace.");
       }
 
-      if (isUnread) {
-        onClick();
-      }
-
       toast({
         title: "Workspace Joined",
         description: "You have joined successfully.",
@@ -310,8 +313,6 @@ function NotificationCard({
         window.location.assign(`/workspaces/${data.data.workspaceId}`);
       }
     } catch (err) {
-      console.error(err);
-
       toast({
         title: "Error",
         description:
@@ -325,55 +326,32 @@ function NotificationCard({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      // onClick={() => {
-      //   if (isUnread) onClick();
-      // }}
-      // onKeyDown={(event) => {
-      //   if ((event.key === "Enter" || event.key === " ") && isUnread) {
-      //     event.preventDefault();
-      //     onClick();
-      //   }
-      // }}
       className={cn(
-        "flex w-full items-start gap-3 rounded-xl border px-3 py-3.5 text-left transition-colors",
+        "group flex w-full items-start gap-3 rounded-xl border px-3 py-3 transition",
         isUnread
-          ? "cursor-pointer border-border/80 bg-accent/35 shadow-sm hover:bg-accent/50"
-          : "cursor-pointer border-border/60 bg-background opacity-80",
+          ? "border-border/80 bg-accent/30 hover:bg-accent/50"
+          : "border-border/60 bg-background opacity-80",
       )}
     >
-      <div
-        className={cn(
-          "mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border",
-          isUnread
-            ? "border-border/80 bg-background text-foreground"
-            : "border-border/60 bg-muted/25 text-muted-foreground",
-        )}
-      >
+      {/* ICON */}
+      <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border bg-background">
         <BellRing className="size-3.5" />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      {/* CONTENT */}
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-foreground">
-              {notification.title}
-            </div>
+            <p className="text-sm font-medium truncate">{notification.title}</p>
 
-            <div
-              className={cn(
-                "mt-1 text-sm leading-6",
-                isUnread ? "text-foreground/80" : "text-muted-foreground",
-              )}
-            >
-              <span>{before}</span>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {before}
 
               {mention && (
                 <span
-                  className="text-blue-600 cursor-pointer hover:underline font-medium"
+                  className="ml-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 cursor-pointer hover:bg-blue-200"
                   onClick={(e) => {
-                    e.stopPropagation(); // prevent card click
+                    e.stopPropagation();
                     if (
                       notification.entityType === "DOCUMENT" &&
                       notification.entityId
@@ -388,63 +366,77 @@ function NotificationCard({
                 </span>
               )}
 
-              <span>{after}</span>
-            </div>
+              {after}
+            </p>
 
+            {/* INVITE ACTION */}
             {notification.type === "INVITE_RECEIVED" && (
               <Button
-                type="button"
                 size="sm"
                 variant="outline"
                 onClick={handleInvite}
                 disabled={joiningInvite}
-                className="mt-2 h-8 rounded-md px-3 text-xs"
+                className="mt-2 h-7 text-xs"
               >
-                {joiningInvite ? "Joining..." : "Accept Invite"}
+                {joiningInvite ? "Joining..." : "Accept"}
               </Button>
             )}
           </div>
 
-          <div className="flex items-center gap-2 self-start">
-            <Badge
-              variant={isUnread ? "muted" : "outline"}
-              className="rounded-md px-2 py-0 text-[10px]"
+          {/* ACTIONS */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            {/* TOGGLE */}
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={toggleRead}
+              disabled={loadingAction === "toggle"}
+              className="size-7"
             >
-              {isUnread ? "Unread" : "Read"}
-            </Badge>
-
-            <>
-              {isUnread ? (
-                <ToolTipComponent tooltipContent="Mark as Read">
-                  <Button variant={"ghost"} onClick={toggleRead}>
-                    <CheckCircleIcon className="size-3" />
-                  </Button>
-                </ToolTipComponent>
+              {loadingAction === "toggle" ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : isUnread ? (
+                <CheckCircleIcon className="size-4" />
               ) : (
-                <ToolTipComponent tooltipContent="Mark as unread">
-                  <Button variant={"ghost"} onClick={toggleRead}>
-                    <ArchiveRestoreIcon className="size-4 z-10" />
-                  </Button>
-                </ToolTipComponent>
+                <ArchiveRestoreIcon className="size-4" />
               )}
-            </>
-            {/* Delete */}
+            </Button>
+
+            {/* DELETE */}
             <Button
               size="icon"
               variant="ghost"
               onClick={deleteNotification}
+              disabled={loadingAction === "delete"}
               className="size-7 text-red-500"
             >
-              <Trash2 />
+              {loadingAction === "delete" ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
             </Button>
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="outline" className="rounded-md uppercase">
+        {/* FOOTER */}
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-medium",
+              notification.type === "MENTIONED" && "bg-blue-100 text-blue-700",
+              notification.type === "TASK_ASSIGNED" &&
+                "bg-purple-100 text-purple-700",
+              notification.type === "INVITE_RECEIVED" &&
+                "bg-green-100 text-green-700",
+            )}
+          >
             {formatLabel(notification.type)}
-          </Badge>
-          <span>{formatNotificationDateTime(notification.createdAt)}</span>
+          </span>
+
+          <span className="text-muted-foreground">
+            {formatNotificationDateTime(notification.createdAt)}
+          </span>
         </div>
       </div>
     </div>
