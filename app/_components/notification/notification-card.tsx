@@ -19,6 +19,7 @@ import {
   formatLabel,
   formatNotificationDateTime,
   parseMentionText,
+  parseMention,
 } from "./notification-utils";
 
 export function NotificationCard({
@@ -33,7 +34,7 @@ export function NotificationCard({
   >(null);
 
   const router = useRouter();
-  const { before, mention, after } = parseMentionText(notification.message);
+  const parts = parseMention(notification.message);
 
   async function toggleRead(e: React.MouseEvent) {
     e.stopPropagation();
@@ -158,10 +159,10 @@ export function NotificationCard({
   return (
     <div
       className={cn(
-        "group flex w-full items-start gap-3 rounded-xl border px-3 py-3 transition",
+        "group flex w-full items-start gap-3 rounded-2xl px-4 py-3 transition",
         isUnread
-          ? "border-border/80 bg-accent/30 hover:bg-accent/50"
-          : "border-border/60 bg-background opacity-80",
+          ? "bg-white shadow-sm border border-border/60 hover:shadow-md"
+          : "bg-muted/20 border border-transparent hover:bg-muted/40",
       )}
     >
       {/* ICON */}
@@ -173,31 +174,43 @@ export function NotificationCard({
       <div className="flex-1 min-w-0">
         <div className="flex justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{notification.title}</p>
+            <p className="text-[14px] font-semibold text-foreground truncate">
+              {notification.title}
+            </p>
 
-            <p className="mt-1 text-sm text-muted-foreground">
-              {before}
+            <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+              {parts.map((part, i) => {
+                if (part.type === "text") {
+                  return <span key={i}>{part.value}</span>;
+                }
 
-              {mention && (
-                <span
-                  className="ml-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 cursor-pointer hover:bg-blue-200"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (
-                      notification.entityType === "DOCUMENT" &&
-                      notification.entityId
-                    ) {
-                      router.push(
-                        `/workspaces/${notification.workspaceId}/documents/${notification.entityId}`,
-                      );
-                    }
-                  }}
-                >
-                  @{mention}
-                </span>
-              )}
+                return (
+                  <span
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
 
-              {after}
+                      if (notification.entityId && notification.workspaceId) {
+                        router.push(
+                          `/workspaces/${notification.workspaceId}/documents/${notification.entityId}`,
+                        );
+                      }
+                    }}
+                    className="
+                      inline-flex items-center
+                      px-2 py-[3px] ml-1
+                      rounded-lg
+                      text-[11px] font-medium
+                      bg-blue-50 text-blue-600
+                      hover:bg-blue-100
+                      cursor-pointer
+                      transition
+                    "
+                  >
+                    {part.value}
+                  </span>
+                );
+              })}
             </p>
 
             {/* INVITE ACTION */}
@@ -222,7 +235,7 @@ export function NotificationCard({
               variant="ghost"
               onClick={toggleRead}
               disabled={loadingAction === "toggle"}
-              className="size-7"
+              className="size-7 cursor-pointer"
             >
               {loadingAction === "toggle" ? (
                 <LoaderCircle className="size-4 animate-spin" />
@@ -239,7 +252,7 @@ export function NotificationCard({
               variant="ghost"
               onClick={deleteNotification}
               disabled={loadingAction === "delete"}
-              className="size-7 text-red-500"
+              className="size-7 text-red-500 cursor-pointer"
             >
               {loadingAction === "delete" ? (
                 <LoaderCircle className="size-4 animate-spin" />

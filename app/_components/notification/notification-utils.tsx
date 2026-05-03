@@ -13,6 +13,42 @@ export function parseMentionText(message: string) {
   };
 }
 
+export function parseMention(message: string) {
+  const regex = /@#\{(.+?)\}/g;
+
+  const parts: {
+    type: "text" | "mention";
+    value: string;
+  }[] = [];
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(message)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({
+        type: "text",
+        value: message.slice(lastIndex, match.index),
+      });
+    }
+
+    parts.push({
+      type: "mention",
+      value: match[1],
+    });
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < message.length) {
+    parts.push({
+      type: "text",
+      value: message.slice(lastIndex),
+    });
+  }
+
+  return parts;
+}
 export function formatLabel(value: string) {
   return value
     .replaceAll("_", " ")
