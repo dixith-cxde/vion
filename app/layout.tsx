@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins, Inter } from "next/font/google";
+import { Poppins, Inter, Figtree, EB_Garamond } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { WorkspaceProvider } from "./_components/context/workspace-context-provider";
@@ -9,7 +9,12 @@ import { cn } from "@/lib/utils";
 import { SocketProvider } from "./_components/provider/socket-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const ebGaramondHeading = EB_Garamond({
+  subsets: ["latin"],
+  variable: "--font-heading",
+});
+
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-sans" });
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -29,7 +34,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn("font-sans", inter.variable)}>
+    <html
+      lang="en"
+      className={cn("font-sans", figtree.variable, ebGaramondHeading.variable)}
+    >
       <body className={`${poppins.variable} ${poppins.className} antialiased`}>
         <ClerkProvider>
           <TooltipProvider>{children}</TooltipProvider>
