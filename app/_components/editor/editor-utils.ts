@@ -56,7 +56,7 @@ const emptyTextContent: TextContent = {
 
 export const lightTheme: Theme = {
   colors: {
-    editor: { text: "#191c25", background: "#fcfcfe" },
+    editor: { text: "#191c25", background: "transparent" },
     menu: { text: "#191c25", background: "#ffffff" },
     tooltip: { text: "#fafafa", background: "#171821" },
     hovered: { text: "#171821", background: "#f3f5fa" },
@@ -77,7 +77,7 @@ export const lightTheme: Theme = {
       pink: { text: "#94506f", background: "#fdf0f6" },
     },
   },
-  borderRadius: 14,
+  borderRadius: 10,
   fontFamily:
     'var(--font-poppins), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
 };
@@ -95,27 +95,14 @@ function sanitizeBlocks(blocks: EditorBlock[]) {
 }
 
 export function parseInitialContent(initialContent?: Block[] | string) {
-  const emptyDoc = [
-    {
-      type: "paragraph",
-      content: [],
-    },
-  ];
-
+  const emptyDoc = [{ type: "paragraph", content: [] }];
   try {
     if (!initialContent) return emptyDoc;
-
-    // If string → parse
     if (typeof initialContent === "string") {
       const parsed = JSON.parse(initialContent);
       return Array.isArray(parsed) ? parsed : emptyDoc;
     }
-
-    // If already array → use as-is
-    if (Array.isArray(initialContent)) {
-      return initialContent;
-    }
-
+    if (Array.isArray(initialContent)) return initialContent;
     return emptyDoc;
   } catch {
     return emptyDoc;
@@ -137,32 +124,24 @@ export function extractTextFromBlock(block?: EditorBlock) {
 
 export function getMentionQueryAtCursor() {
   if (typeof window === "undefined") return null;
-
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
-
   const range = selection.getRangeAt(0);
   const anchorNode = selection.anchorNode;
   if (!anchorNode) return null;
-
   const anchorElement =
     anchorNode.nodeType === Node.ELEMENT_NODE
       ? (anchorNode as HTMLElement)
       : anchorNode.parentElement;
-
   const blockElement = anchorElement?.closest(
     ".bn-editor [data-content-type], .bn-editor .bn-block-content",
   );
-
   if (!blockElement) return null;
-
   const textRange = range.cloneRange();
   textRange.selectNodeContents(blockElement);
   textRange.setEnd(range.endContainer, range.endOffset);
-
   const textBeforeCursor = textRange.toString();
   const match = textBeforeCursor.match(/(?:^|\s)@([^\s@]*)$/);
-
   return match ? match[1] : null;
 }
 
@@ -194,7 +173,6 @@ export function normalizeEntities(
       label: task.title,
       type: "TASK" as const,
     })),
-
     ...(documents.data ?? []).map((doc) => ({
       id: doc.id,
       label: doc.title,
@@ -208,11 +186,17 @@ export function getMentionPath(
   workspaceId?: string | null,
 ): string {
   const basePath = workspaceId ? `/workspaces/${workspaceId}` : "";
-
   return `${basePath}/${item.type === "TASK" ? "tasks" : item.type === "USER" ? "members" : "documents"}/${item.id}`;
-  // if (item.type === "TASK") return `${basePath}/tasks/${item.id}`;
-  // else if (item.type === "USER") return `${basePath}/members/${item.id}`;
-  // return `${basePath}/documents/${item.id}`;
+}
+
+export function getMentionStyles(type: MentionEntityType) {
+  if (type === "TASK")
+    return { textColor: "#5b21b6", backgroundColor: "#ede9fe" };
+  if (type === "DOCUMENT")
+    return { textColor: "#0369a1", backgroundColor: "#e0f2fe" };
+  if (type === "USER")
+    return { textColor: "#15803d", backgroundColor: "#dcfce7" };
+  return { textColor: "#1f2937", backgroundColor: "#e5e7eb" };
 }
 
 export function getMentionBackgroundColor(
@@ -221,56 +205,22 @@ export function getMentionBackgroundColor(
   return type === "TASK" ? "blue" : "purple";
 }
 
-export function getMentionStyles(type: MentionEntityType) {
-  if (type === "TASK") {
-    return {
-      textColor: "#6d28d9",
-      backgroundColor: "#ede9fe",
-    };
-  }
-
-  if (type === "DOCUMENT") {
-    return {
-      textColor: "#b91c1c",
-      backgroundColor: "#fee2e2",
-    };
-  }
-
-  if (type === "USER") {
-    return {
-      textColor: "#065f46",
-      backgroundColor: "#d1fae5",
-    };
-  }
-
-  return {
-    textColor: "#1f2937",
-    backgroundColor: "#e5e7eb",
-  };
-}
-
-export function getMentionPrefix(type: MentionEntityType): string {
-  return type === "TASK" ? "T" : type === "DOCUMENT" ? "D" : "U";
-}
-
 export function replaceMentionTokenInBlock(
   block: Block,
   item: MentionEntity,
   mentionQuery: string,
   workspaceId?: string | null,
 ): Block["content"] {
-  // Ensure it's iterable (BlockNote can have non-array content types)
   const content = Array.isArray(block.content) ? block.content : [];
-
   const token = `@${mentionQuery}`;
   const replacedContent: Block["content"] = [];
   let didReplace = false;
 
   const mentionPath = getMentionPath(item, workspaceId);
-  const mentionPrefix = getMentionPrefix(item.type);
   const styles = getMentionStyles(item.type);
 
-  const mentionLabel = `${mentionPrefix} ${item.label}`;
+  // No prefix — just the label
+  const mentionLabel = item.label;
 
   for (let i = content.length - 1; i >= 0; i--) {
     const part = content[i];
@@ -282,22 +232,15 @@ export function replaceMentionTokenInBlock(
       part.text.includes(token)
     ) {
       const mentionIndex = part.text.lastIndexOf(token);
-
       const before = part.text.slice(0, mentionIndex);
       const after = part.text.slice(mentionIndex + token.length);
 
       const replacement: Block["content"] = [];
 
-      // BEFORE TEXT
       if (before) {
-        replacement.push({
-          type: "text",
-          text: before,
-          styles: {}, // REQUIRED
-        });
+        replacement.push({ type: "text", text: before, styles: {} });
       }
 
-      // MENTION NODE (styled link)
       replacement.push({
         type: "link",
         href: mentionPath,
@@ -314,20 +257,10 @@ export function replaceMentionTokenInBlock(
         ],
       });
 
-      // SPACE AFTER
-      replacement.push({
-        type: "text",
-        text: " ",
-        styles: {},
-      });
+      replacement.push({ type: "text", text: " ", styles: {} });
 
-      // AFTER TEXT
       if (after.trim()) {
-        replacement.push({
-          type: "text",
-          text: after.trimStart(),
-          styles: {},
-        });
+        replacement.push({ type: "text", text: after.trimStart(), styles: {} });
       }
 
       replacedContent.unshift(...replacement);
@@ -342,76 +275,46 @@ export function replaceMentionTokenInBlock(
 }
 
 export function extractMentions(blocks: Block[]) {
-  const mentions: {
-    entityType: string;
-    entityId: string;
-  }[] = [];
+  const mentions: { entityType: string; entityId: string }[] = [];
 
   type MentionNode = {
     type?: string;
     href?: string;
-    props?: {
-      entityType?: string;
-      entityId?: string;
-    };
+    props?: { entityType?: string; entityId?: string };
     content?: unknown[];
     children?: unknown[];
   };
 
   function parseMentionHref(href?: string) {
     if (!href) return null;
-
     const taskMatch = href.match(/\/tasks\/([0-9a-f-]{36})(?:$|[/?#])/i);
-    if (taskMatch) {
-      return {
-        entityType: "TASK",
-        entityId: taskMatch[1],
-      };
-    }
-
+    if (taskMatch) return { entityType: "TASK", entityId: taskMatch[1] };
     const documentMatch = href.match(
       /\/documents\/([0-9a-f-]{36})(?:$|[/?#])/i,
     );
-    if (documentMatch) {
-      return {
-        entityType: "DOCUMENT",
-        entityId: documentMatch[1],
-      };
-    }
-
+    if (documentMatch)
+      return { entityType: "DOCUMENT", entityId: documentMatch[1] };
     return null;
   }
 
   function walk(nodes: unknown[]) {
     for (const node of nodes) {
       if (!node || typeof node !== "object") continue;
-
       const mentionNode = node as MentionNode;
-
       if (mentionNode.type === "mention") {
         mentions.push({
           entityType: mentionNode.props?.entityType ?? "",
           entityId: mentionNode.props?.entityId ?? "",
         });
       }
-
       if (mentionNode.type === "link") {
-        const parsedMention = parseMentionHref(
+        const parsed = parseMentionHref(
           typeof mentionNode.href === "string" ? mentionNode.href : undefined,
         );
-
-        if (parsedMention) {
-          mentions.push(parsedMention);
-        }
+        if (parsed) mentions.push(parsed);
       }
-
-      if (Array.isArray(mentionNode.content)) {
-        walk(mentionNode.content);
-      }
-
-      if (Array.isArray(mentionNode.children)) {
-        walk(mentionNode.children);
-      }
+      if (Array.isArray(mentionNode.content)) walk(mentionNode.content);
+      if (Array.isArray(mentionNode.children)) walk(mentionNode.children);
     }
   }
 

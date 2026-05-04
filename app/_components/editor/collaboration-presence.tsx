@@ -3,7 +3,6 @@
 import { Wifi, WifiOff } from "lucide-react";
 
 import { useEditorCollaboration } from "./collaboration-context";
-
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -11,7 +10,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useState } from "react";
 
 function getInitials(name: string) {
   return name
@@ -24,6 +22,7 @@ function getInitials(name: string) {
 export function CollaborationPresence() {
   const { activeUsers, mode, status } = useEditorCollaboration();
   const isLocalMode = mode === "local";
+
   const statusLabel = isLocalMode
     ? "Local"
     : status === "connected"

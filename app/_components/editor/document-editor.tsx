@@ -2,7 +2,6 @@
 
 import type { Block } from "@blocknote/core";
 import { useEffect, useMemo, useRef, useState } from "react";
-import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import "./editor.css";
 
@@ -12,9 +11,10 @@ import {
 } from "./collaboration-context";
 import { CollaborationPresence } from "./collaboration-presence";
 import EditorWrapper from "./document-editor-wrapper";
+import { RelationshipsPanel } from "@/app/_components/relationship/relationship-panel";
 
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -22,11 +22,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { SaveState } from "@/types";
 import { cn } from "@/lib/utils";
+
+const SAVE_STATE_TEXT: Record<SaveState, string> = {
+  idle: "text-muted-foreground/30",
+  saving: "text-amber-500 animate-pulse",
+  saved: "text-emerald-500",
+  error: "text-rose-500",
+};
+const SAVE_STATE_LABEL: Record<SaveState, string> = {
+  idle: "",
+  saving: "Saving",
+  saved: "Saved",
+  error: "Error",
+};
+const DOC_STATUS_CLASS: Record<string, string> = {
+  PUBLISHED: "bg-blue-50 text-blue-600 border-blue-100",
+  DRAFT: "bg-zinc-50 text-zinc-500 border-zinc-200",
+};
+
+type WorkspaceMember = {
+  user: { id: string; name: string | null; email: string | null };
+};
 
 interface EditorProps {
   documentId: string;
@@ -49,51 +85,46 @@ type DocumentMetaState = {
   summary: string;
   status: "DRAFT" | "PUBLISHED";
   version: number;
-  authorName: string;
+  authorId: string;
 };
 
-function formatStaticDateLabel(value: string) {
+function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
   }).format(new Date(value));
 }
+function isDocStatus(value: string): value is "DRAFT" | "PUBLISHED" {
+  return value === "DRAFT" || value === "PUBLISHED";
+}
+function formatMemberLabel(m: { name: string | null; email: string | null }) {
+  return m.name ?? m.email ?? "Unknown";
+}
 
-export default function DocumentEditor({
-  documentId,
-  workspaceId,
-  initialContent,
-  meta,
-}: EditorProps) {
+export default function DocumentEditor(props: EditorProps) {
   return (
     <EditorCollaborationProvider
       context={{
         entityType: "DOCUMENT",
-        entityId: documentId,
-        workspaceId,
+        entityId: props.documentId,
+        workspaceId: props.workspaceId,
       }}
-      initialContent={initialContent}
+      initialContent={props.initialContent}
       initialMeta={{
-        title: meta.title,
-        summary: meta.summary ?? "",
-        status: meta.status,
-        version: meta.version,
-        authorName: meta.authorName ?? "",
+        title: props.meta.title,
+        summary: props.meta.summary ?? "",
+        status: props.meta.status,
+        version: props.meta.version,
+        authorId: props.meta.authorId ?? "",
       }}
     >
-      <DocumentEditorContent
-        documentId={documentId}
-        workspaceId={workspaceId}
-        initialContent={initialContent}
-        meta={meta}
-      />
+      <Content {...props} />
     </EditorCollaborationProvider>
   );
 }
 
-function DocumentEditorContent({
+function Content({
   documentId,
   workspaceId,
   initialContent,
@@ -102,194 +133,305 @@ function DocumentEditorContent({
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveErrorShownRef = useRef(false);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+
   const { meta: collaborativeMeta, updateMeta } =
     useCollaborativeMeta<DocumentMetaState>({
       title: meta.title,
       summary: meta.summary ?? "",
-      status: (meta.status as "DRAFT" | "PUBLISHED") ?? "DRAFT",
+      status: isDocStatus(meta.status) ? meta.status : "DRAFT",
       version: meta.version,
-      authorName: meta.authorName ?? "",
+      authorId: meta.authorId ?? "",
     });
 
-  const createdAtLabel = useMemo(
-    () => formatStaticDateLabel(meta.createdAt),
-    [meta.createdAt],
-  );
-
-  const updatedAtLabel = useMemo(
-    () => formatStaticDateLabel(meta.updatedAt),
-    [meta.updatedAt],
-  );
+  const createdAt = useMemo(() => formatDate(meta.createdAt), [meta.createdAt]);
+  const updatedAt = useMemo(() => formatDate(meta.updatedAt), [meta.updatedAt]);
 
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+    async function fetchMembers() {
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+        if (!res.ok) return;
+        const json = (await res.json()) as { data: WorkspaceMember[] };
+        setMembers(json.data ?? []);
+      } catch {
+        /* non-critical */
       }
-    };
-  }, []);
+    }
+    void fetchMembers();
+  }, [workspaceId]);
+
+  useEffect(
+    () => () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
         setSaveState("saving");
-
-        const payload = {
-          title: collaborativeMeta.title.trim() || "Untitled",
-          summary: collaborativeMeta.summary,
-          status: collaborativeMeta.status,
-          version: collaborativeMeta.version,
-          ...(collaborativeMeta.authorName.trim()
-            ? { authorName: collaborativeMeta.authorName.trim() }
-            : {}),
-        };
-
-        const response = await fetch(
+        const authorMember = members.find(
+          (m) => m.user.id === collaborativeMeta.authorId,
+        );
+        const res = await fetch(
           `/api/workspaces/${workspaceId}/documents/${documentId}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({
+              title: collaborativeMeta.title.trim() || "Untitled",
+              summary: collaborativeMeta.summary,
+              status: collaborativeMeta.status,
+              version: collaborativeMeta.version,
+              authorId: collaborativeMeta.authorId || undefined,
+              authorName: authorMember
+                ? formatMemberLabel(authorMember.user)
+                : undefined,
+            }),
           },
         );
-
-        if (!response.ok) {
-          throw new Error("Document meta save failed");
-        }
-
+        if (!res.ok) throw new Error();
         saveErrorShownRef.current = false;
         setSaveState("saved");
-      } catch (error) {
-        console.error("Document meta save failed:", error);
+      } catch {
         setSaveState("error");
-
         if (!saveErrorShownRef.current) {
           saveErrorShownRef.current = true;
-          toast({
-            title: "Document update failed",
-            description: "Metadata changes could not be saved.",
-            variant: "destructive",
-          });
+          toast({ title: "Document update failed", variant: "destructive" });
         }
       }
-    }, 450);
-
+    }, 800);
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [collaborativeMeta, documentId, workspaceId]);
+  }, [collaborativeMeta, workspaceId, documentId, members]);
+
+  const selectedAuthor = useMemo(
+    () => members.find((m) => m.user.id === collaborativeMeta.authorId) ?? null,
+    [members, collaborativeMeta.authorId],
+  );
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col bg-background">
-      <div className="border-b px-4 py-4 md:px-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1">
+    <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-background">
+      {/* ── Main writing column ── */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Top bar */}
+        <div className="flex items-center justify-between border-b px-6 py-3">
+          <CollaborationPresence />
+          <span
+            className={cn(
+              "text-[11px] font-medium transition-colors duration-300",
+              SAVE_STATE_TEXT[saveState],
+            )}
+          >
+            {SAVE_STATE_LABEL[saveState]}
+          </span>
+        </div>
+
+        {/* Writing surface */}
+        <ScrollArea className="flex-1">
+          <div className="mx-auto w-full px-8 pb-10 pt-10">
             <Input
               value={collaborativeMeta.title}
-              onChange={(event) => updateMeta({ title: event.target.value })}
-              className="h-auto border-0 bg-transparent px-0 text-[2rem] font-semibold tracking-[-0.04em] shadow-none focus-visible:ring-0 md:text-[2.5rem]"
+              onChange={(e) => updateMeta({ title: e.target.value })}
+              className="h-auto border-0 bg-transparent p-0 !text-5xl font-bold tracking-tight shadow-none focus-visible:ring-0 rounded-none px-1"
               placeholder="Untitled"
             />
             <Textarea
               value={collaborativeMeta.summary}
-              onChange={(event) => updateMeta({ summary: event.target.value })}
+              onChange={(e) => updateMeta({ summary: e.target.value })}
               rows={1}
-              className="mt-2 min-h-0 max-w-3xl resize-none border-0 bg-transparent px-0 text-sm leading-6 text-muted-foreground shadow-none focus-visible:ring-0"
-              placeholder="Add a short summary"
+              className="mt-3 min-h-0 resize-none border-0 bg-transparent p-0 text-base leading-relaxed text-muted-foreground shadow-none focus-visible:ring-0"
+              placeholder="Add a short summary…"
+            />
+            <Separator className="my-6" />
+            <EditorWrapper
+              documentId={documentId}
+              workspaceId={workspaceId}
+              initialContent={initialContent}
+              setSaveState={setSaveState}
             />
           </div>
+        </ScrollArea>
+      </div>
 
-          <CollaborationPresence />
-        </div>
+      {/* ── Right sidebar ── */}
+      <aside className="hidden w-72 shrink-0 flex-col border-l bg-background xl:flex">
+        <ScrollArea className="flex-1">
+          <div className="px-5 py-5">
+            <p className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Properties
+            </p>
+            <div className="space-y-3">
+              <SidebarRow label="Status">
+                <Select
+                  value={collaborativeMeta.status}
+                  onValueChange={(v) => {
+                    if (isDocStatus(v)) updateMeta({ status: v });
+                  }}
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "h-7 w-full rounded-lg border px-3 text-[11px] font-medium shadow-none focus-visible:ring-0",
+                      DOC_STATUS_CLASS[collaborativeMeta.status] ??
+                        "bg-zinc-50 text-zinc-500 border-zinc-200",
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="PUBLISHED">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+              </SidebarRow>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2.5">
-          <Badge
-            variant="outline"
-            className={cn(
-              "h-9 rounded-full border-0 px-4 text-xs font-medium",
-              saveState === "saving" && "bg-amber-50 text-amber-700",
-              saveState === "saved" && "bg-emerald-50 text-emerald-700",
-              saveState === "error" && "bg-rose-50 text-rose-700",
-            )}
-          >
-            {saveState === "saving"
-              ? "Saving..."
-              : saveState === "error"
-                ? "Error"
-                : "Saved"}
-          </Badge>
-          <Select
-            value={collaborativeMeta.status}
-            onValueChange={(value) =>
-              updateMeta({ status: value as DocumentMetaState["status"] })
-            }
-          >
-            <SelectTrigger
-              className={cn(
-                "h-9 min-w-32 rounded-full border-0 px-4 text-xs font-medium shadow-none focus-visible:ring-0",
-                collaborativeMeta.status === "PUBLISHED"
-                  ? "bg-blue-50 text-blue-700"
-                  : "bg-zinc-100 text-zinc-700",
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="DRAFT">Draft</SelectItem>
-              <SelectItem value="PUBLISHED">Published</SelectItem>
-            </SelectContent>
-          </Select>
-          <label className="flex h-9 items-center gap-2 rounded-full bg-violet-50 px-4 text-xs font-medium text-violet-700">
-            <span>Version</span>
-            <Input
-              type="number"
-              min="1"
-              value={String(collaborativeMeta.version)}
-              onChange={(event) =>
-                updateMeta({
-                  version: Math.max(1, Number(event.target.value) || 1),
-                })
-              }
-              className="h-auto w-12 border-0 bg-transparent p-0 text-xs font-semibold text-violet-700 shadow-none focus-visible:ring-0"
-            />
-          </label>
-          <Badge className="h-9 rounded-full border-0 bg-muted px-4 text-xs font-medium text-muted-foreground">
-            Created {createdAtLabel}
-          </Badge>
-          <Badge className="h-9 rounded-full border-0 bg-muted px-4 text-xs font-medium text-muted-foreground">
-            Updated {updatedAtLabel}
-          </Badge>
-        </div>
+              <SidebarRow label="Version">
+                <div className="flex h-7 w-full items-center gap-1 rounded-lg border border-violet-100 bg-violet-50 px-3">
+                  <span className="text-[11px] text-violet-400">v</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={String(collaborativeMeta.version)}
+                    onChange={(e) =>
+                      updateMeta({
+                        version: Math.max(1, Number(e.target.value) || 1),
+                      })
+                    }
+                    className="h-auto flex-1 border-0 bg-transparent p-0 text-[11px] font-semibold text-violet-600 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+              </SidebarRow>
 
-        <div className="mt-3 flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-          <span className="text-xs font-medium">Author</span>
-          <Input
-            value={collaborativeMeta.authorName}
-            onChange={(event) =>
-              updateMeta({ authorName: event.target.value })
-            }
-            className="h-auto max-w-56 border-0 bg-transparent px-0 text-sm font-medium text-emerald-700 shadow-none focus-visible:ring-0"
-            placeholder="Unknown"
+              <SidebarRow label="Author">
+                <AuthorPicker
+                  members={members}
+                  value={collaborativeMeta.authorId}
+                  onChange={(id) => updateMeta({ authorId: id })}
+                  selectedAuthor={selectedAuthor}
+                />
+              </SidebarRow>
+
+              <SidebarRow label="Created">
+                <span className="text-[11px] text-muted-foreground">
+                  {createdAt}
+                </span>
+              </SidebarRow>
+
+              <SidebarRow label="Updated">
+                <span className="text-[11px] text-muted-foreground">
+                  {updatedAt}
+                </span>
+              </SidebarRow>
+            </div>
+          </div>
+
+          <Separator />
+          <RelationshipsPanel
+            workspaceId={workspaceId}
+            entityType="DOCUMENT"
+            entityId={documentId}
           />
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="min-h-0 flex-1 overflow-hidden px-3 py-3 md:px-4">
-        <EditorWrapper
-          documentId={documentId}
-          workspaceId={workspaceId}
-          initialContent={initialContent}
-          setSaveState={setSaveState}
-        />
-      </div>
+        </ScrollArea>
+      </aside>
     </div>
+  );
+}
+
+function SidebarRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="shrink-0 text-[11px] text-muted-foreground">
+        {label}
+      </span>
+      <div className="min-w-0 flex-1 text-right">{children}</div>
+    </div>
+  );
+}
+
+function AuthorPicker({
+  members,
+  value,
+  onChange,
+  selectedAuthor,
+}: {
+  members: WorkspaceMember[];
+  value: string;
+  onChange: (id: string) => void;
+  selectedAuthor: WorkspaceMember | null;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          className="h-7 w-full justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 text-[11px] font-medium text-emerald-700 shadow-none hover:bg-emerald-100 hover:text-emerald-700"
+        >
+          <span className="truncate">
+            {selectedAuthor
+              ? formatMemberLabel(selectedAuthor.user)
+              : "Unassigned"}
+          </span>
+          <ChevronsUpDown className="ml-1 size-3 shrink-0 opacity-40" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Search members…" className="h-8 text-xs" />
+          <CommandList>
+            <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
+              No members found.
+            </CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="none"
+                onSelect={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+                className="gap-2 text-xs"
+              >
+                <Check
+                  className={cn(
+                    "size-3.5",
+                    !value ? "opacity-100" : "opacity-0",
+                  )}
+                />
+                Unassigned
+              </CommandItem>
+              {members.map((member) => (
+                <CommandItem
+                  key={member.user.id}
+                  value={formatMemberLabel(member.user)}
+                  onSelect={() => {
+                    onChange(member.user.id);
+                    setOpen(false);
+                  }}
+                  className="gap-2 text-xs"
+                >
+                  <Check
+                    className={cn(
+                      "size-3.5",
+                      value === member.user.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {formatMemberLabel(member.user)}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

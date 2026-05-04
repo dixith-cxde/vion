@@ -1,269 +1,197 @@
-/* Mention chip — task (blue) */
-.vion-blocknote [data-background-color="blue"] {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    border-radius: 999px;
-    margin: 0 0.1rem;
-    padding: 0.13rem 0.65rem;
-    border: 1px solid #bfcfee;
-    background-color: #eef4ff !important;
-    color: #284b8f !important;
-    font-weight: 600;
-    font-size: 0.82em;
-    line-height: 1.6;
-    text-decoration: none !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-    cursor: pointer;
-    transition:
-        background-color 120ms ease,
-        border-color 120ms ease;
+/* ============================================================
+   VION EDITOR — Layout
+   ============================================================ */
+
+.vion-blocknote {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
-.vion-blocknote [data-background-color="blue"]:hover {
-    background-color: #ddeaff !important;
-    border-color: #a8bfe8;
-}
-
-/* Mention chip — document (purple) */
-.vion-blocknote [data-background-color="purple"] {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    border-radius: 999px;
-    margin: 0 0.1rem;
-    padding: 0.13rem 0.65rem;
-    border: 1px solid #cfc0e8;
-    background-color: #f4f0ff !important;
-    color: #65538f !important;
-    font-weight: 600;
-    font-size: 0.82em;
-    line-height: 1.6;
-    text-decoration: none !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-    cursor: pointer;
-    transition:
-        background-color 120ms ease,
-        border-color 120ms ease;
-}
-
-.vion-blocknote [data-background-color="purple"]:hover {
-    background-color: #ebe4ff !important;
-    border-color: #bfaadc;
-}
-
-/* Strip default link styling from inside mention chips */
-.vion-blocknote a[data-link-type] [data-background-color="blue"],
-.vion-blocknote a[data-link-type] [data-background-color="purple"],
-.vion-blocknote a [data-background-color="blue"],
-.vion-blocknote a [data-background-color="purple"] {
-    text-decoration: none !important;
-}
-/* Base chip style for all mention links */
-.vion-blocknote .bn-editor a[href*="/tasks/"],
-.vion-blocknote .bn-editor a[href*="/documents/"] {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    margin: 0 0.1rem;
-    padding: 0.13rem 0.65rem;
-    font-weight: 600;
-    font-size: 0.82em;
-    line-height: 1.6;
-    text-decoration: none !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-    cursor: pointer;
-    transition:
-        background-color 120ms ease,
-        border-color 120ms ease;
-}
-
-/* Task chip — blue */
-.vion-blocknote .bn-editor a[href*="/tasks/"] {
-    border: 1px solid #bfcfee;
-    background-color: #eef4ff !important;
-    color: #284b8f !important;
-}
-
-.vion-blocknote .bn-editor a[href*="/tasks/"]:hover {
-    background-color: #ddeaff !important;
-    border-color: #a8bfe8;
-}
-
-/* Document chip — purple */
-.vion-blocknote .bn-editor a[href*="/documents/"] {
-    border: 1px solid #cfc0e8;
-    background-color: #f4f0ff !important;
-    color: #65538f !important;
-}
-
-.vion-blocknote .bn-editor a[href*="/documents/"]:hover {
-    background-color: #ebe4ff !important;
-    border-color: #bfaadc;
-}
+.vion-blocknote .bn-container,
 .vion-blocknote .bn-editor {
     height: 100%;
-    min-height: 100%;
-    padding: 1rem 0.5rem;
-    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 100%) !important;
-    color: #1f2330 !important;
+    background: transparent !important;
 }
 
-.vion-blocknote .bn-container,
-.vion-blocknote .bn-editor,
-.vion-blocknote .bn-side-menu,
-.vion-blocknote [data-content-type],
-.vion-blocknote .bn-block-content {
-    color: #1f2330 !important;
+.vion-blocknote .bn-editor .ProseMirror {
+    max-width: 100%;
+    margin: 0;
+    padding: 0.25rem 0 6rem;
+    font-size: 0.9375rem;
+    line-height: 1.9;
+    color: #1a1c23 !important;
+    caret-color: #1a1c23;
 }
 
-.vion-blocknote .bn-container,
-.vion-blocknote .bn-editor,
-.vion-blocknote .bn-formatting-toolbar,
-.vion-blocknote .bn-slash-menu,
-.vion-blocknote .bn-drag-handle-menu,
-.vion-blocknote .bn-side-menu {
-    background-color: #ffffff !important;
+/* ============================================================
+   Typography
+   ============================================================ */
+
+.vion-blocknote .bn-editor [data-content-type="heading"][data-level="1"],
+.vion-blocknote .bn-editor h1 {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1.25 !important;
+    color: #0f1117 !important;
+    margin-top: 2rem !important;
+    margin-bottom: 0.4rem !important;
 }
+
+.vion-blocknote .bn-editor [data-content-type="heading"][data-level="2"],
+.vion-blocknote .bn-editor h2 {
+    font-size: 1.2rem !important;
+    font-weight: 650 !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.35 !important;
+    color: #13151e !important;
+    margin-top: 1.75rem !important;
+    margin-bottom: 0.3rem !important;
+}
+
+.vion-blocknote .bn-editor [data-content-type="heading"][data-level="3"],
+.vion-blocknote .bn-editor h3 {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.45 !important;
+    color: #1a1c23 !important;
+    margin-top: 1.25rem !important;
+}
+
+/* ============================================================
+   Toolbars & menus
+   ============================================================ */
 
 .vion-blocknote .bn-formatting-toolbar,
 .vion-blocknote .bn-slash-menu,
 .vion-blocknote .bn-drag-handle-menu {
-    border: 1px solid #e7eaf2 !important;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08) !important;
+    background-color: #ffffff !important;
+    border: 1px solid #ebebeb !important;
+    border-radius: 12px !important;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.08),
+        0 2px 6px rgba(0, 0, 0, 0.04) !important;
 }
 
-.vion-blocknote .bn-editor .ProseMirror {
-    min-height: 100%;
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 0.25rem 0 8rem;
-    font-size: 1.05rem;
-    line-height: 1.9;
-    color: #1f2330 !important;
+.vion-blocknote .bn-side-menu {
+    background: transparent !important;
+    opacity: 0;
+    transition: opacity 150ms ease;
 }
 
-.bn-editor span {
-    border-radius: 10px;
-    padding: 2px 6px;
+.vion-blocknote .bn-editor:hover .bn-side-menu,
+.vion-blocknote .bn-side-menu:hover {
+    opacity: 1;
 }
 
-/* target mention links */
-.bn-editor a {
-    border-radius: 100px;
-    padding: 3px 10px;
-    text-decoration: none;
-    font-size: 0.7em;
+.vion-blocknote .bn-editor span {
+    border-radius: 0;
+    padding: 0;
+}
+
+/* ============================================================
+   Mention chips — TASK (violet, no border)
+   ============================================================ */
+
+.vion-blocknote .bn-editor a[href*="/tasks/"],
+.bn-editor a[href*="/tasks/"] {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    margin: 0 1px;
+    padding: 1px 7px 2px;
+    font-weight: 600;
+    font-size: 0.8em;
+    line-height: 1.7;
+    text-decoration: none !important;
+    background-color: #ede9fe !important;
+    color: #5b21b6 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transition: background-color 100ms ease;
     cursor: pointer;
 }
 
-/* TASK (purple) */
-.bn-editor a[href*="/tasks/"] {
-    background-color: #ede9fe;
-    color: #6d28d9;
+.vion-blocknote .bn-editor a[href*="/tasks/"]:hover,
+.bn-editor a[href*="/tasks/"]:hover {
+    background-color: #ddd6fe !important;
 }
 
-/* DOCUMENT (red) */
+/* ============================================================
+   Mention chips — DOCUMENT (sky, no border)
+   ============================================================ */
+
+.vion-blocknote .bn-editor a[href*="/documents/"],
 .bn-editor a[href*="/documents/"] {
-    background-color: #fee2e2;
-    color: #b91c1c;
-}
-.bn-editor a[href*="/members/"] {
-    background-color: #d1fae5; /* light green */
-    color: #065f46; /* dark green text */
-}
-/* Collaboration cursor labels */
-.bn-editor .collaboration-cursor__label {
-    position: absolute;
-    top: -1.4em;
-    left: -1px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    margin: 0 1px;
+    padding: 1px 7px 2px;
     font-weight: 600;
-    color: #fff;
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 100;
-    line-height: 1.4;
+    font-size: 0.8em;
+    line-height: 1.7;
+    text-decoration: none !important;
+    background-color: #e0f2fe !important;
+    color: #0369a1 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transition: background-color 100ms ease;
+    cursor: pointer;
 }
 
-.bn-editor .collaboration-cursor__caret {
-    position: relative;
-    border-left: 2px solid;
-    border-right: none;
-    margin-left: -1px;
-    word-break: normal;
-    pointer-events: none;
+.vion-blocknote .bn-editor a[href*="/documents/"]:hover,
+.bn-editor a[href*="/documents/"]:hover {
+    background-color: #bae6fd !important;
 }
 
-/* ── Collaboration cursors ── */
+/* ============================================================
+   Mention chips — USER (emerald, no border)
+   ============================================================ */
+
+.vion-blocknote .bn-editor a[href*="/members/"],
+.bn-editor a[href*="/members/"] {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    margin: 0 1px;
+    padding: 1px 7px 2px;
+    font-weight: 600;
+    font-size: 0.8em;
+    line-height: 1.7;
+    text-decoration: none !important;
+    background-color: #dcfce7 !important;
+    color: #15803d !important;
+    border: none !important;
+    box-shadow: none !important;
+    transition: background-color 100ms ease;
+    cursor: pointer;
+}
+
+.vion-blocknote .bn-editor a[href*="/members/"]:hover,
+.bn-editor a[href*="/members/"]:hover {
+    background-color: #bbf7d0 !important;
+}
+
+/* ============================================================
+   Collaboration cursors
+   ============================================================ */
+
 .bn-editor .ProseMirror .collaboration-cursor__caret {
-    border-left: 2px solid;
+    border-left: 2px solid currentColor;
     border-right: none;
     margin-left: -1px;
     margin-right: -1px;
     position: relative;
-    word-break: normal;
-    pointer-events: none;
     display: inline-block;
     width: 0;
-}
-
-.bn-editor .ProseMirror .collaboration-cursor__label {
-    border-radius: 4px 4px 4px 0;
-    color: #fff;
-    font-size: 11px;
-    font-style: normal;
-    font-weight: 600;
-    left: -1px;
-    line-height: 1.4;
-    padding: 2px 6px;
-    position: absolute;
-    top: -1.6em;
-    user-select: none;
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 100;
-    display: block;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
-/* Prevent mention chip styles from leaking onto cursor labels */
-.bn-editor .ProseMirror .collaboration-cursor__label[style] {
-    background-color: unset;
-    border: none;
-    box-shadow: none;
-    border-radius: 4px 4px 4px 0;
-    padding: 2px 6px;
-}
-
-/* Collaboration cursor caret — thin line */
-.bn-editor .ProseMirror [data-collaboration-cursor] {
-    position: relative;
-    overflow: visible;
-}
-
-/* The caret line itself */
-.bn-editor .ProseMirror .collaboration-cursor__caret {
-    display: inline-block;
-    position: relative;
-    width: 2px;
-    margin-left: -1px;
-    margin-right: -1px;
-    pointer-events: none;
     word-break: normal;
+    pointer-events: none;
     overflow: visible;
 }
 
-/* The username label above the caret */
 .bn-editor .ProseMirror .collaboration-cursor__label {
     display: block;
     position: absolute;
@@ -273,7 +201,6 @@
     border-radius: 4px 4px 4px 0;
     font-size: 11px;
     font-weight: 600;
-    font-style: normal;
     line-height: 1.5;
     white-space: nowrap;
     color: #fff !important;
@@ -282,5 +209,11 @@
     z-index: 999;
     opacity: 1 !important;
     visibility: visible !important;
-    /* background-color comes from BlockNote inline style */
+}
+
+.bn-editor .ProseMirror .collaboration-cursor__label[style] {
+    border: none;
+    box-shadow: none;
+    border-radius: 4px 4px 4px 0;
+    padding: 2px 6px;
 }
