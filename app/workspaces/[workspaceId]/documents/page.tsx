@@ -1,22 +1,19 @@
 "use client";
 
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
-  Clock3,
   FileText,
   LoaderCircle,
   Plus,
   Search,
-  Sparkles,
 } from "lucide-react";
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 type Document = {
   id: string;
@@ -28,418 +25,21 @@ type Document = {
   updatedAt: string;
 };
 
-export default function DocumentsPage() {
-  const { activeWorkspace } = useWorkspace();
-  const router = useRouter();
+function timeAgo(value: string) {
+  const diff = Date.now() - new Date(value).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
 
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const deferredSearch = useDeferredValue(search);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
 
-  useEffect(() => {
-    async function fetchDocuments() {
-      if (!activeWorkspace) return;
-
-      try {
-        const res = await fetch(`/api/workspaces/${activeWorkspace.id}/documents`);
-        if (!res.ok) {
-          throw new Error("Failed to load documents");
-        }
-        const json = await res.json();
-        setDocuments(json.data);
-      } catch (err) {
-        console.error(err);
-        toast({
-          title: "Unable to load documents",
-          description: "Refresh the page and try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-
-    void fetchDocuments();
-  }, [activeWorkspace]);
-
-  async function handleCreate() {
-    if (!activeWorkspace) return;
-
-    setCreating(true);
-
-    try {
-      const res = await fetch(`/api/workspaces/${activeWorkspace.id}/documents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Untitled Document",
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Create failed");
-      }
-
-      const json = await res.json();
-
-      if (!json.success || !json.data?.id) {
-        console.error("Create failed:", json);
-        toast({
-          title: "Document creation failed",
-          description: "A new document could not be created.",
-          variant: "destructive",
-        });
-        setCreating(false);
-        return;
-      }
-
-      router.push(`/workspaces/${activeWorkspace.id}/documents/${json.data.id}`);
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: "Document creation failed",
-        description: "A new document could not be created.",
-        variant: "destructive",
-      });
-      setCreating(false);
-    }
-  }
-
-  function refreshDocuments() {
-    if (!activeWorkspace) return;
-
-    setRefreshing(true);
-    startTransition(() => {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/workspaces/${activeWorkspace.id}/documents`);
-          if (!res.ok) {
-            throw new Error("Failed to refresh documents");
-          }
-          const json = await res.json();
-          setDocuments(json.data);
-        } catch (err) {
-          console.error(err);
-          toast({
-            title: "Unable to refresh documents",
-            description: "Refresh the page and try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setRefreshing(false);
-        }
-      })();
-    });
-  }
-
-  const normalizedSearch = deferredSearch.trim().toLowerCase();
-  const filteredDocuments = documents.filter((document) =>
-    document.title.toLowerCase().includes(normalizedSearch),
-  );
-
-  const sortedDocuments = [...documents].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-  const latestDocument = sortedDocuments[0] ?? null;
-  const updatedTodayCount = documents.filter((document) => {
-    const updated = new Date(document.updatedAt);
-    const now = new Date();
-
-    return (
-      updated.getFullYear() === now.getFullYear() &&
-      updated.getMonth() === now.getMonth() &&
-      updated.getDate() === now.getDate()
-    );
-  }).length;
-
-  if (loading) {
-    return (
-      <div className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto flex min-h-40 max-w-6xl items-center justify-center gap-3 text-sm text-muted-foreground">
-          <LoaderCircle className="size-4 animate-spin" />
-          Loading documents...
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="px-3 py-4 md:px-4 md:py-5">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8">
-        <header className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <Badge
-              variant="muted"
-              className="w-fit px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]"
-            >
-              Workspace Documents
-            </Badge>
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {activeWorkspace?.name ?? "Workspace"} documents
-              </h1>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Notes, references, and living specs for the workspace. Keep the
-                list clean, searchable, and easy to move through.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={refreshDocuments}
-              disabled={refreshing}
-              className="rounded-lg"
-            >
-              {refreshing ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              Refresh
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={creating}
-              className="rounded-lg"
-            >
-              <Plus className="size-4" />
-              {creating ? "Opening..." : "New document"}
-            </Button>
-          </div>
-        </header>
-
-        <section className="space-y-4">
-          <SectionHeader
-            eyebrow="Overview"
-            title="Document library"
-            description="A compact snapshot of volume, freshness, and the most recently touched work."
-          />
-          <div className="grid gap-3 md:grid-cols-3">
-            <StatCard
-              label="Total documents"
-              value={`${documents.length}`}
-              hint={`${documents.length === 1 ? "Entry" : "Entries"} in this workspace`}
-            />
-            <StatCard
-              label="Updated today"
-              value={`${updatedTodayCount}`}
-              hint="Recent edits made today"
-            />
-            <StatCard
-              label="Latest activity"
-              value={latestDocument ? formatDate(latestDocument.updatedAt) : "None"}
-              hint={latestDocument?.title ?? "No recent updates yet"}
-            />
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-end md:justify-between">
-            <SectionHeader
-              eyebrow="Library"
-              title="All documents"
-              description="Scan the catalog, jump into a page, or start a new document."
-            />
-            <div className="w-full md:max-w-sm">
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search documents"
-                  className="rounded-lg pl-9"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <FileText className="size-4" />
-              <span>
-                {filteredDocuments.length} visible of {documents.length} document
-                {documents.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            {normalizedSearch ? (
-              <span>Filtered by “{deferredSearch.trim()}”</span>
-            ) : null}
-          </div>
-
-          {filteredDocuments.length === 0 ? (
-            documents.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title="No documents yet"
-                description="Create the first document to start capturing specs, notes, and shared knowledge."
-                actionLabel={creating ? "Opening..." : "Create first document"}
-                onAction={handleCreate}
-                disabled={creating}
-              />
-            ) : (
-              <EmptyState
-                icon={Search}
-                title="No matching documents"
-                description="Try a different search term or clear the current filter."
-              />
-            )
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-border/70">
-              {filteredDocuments
-                .sort(
-                  (a, b) =>
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime(),
-                )
-                .map((doc, index) => (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        `/workspaces/${activeWorkspace?.id}/documents/${doc.id}`,
-                      )
-                    }
-                    className="flex w-full cursor-pointer items-center gap-4 border-b border-border/60 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-muted/30"
-                  >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-sky-200/80 bg-sky-50 text-sky-700">
-                      <FileText className="size-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-foreground">
-                        {doc.title}
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                        {getDocumentDescription(doc)}
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock3 className="size-3.5" />
-                          Updated {formatDateTime(doc.updatedAt)}
-                        </span>
-                        <span>Created {formatDate(doc.createdAt)}</span>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="rounded-lg border-sky-200/80 bg-sky-50 text-[10px] uppercase tracking-[0.14em] text-sky-700"
-                      >
-                        {formatDocumentStatus(doc.status)}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="rounded-lg text-[10px] uppercase tracking-[0.14em]"
-                      >
-                        V{doc.version}
-                      </Badge>
-                      {index === 0 ? (
-                        <Badge
-                          variant="outline"
-                          className="rounded-lg text-[10px] uppercase tracking-[0.14em]"
-                        >
-                          Latest
-                        </Badge>
-                      ) : null}
-                      <ArrowUpRight className="size-4 text-muted-foreground" />
-                    </div>
-                  </button>
-                ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function SectionHeader({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {eyebrow}
-      </div>
-      <h2 className="text-lg font-semibold tracking-tight text-foreground">
-        {title}
-      </h2>
-      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border/70 px-4 py-4">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-        {value}
-      </div>
-      <div className="mt-2 text-sm text-muted-foreground">{hint}</div>
-    </div>
-  );
-}
-
-function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  onAction,
-  disabled,
-}: {
-  icon: typeof FileText;
-  title: string;
-  description: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-6 py-10 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-muted">
-        <Icon className="size-5 text-muted-foreground" />
-      </div>
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-      {actionLabel && onAction ? (
-        <Button
-          onClick={onAction}
-          disabled={disabled}
-          className="mt-5 rounded-lg"
-        >
-          {actionLabel}
-        </Button>
-      ) : null}
-    </div>
-  );
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function formatDate(value: string) {
@@ -450,28 +50,249 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatDocumentStatus(value: string) {
-  return value.replaceAll("_", " ").toLowerCase().replace(/^\w/, (char) =>
-    char.toUpperCase(),
+const STATUS_CLASS: Record<string, string> = {
+  PUBLISHED: "bg-blue-50 text-blue-600",
+  DRAFT: "bg-zinc-100 text-zinc-500",
+};
+
+export default function DocumentsPage() {
+  const { activeWorkspace } = useWorkspace();
+  const router = useRouter();
+
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const deferredSearch = useDeferredValue(search);
+
+  useEffect(() => {
+    async function fetch_() {
+      if (!activeWorkspace) return;
+      try {
+        const res = await fetch(
+          `/api/workspaces/${activeWorkspace.id}/documents`,
+        );
+        if (!res.ok) throw new Error();
+        const json = (await res.json()) as { data: Document[] };
+        setDocuments(json.data ?? []);
+      } catch {
+        toast({
+          title: "Unable to load documents",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    void fetch_();
+  }, [activeWorkspace]);
+
+  async function handleCreate() {
+    if (!activeWorkspace || creating) return;
+    setCreating(true);
+    try {
+      const res = await fetch(
+        `/api/workspaces/${activeWorkspace.id}/documents`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: "Untitled" }),
+        },
+      );
+      if (!res.ok) throw new Error();
+      const json = (await res.json()) as {
+        success: boolean;
+        data?: { id: string };
+      };
+      if (!json.success || !json.data?.id) throw new Error();
+      router.push(
+        `/workspaces/${activeWorkspace.id}/documents/${json.data.id}`,
+      );
+    } catch {
+      toast({ title: "Document creation failed", variant: "destructive" });
+      setCreating(false);
+    }
+  }
+
+  const q = deferredSearch.trim().toLowerCase();
+  const filtered = documents
+    .filter((d) => d.title.toLowerCase().includes(q))
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center gap-2.5">
+        <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] flex-col">
+      {/* Header */}
+      <div className="border-b px-6 py-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Documents</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {activeWorkspace?.name} · {documents.length} document
+              {documents.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <Button
+            onClick={handleCreate}
+            disabled={creating}
+            size="sm"
+            className="rounded-full"
+          >
+            <Plus className="size-3.5" />
+            {creating ? "Opening…" : "New"}
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mt-4">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search documents…"
+            className="h-9 rounded-full pl-8 text-sm"
+          />
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        {filtered.length === 0 ? (
+          <EmptyState
+            hasSearch={!!q}
+            onCreate={handleCreate}
+            creating={creating}
+          />
+        ) : (
+          <div className="space-y-1">
+            {filtered.map((doc, i) => (
+              <DocumentCard
+                key={doc.id}
+                doc={doc}
+                isLatest={i === 0 && !q}
+                onClick={() =>
+                  router.push(
+                    `/workspaces/${activeWorkspace?.id}/documents/${doc.id}`,
+                  )
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+function DocumentCard({
+  doc,
+  isLatest,
+  onClick,
+}: {
+  doc: Document;
+  isLatest: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-start gap-4 rounded-2xl px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
+    >
+      {/* Icon */}
+      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-500">
+        <FileText className="size-4" />
+      </div>
+
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-medium text-foreground">
+            {doc.title}
+          </p>
+          {isLatest && (
+            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Latest
+            </span>
+          )}
+        </div>
+
+        {doc.summary && (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+            {doc.summary}
+          </p>
+        )}
+
+        <div className="mt-1.5 flex items-center gap-2">
+          <span
+            className={cn(
+              "rounded-md px-2 py-0.5 text-[10px] font-medium",
+              STATUS_CLASS[doc.status] ?? "bg-zinc-100 text-zinc-500",
+            )}
+          >
+            {doc.status.charAt(0) + doc.status.slice(1).toLowerCase()}
+          </span>
+          <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            v{doc.version}
+          </span>
+          <span className="text-[11px] text-muted-foreground/60">
+            Updated {timeAgo(doc.updatedAt)}
+          </span>
+          <span className="text-[11px] text-muted-foreground/40">·</span>
+          <span className="text-[11px] text-muted-foreground/60">
+            {formatDate(doc.createdAt)}
+          </span>
+        </div>
+      </div>
+
+      {/* Arrow */}
+      <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-muted-foreground/60" />
+    </button>
+  );
 }
 
-function getDocumentDescription(document: Document) {
-  const summary = document.summary?.trim();
-
-  if (summary) {
-    return summary;
-  }
-
-  return `Version ${document.version} ${formatDocumentStatus(document.status).toLowerCase()} document in this workspace.`;
+function EmptyState({
+  hasSearch,
+  onCreate,
+  creating,
+}: {
+  hasSearch: boolean;
+  onCreate: () => void;
+  creating: boolean;
+}) {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 px-6 py-10 text-center">
+      <FileText className="mb-2 size-5 text-muted-foreground/30" />
+      <p className="text-sm font-medium text-foreground">
+        {hasSearch ? "No matching documents" : "No documents yet"}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {hasSearch
+          ? "Try a different search term."
+          : "Create a document to start."}
+      </p>
+      {!hasSearch && (
+        <Button
+          onClick={onCreate}
+          disabled={creating}
+          size="sm"
+          className="mt-4 rounded-full"
+        >
+          <Plus className="size-3.5" />
+          Create first document
+        </Button>
+      )}
+    </div>
+  );
 }

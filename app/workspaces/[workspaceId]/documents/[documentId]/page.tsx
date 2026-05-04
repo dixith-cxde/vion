@@ -2,15 +2,20 @@ import { prisma } from "@/lib/prisma";
 import type { Block } from "@blocknote/core";
 import DocumentEditor from "@/app/_components/editor/document-editor";
 
+type BlockLike = {
+  type: string;
+  [key: string]: unknown;
+};
+
 function isBlockArray(value: unknown): value is Block[] {
   return (
     Array.isArray(value) &&
     value.every(
-      (block) =>
+      (block): block is BlockLike =>
         typeof block === "object" &&
         block !== null &&
         "type" in block &&
-        typeof (block as any).type === "string",
+        typeof (block as Record<string, unknown>)["type"] === "string",
     )
   );
 }
@@ -21,14 +26,10 @@ export default async function Page({
   params: Promise<{ workspaceId: string; documentId: string }>;
 }) {
   const { workspaceId, documentId } = await params;
+
   const document = await prisma.document.findFirst({
-    where: {
-      id: documentId,
-      workspaceId,
-    },
-    include: {
-      author: true,
-    },
+    where: { id: documentId, workspaceId },
+    include: { author: true },
   });
 
   if (!document) {
