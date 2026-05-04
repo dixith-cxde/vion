@@ -282,7 +282,7 @@ function Content({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="p-3">
                     <SelectItem value="DRAFT">Draft</SelectItem>
                     <SelectItem value="PUBLISHED">Published</SelectItem>
                   </SelectContent>
