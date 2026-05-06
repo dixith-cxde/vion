@@ -7,6 +7,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// -- USER -----------------------------------------------------
+
 model User {
   id       String  @id @default(uuid())
   name     String
@@ -23,6 +25,10 @@ model User {
   messages     Message[]
   commits      Commit[]
 
+  channelMemberships ChannelMember[]
+  reactions          MessageReaction[]
+  reads              MessageRead[]
+
   githubAccount GitHubAccount?
 
   ownedWorkspaces  Workspace[]       @relation("WorkspaceOwner")
@@ -30,12 +36,12 @@ model User {
   invitedMembers   WorkspaceMember[] @relation("WorkspaceInviter")
   invitations      Invitation[]
 
-  // notifications received
   receivedNotifications Notification[] @relation("NotificationReceiver")
-
-  // notifications sent
-  sentNotifications Notification[] @relation("NotificationSender")
+  sentNotifications     Notification[] @relation("NotificationSender")
+  channels              Channel[]
 }
+
+// -- WORKSPACE ------------------------------------------------
 
 model Workspace {
   id   String @id @default(uuid())
@@ -46,7 +52,6 @@ model Workspace {
 
   members WorkspaceMember[]
 
-  // Reverse relations (CRITICAL)
   tasks         Task[]
   documents     Document[]
   messages      Message[]
@@ -62,6 +67,8 @@ model Workspace {
 
   @@index([ownerId])
 }
+
+// -- WORKSPACE MEMBER ----------------------------------------
 
 model WorkspaceMember {
   id String @id @default(uuid())
@@ -80,63 +87,149 @@ model WorkspaceMember {
   updatedAt DateTime @updatedAt
 
   @@unique([workspaceId, userId])
-  @@index([workspaceId])
-  @@index([userId])
 }
 
-model Invitation {
+// -- CHANNEL --------------------------------------------------
+
+model Channel {
   id String @id @default(uuid())
+
+  name String?
+  type ChannelType
 
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
-  email String
-  role  Role   @default(MEMBER)
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
 
-  invitedById String
-  invitedBy   User   @relation(fields: [invitedById], references: [id])
+  members        ChannelMember[]
+  messages       Message[]
+  pinnedMessages PinnedMessage[]
 
-  status InvitationStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  token     String   @unique
-  expiresAt DateTime
+  @@index([workspaceId])
+}
+
+model ChannelMember {
+  id String @id @default(uuid())
+
+  channelId String
+  userId    String
+
+  role ChannelRole @default(MEMBER)
+
+  channel Channel @relation(fields: [channelId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  lastReadAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([workspaceId])
-  @@index([email])
+  @@unique([channelId, userId])
 }
 
-model Notification {
+// -- MESSAGE --------------------------------------------------
+
+model Message {
   id String @id @default(uuid())
 
-  userId String
-  user   User   @relation("NotificationReceiver", fields: [userId], references: [id])
+  contentJson Json
+  type        MessageType @default(TEXT)
 
-  type NotificationType
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
-  title   String
-  message String
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
 
-  isRead Boolean @default(false)
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id])
 
-  entityType String?
-  entityId   String?
+  parentId String?
+  parent   Message?  @relation("MessageThread", fields: [parentId], references: [id])
+  replies  Message[] @relation("MessageThread")
 
-  workspaceId String?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  isEdited Boolean @default(false)
 
-  senderId String?
-  sender   User?   @relation("NotificationSender", fields: [senderId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  relationshipId String? @unique
+  reactions      MessageReaction[]
+  reads          MessageRead[]
+  attachments    MessageAttachment[]
+  pinnedMessages PinnedMessage[]
+
+  @@index([workspaceId])
+  @@index([channelId])
+  @@index([parentId])
+}
+
+model MessageReaction {
+  id String @id @default(uuid())
+
+  messageId String
+  userId    String
+  emoji     String
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 
-  @@index([userId])
-  @@index([workspaceId])
+  @@unique([messageId, userId, emoji])
 }
+
+model MessageRead {
+  id String @id @default(uuid())
+
+  messageId String
+  userId    String
+
+  readAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+}
+
+model MessageAttachment {
+  id String @id @default(uuid())
+
+  messageId String
+
+  url  String
+  type String
+  name String
+
+  message Message @relation(fields: [messageId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// -- PINNED MESSAGE ------------------------------------------
+
+model PinnedMessage {
+  id String @id @default(uuid())
+
+  messageId String
+  channelId String
+
+  message Message @relation(fields: [messageId], references: [id])
+  channel Channel @relation(fields: [channelId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, channelId])
+}
+
+// -- TASK -----------------------------------------------------
 
 model Task {
   id          String  @id @default(uuid())
@@ -165,8 +258,9 @@ model Task {
   updatedAt DateTime @updatedAt
 
   @@index([workspaceId])
-  @@index([createdById])
 }
+
+// -- DOCUMENT -------------------------------------------------
 
 model Document {
   id String @id @default(uuid())
@@ -193,23 +287,7 @@ model Document {
   @@index([workspaceId])
 }
 
-model Message {
-  id      String @id @default(uuid())
-  content String
-
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-
-  authorId  String?
-  channelId String?
-
-  author  User?    @relation(fields: [authorId], references: [id])
-  channel Channel? @relation(fields: [channelId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([workspaceId])
-}
+// -- COMMIT ---------------------------------------------------
 
 model Commit {
   id      String @id @default(uuid())
@@ -226,17 +304,7 @@ model Commit {
   @@index([workspaceId])
 }
 
-model Channel {
-  id   String @id @default(uuid())
-  name String
-
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-
-  messages Message[]
-
-  @@index([workspaceId])
-}
+// -- RELATIONSHIP --------------------------------------------
 
 model Relationship {
   id String @id @default(uuid())
@@ -259,6 +327,60 @@ model Relationship {
   @@index([targetEntityType, targetEntityId])
 }
 
+// -- NOTIFICATION --------------------------------------------
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation("NotificationReceiver", fields: [userId], references: [id])
+
+  type NotificationType
+
+  title   String
+  message String
+
+  isRead Boolean @default(false)
+
+  entityType String?
+  entityId   String?
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  senderId String?
+  sender   User?   @relation("NotificationSender", fields: [senderId], references: [id])
+
+  relationshipId String? @unique
+
+  createdAt DateTime @default(now())
+}
+
+// -- INVITATION ----------------------------------------------
+
+model Invitation {
+  id String @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  email String
+  role  Role   @default(MEMBER)
+
+  invitedById String
+  invitedBy   User   @relation(fields: [invitedById], references: [id])
+
+  status InvitationStatus @default(PENDING)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -- GITHUB ACCOUNT ------------------------------------------
+
 model GitHubAccount {
   id          String @id @default(uuid())
   userId      String @unique
@@ -268,6 +390,8 @@ model GitHubAccount {
 
   user User @relation(fields: [userId], references: [id])
 }
+
+// -- EXTERNAL MAPPING ----------------------------------------
 
 model ExternalMapping {
   id           String @id @default(uuid())
@@ -279,6 +403,8 @@ model ExternalMapping {
   @@index([externalId, externalType])
 }
 
+// -- ACTIVITY ------------------------------------------------
+
 model Activity {
   id         String   @id @default(uuid())
   entityType String
@@ -288,10 +414,33 @@ model Activity {
   createdAt  DateTime @default(now())
 }
 
+// -- ENUMS ---------------------------------------------------
+
 enum Role {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum ChannelType {
+  DM
+  GROUP
+  PUBLIC
+  PRIVATE
+  SELF
+  SYSTEM
+}
+
+enum ChannelRole {
+  ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  ACTIVITY
+  AI
 }
 
 enum TaskStatus {
