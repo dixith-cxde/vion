@@ -94,8 +94,9 @@ model WorkspaceMember {
 model Channel {
   id String @id @default(uuid())
 
-  name String?
-  type ChannelType
+  name       String?
+  type       ChannelType
+  visibility ChannelVisibility
 
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -425,8 +426,6 @@ enum Role {
 enum ChannelType {
   DM
   GROUP
-  PUBLIC
-  PRIVATE
   SELF
   SYSTEM
 }
@@ -434,6 +433,11 @@ enum ChannelType {
 enum ChannelRole {
   ADMIN
   MEMBER
+}
+
+enum ChannelVisibility {
+  PUBLIC
+  PRIVATE
 }
 
 enum MessageType {
