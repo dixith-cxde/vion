@@ -38,7 +38,10 @@ model User {
 
   receivedNotifications Notification[] @relation("NotificationReceiver")
   sentNotifications     Notification[] @relation("NotificationSender")
-  channels              Channel[]
+
+  channels         Channel[]
+  archivedChannels Channel[]       @relation("ArchivedChannels")
+  pinnedMessages   PinnedMessage[]
 }
 
 // -- WORKSPACE ------------------------------------------------
@@ -94,15 +97,26 @@ model WorkspaceMember {
 model Channel {
   id String @id @default(uuid())
 
-  name       String?
+  name String?
+
+  description String?
+  topic       String?
+
   type       ChannelType
   visibility ChannelVisibility
+
+  dmKey String? @unique
 
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
+
+  archivedAt DateTime?
+
+  archivedById String?
+  archivedBy   User?   @relation("ArchivedChannels", fields: [archivedById], references: [id])
 
   members        ChannelMember[]
   messages       Message[]
@@ -139,6 +153,7 @@ model ChannelMember {
 model Message {
   id String @id @default(uuid())
 
+  content     String
   contentJson Json
   type        MessageType @default(TEXT)
 
@@ -201,31 +216,28 @@ model MessageRead {
 }
 
 model MessageAttachment {
-  id String @id @default(uuid())
-
+  id        String   @id @default(uuid())
   messageId String
-
-  url  String
-  type String
-  name String
-
-  message Message @relation(fields: [messageId], references: [id])
-
+  url       String
+  name      String
+  mimeType  String?
+  extension String?
+  size      Int?
+  message   Message  @relation(fields: [messageId], references: [id])
   createdAt DateTime @default(now())
 }
 
 // -- PINNED MESSAGE ------------------------------------------
 
 model PinnedMessage {
-  id String @id @default(uuid())
-
-  messageId String
-  channelId String
-
-  message Message @relation(fields: [messageId], references: [id])
-  channel Channel @relation(fields: [channelId], references: [id])
-
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  messageId  String
+  channelId  String
+  pinnedById String
+  pinnedBy   User     @relation(fields: [pinnedById], references: [id])
+  message    Message  @relation(fields: [messageId], references: [id])
+  channel    Channel  @relation(fields: [channelId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@unique([messageId, channelId])
 }
