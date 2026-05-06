@@ -15,5 +15,5 @@ export async function authorizeUser() {
   const user = await getCurrentDBUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  return true;
+  return user;
 }
