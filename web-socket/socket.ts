@@ -1,11 +1,12 @@
 import { createServer } from "http";
 import { Server } from "socket.io";
 import express from "express";
+import { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
 
 const app = express();
 const server = createServer(app);
 
-const io = new Server(server, {
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
     origin: "*",
   },
@@ -15,13 +16,26 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
-  socket.on("join", ({ userId }) => {
+  socket.on("join", ({ userId }: { userId: string }) => {
     socket.join(userId);
     console.log("User joined:", userId);
   });
 
   socket.on("disconnect", () => {
     console.log("Disconnected:", socket.id);
+  });
+
+  // CHATTING
+  socket.on("channel:join", ({ channelId }) => {
+    socket.join(`channel:${channelId}`);
+
+    console.log(`Socket ${socket.id} joined channel:${channelId}`);
+  });
+
+  socket.on("channel:leave", ({ channelId }) => {
+    socket.leave(`channel:${channelId}`);
+
+    console.log(`Socket ${socket.id} left channel:${channelId}`);
   });
 });
 

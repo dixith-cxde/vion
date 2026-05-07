@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "tsx watch server/index.ts",
     "dev:next": "next dev",
     "collab": "ts-node web-socket/collab.ts",
     "socket": "ts-node web-socket/socket.ts",
@@ -70,6 +70,7 @@
     "prettier": "^3.8.3",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
