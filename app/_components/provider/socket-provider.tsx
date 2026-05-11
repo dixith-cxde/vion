@@ -1,43 +1,62 @@
 "use client";
 
 import { useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
-import { getSocket } from "@/lib/socket-client";
+import { useAuth } from "@clerk/nextjs";
+import { connectSocket, disconnectSocket } from "@/lib/socket/client";
 
 export function SocketProvider() {
-  const { user } = useUser();
+  const { getToken, isSignedIn } = useAuth();
 
   useEffect(() => {
-    console.log("SocketProvider mounted", user?.id);
-    if (!user?.id) return;
+    if (!isSignedIn) {
+      return;
+    }
 
-    const socket = getSocket(user.id);
+    let mounted = true;
 
-    socket.on("connect", () => {
-      console.log("CONNECTED:", socket.id);
-    });
+    async function initializeRealtime() {
+      try {
+        const token = await getToken();
 
-    socket.on("notification:new", (data) => {
-      console.log("SOCKET RECEIVED:", data);
-      window.dispatchEvent(
-        new CustomEvent("notification:new", {
-          detail: data,
-        }),
-      );
-    });
+        if (!token || !mounted) {
+          return;
+        }
 
-    socket.on("notification:remove", (data) => {
-      window.dispatchEvent(
-        new CustomEvent("notification:remove", {
-          detail: data,
-        }),
-      );
-    });
+        const socket = await connectSocket(token);
+
+        socket.on("connect", () => {
+          console.log("Socket connected:", socket.id);
+        });
+
+        socket.on("notification:new", (notification) => {
+          console.log("REALTIME NOTIFICATION:", notification);
+          window.dispatchEvent(
+            new CustomEvent("notification:new", {
+              detail: notification,
+            })
+          );
+        });
+
+        socket.on("notification:remove", (payload) => {
+          window.dispatchEvent(
+            new CustomEvent("notification:remove", {
+              detail: payload,
+            })
+          );
+        });
+      } catch (error) {
+        console.error("Realtime initialization failed:", error);
+      }
+    }
+
+    initializeRealtime();
+
     return () => {
-      socket.off("notification:new");
-      socket.off("notification:remove");
+      mounted = false;
+
+      disconnectSocket();
     };
-  }, [user?.id]);
+  }, [getToken, isSignedIn]);
 
   return null;
 }

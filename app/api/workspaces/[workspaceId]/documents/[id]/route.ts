@@ -6,6 +6,7 @@ import { updateDocumentSchema } from "@/lib/validators/documents";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
+import { emitNotificationRemoval } from "@/server/socket/events/notification.events";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
@@ -29,7 +30,6 @@ function extractMentionRefs(value: unknown): MentionRef[] {
 
     const record = node as Record<string, any>;
 
-    // ✅ HANDLE LINK-BASED MENTIONS
     if (record.type === "link" && typeof record.href === "string") {
       const href: string = record.href;
 
@@ -74,10 +74,7 @@ function extractMentionRefs(value: unknown): MentionRef[] {
   return Array.from(mentions.values());
 }
 
-function hasPrismaCode(
-  error: unknown,
-  code: string,
-): error is { code: string } {
+function hasPrismaCode(error: unknown, code: string): error is { code: string } {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -88,7 +85,7 @@ function hasPrismaCode(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ workspaceId: string; id: string }> },
+  { params }: { params: Promise<{ workspaceId: string; id: string }> }
 ) {
   try {
     const resolvedParams = await params;
@@ -99,10 +96,7 @@ export async function PATCH(
     const parsedParams = paramsSchema.safeParse({ id });
 
     if (!parsedParams.success) {
-      return NextResponse.json(
-        { success: false, error: "Invalid document ID" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Invalid document ID" }, { status: 400 });
     }
 
     const body = await req.json();
@@ -114,7 +108,7 @@ export async function PATCH(
           success: false,
           error: parsedBody.error.issues[0]?.message ?? "Invalid payload",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -131,7 +125,7 @@ export async function PATCH(
     if (!existingDocument) {
       return NextResponse.json(
         { success: false, error: "Document not found in workspace" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -209,19 +203,15 @@ export async function PATCH(
       const nextKeys = new Set(otherMentions.map((m) => `${m.type}:${m.id}`));
 
       const existingKeys = new Set(
-        existingRelationships.map(
-          (r) => `${r.targetEntityType}:${r.targetEntityId}`,
-        ),
+        existingRelationships.map((r) => `${r.targetEntityType}:${r.targetEntityId}`)
       );
 
       const relationshipIdsToDelete = existingRelationships
-        .filter(
-          (r) => !nextKeys.has(`${r.targetEntityType}:${r.targetEntityId}`),
-        )
+        .filter((r) => !nextKeys.has(`${r.targetEntityType}:${r.targetEntityId}`))
         .map((r) => r.id);
 
       const relationshipsToCreate = otherMentions.filter(
-        (m) => !existingKeys.has(`${m.type}:${m.id}`),
+        (m) => !existingKeys.has(`${m.type}:${m.id}`)
       );
 
       if (relationshipIdsToDelete.length > 0) {
@@ -259,17 +249,13 @@ export async function PATCH(
       });
 
       const nextUserIds = new Set(userMentions.map((m) => m.id));
-      const existingUserIds = new Set(
-        existingUserRelationships.map((r) => r.targetEntityId),
-      );
+      const existingUserIds = new Set(existingUserRelationships.map((r) => r.targetEntityId));
 
       const userRelsToDelete = existingUserRelationships.filter(
-        (r) => !nextUserIds.has(r.targetEntityId),
+        (r) => !nextUserIds.has(r.targetEntityId)
       );
 
-      const userMentionsToCreate = userMentions.filter(
-        (m) => !existingUserIds.has(m.id),
-      );
+      const userMentionsToCreate = userMentions.filter((m) => !existingUserIds.has(m.id));
 
       // CREATE USER REL + NOTIFICATION
       for (const m of userMentionsToCreate) {
@@ -317,26 +303,8 @@ export async function PATCH(
         });
 
         // 3. emit removal event
-        for (const n of notifications) {
-          const user = await prisma.user.findUnique({
-            where: { id: n.userId },
-            select: { clerkId: true },
-          });
-
-          if (user?.clerkId) {
-            await fetch("http://localhost:4000/emit", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                userId: user.clerkId,
-                event: "notification:remove",
-                data: { id: n.id },
-              }),
-            });
-          }
-        }
+        for (const n of notifications)
+          emitNotificationRemoval({ userId: n.userId, notificationId: n.id });
 
         // 4. delete relationship
         await prisma.relationship.delete({
@@ -352,15 +320,9 @@ export async function PATCH(
     console.error("Document PATCH error:", err);
 
     if (hasPrismaCode(err, "P2025")) {
-      return NextResponse.json(
-        { success: false, error: "Document not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Document not found" }, { status: 404 });
     }
 
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

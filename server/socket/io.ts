@@ -9,12 +9,7 @@ export function initializeSocket(server: HTTPServer) {
     return io;
   }
 
-  io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server, {
-    cors: {
-      origin: ["http://localhost:3000"],
-      credentials: true,
-    },
-  });
+  io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server);
 
   return io;
 }

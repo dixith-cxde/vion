@@ -1,7 +1,5 @@
-import { verifyToken } from "@clerk/nextjs/server";
-
+import { verifyToken } from "@clerk/backend";
 import { Socket } from "socket.io";
-
 import { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
 
 export type AuthenticatedSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitNotification } from "@/server/socket/events/notification.events";
 
 type NotificationType =
   | "TASK_ASSIGNED"
@@ -31,35 +32,14 @@ export async function createNotification(input: CreateNotificationInput) {
       entityId: input.entityId,
     },
   });
+
   console.log("NOTIFICATION CREATED:", notification.id);
 
-  const user = await prisma.user.findUnique({
-    where: { id: notification.userId },
-    select: { clerkId: true },
+  emitNotification({
+    userId: notification.userId,
+
+    notification,
   });
 
-  if (user?.clerkId) {
-    console.log("EMITTING TO SOCKET:", user.clerkId);
-    await emitNotification(user.clerkId, notification);
-  }
-
   return notification;
-}
-
-async function emitNotification(userId: string, data: unknown) {
-  try {
-    await fetch("http://localhost:4000/emit", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId,
-        event: "notification:new",
-        data,
-      }),
-    });
-  } catch (err) {
-    console.error("Socket emit failed:", err);
-  }
 }
