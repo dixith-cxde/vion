@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { sendMessage, getChannelMessages } from "@/lib/services/message.service";
 import { sendMessageSchema, getChannelMessagesSchema } from "@/lib/validators/message.validator";
+import { getIO } from "@/server/socket/io";
+import { getChannelRoom } from "@/server/socket/room";
 
 type Params = {
   params: Promise<{
@@ -12,18 +14,23 @@ type Params = {
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const currentUser = await getCurrentDBUser();
+
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { channelId } = await params;
+
     const body = await request.json();
+
     const parsed = sendMessageSchema.safeParse(body);
+
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
 
     const { workspaceId, content, contentJson, parentId } = parsed.data;
+
     const message = await sendMessage({
       workspaceId,
       channelId,
@@ -33,9 +40,19 @@ export async function POST(request: NextRequest, { params }: Params) {
       parentId,
     });
 
+    const io = getIO();
+
+    if (io) {
+      io.to(getChannelRoom(channelId)).emit("message:new", {
+        channelId,
+        message,
+      });
+    }
+
     return NextResponse.json({ message }, { status: 201 });
   } catch (err) {
     console.error("ERROR_SENDING_MESSAGE", err);
+
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }
@@ -43,14 +60,25 @@ export async function POST(request: NextRequest, { params }: Params) {
 export async function GET(request: NextRequest, { params }: Params) {
   try {
     const currentUser = await getCurrentDBUser();
+
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { channelId } = await params;
+
     const { searchParams } = new URL(request.url);
-    const cursor = searchParams.get("cursor") || undefined;
-    const limit = Number(searchParams.get("limit") || 20);
+
+    const parsed = getChannelMessagesSchema.safeParse({
+      cursor: searchParams.get("cursor") || undefined,
+      limit: Number(searchParams.get("limit") || 20),
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+
+    const { cursor, limit } = parsed.data;
 
     const messages = await getChannelMessages({
       channelId,

@@ -1,5 +1,7 @@
 import { Server } from "socket.io";
+
 import { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
+
 import { AuthenticatedSocket } from "../middleware/auth.middleware";
 import { getChannelRoom } from "../room";
 
@@ -20,5 +22,21 @@ export function registerChatHandler(_io: TypedSocketServer, socket: Authenticate
     socket.leave(room);
 
     console.log(`Socket ${socket.id} left ${room}`);
+  });
+
+  socket.on("typing:start", ({ channelId }) => {
+    socket.to(getChannelRoom(channelId)).emit("typing:update", {
+      channelId,
+      userId: socket.data.userId,
+      typing: true,
+    });
+  });
+
+  socket.on("typing:stop", ({ channelId }) => {
+    socket.to(getChannelRoom(channelId)).emit("typing:update", {
+      channelId,
+      userId: socket.data.userId,
+      typing: false,
+    });
   });
 }

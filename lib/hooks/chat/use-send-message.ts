@@ -1,7 +1,6 @@
 import { InfiniteData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { MessageWithRelations } from "@/types/message.type";
-import { Prisma } from "@/lib/generated/prisma/client";
+import { ChatMessage } from "@/types/channel.type";
 
 type SendMessagePayload = {
   content: string;
@@ -14,14 +13,11 @@ type SendMessageParams = {
 };
 
 type ChannelMessagesResponse = {
-  messages: MessageWithRelations[];
+  messages: ChatMessage[];
   nextCursor: string | null;
 };
 
-async function sendMessage({
-  channelId,
-  payload,
-}: SendMessageParams): Promise<MessageWithRelations> {
+async function sendMessage({ channelId, payload }: SendMessageParams): Promise<ChatMessage> {
   const response = await fetch(`/api/channels/${channelId}/messages`, {
     method: "POST",
 
@@ -38,7 +34,8 @@ async function sendMessage({
     throw new Error("Failed to send message");
   }
 
-  return response.json();
+  const data = await response.json();
+  return data.message;
 }
 
 export function useSendMessage(channelId: string) {
@@ -61,16 +58,20 @@ export function useSendMessage(channelId: string) {
         channelId,
       ]);
 
-      const optimisticMessage: MessageWithRelations = {
+      const optimisticMessage = {
         id: `temp-${uuidv4()}`,
+        type: "TEXT",
+        workspaceId: "optimistic",
         channelId,
+        parentId: null,
         content: payload.content,
-        contentJson: payload.contentJson ?? Prisma.JsonNull,
+        contentJson: payload.contentJson ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
-        replyToId: null,
+        isEdited: false,
         authorId: "optimistic",
+        optimistic: true,
         author: {
           id: "optimistic",
           name: "Sending...",
@@ -79,7 +80,7 @@ export function useSendMessage(channelId: string) {
         reactions: [],
         attachments: [],
         replies: [],
-      };
+      } satisfies ChatMessage;
 
       queryClient.setQueryData<InfiniteData<ChannelMessagesResponse>>(
         ["channel-messages", channelId],
