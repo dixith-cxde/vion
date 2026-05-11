@@ -307,7 +307,7 @@ export async function PATCH(
           emitNotificationRemoval({ userId: n.userId, notificationId: n.id });
 
         // 4. delete relationship
-        await prisma.relationship.delete({
+        await prisma.relationship.deleteMany({
           where: { id: rel.id },
         });
       }

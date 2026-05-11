@@ -1,23 +1,29 @@
 import { Server as HTTPServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
+import type { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
 
-let io: SocketIOServer<ClientToServerEvents, ServerToClientEvents> | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __vion_io__: SocketIOServer<ClientToServerEvents, ServerToClientEvents> | undefined;
+}
 
 export function initializeSocket(server: HTTPServer) {
-  if (io) {
-    return io;
+  if (global.__vion_io__) {
+    return global.__vion_io__;
   }
 
-  io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server);
+  const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server, {
+    cors: {
+      origin: "*",
+      credentials: true,
+    },
+  });
+
+  global.__vion_io__ = io;
 
   return io;
 }
 
 export function getIO() {
-  if (!io) {
-    throw new Error("Socket.io has not been initialized");
-  }
-
-  return io;
+  return global.__vion_io__ ?? null;
 }

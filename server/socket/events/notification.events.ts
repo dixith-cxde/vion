@@ -14,13 +14,29 @@ type EmitNotificationRemovalParams = {
 
 export function emitNotification({ userId, notification }: EmitNotificationParams) {
   const io = getIO();
-  console.log("EMITTING NOTIFICATION:", userId);
+  console.log("IO EXISTS:", !!io);
+
+  if (!io) {
+    console.warn("Socket.io unavailable during notification emit");
+
+    return;
+  }
+
+  console.log("EMITTING TO ROOM:", getUserRoom(userId));
 
   io.to(getUserRoom(userId)).emit("notification:new", notification);
 }
 
 export function emitNotificationRemoval({ userId, notificationId }: EmitNotificationRemovalParams) {
   const io = getIO();
+
+  if (!io) {
+    console.warn("Socket.io unavailable during notification removal emit");
+
+    return;
+  }
+
+  console.log("EMITTING REMOVE TO ROOM:", getUserRoom(userId));
 
   io.to(getUserRoom(userId)).emit("notification:remove", {
     id: notificationId,
