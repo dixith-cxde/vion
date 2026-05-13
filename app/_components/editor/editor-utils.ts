@@ -190,12 +190,9 @@ export function getMentionPath(
 }
 
 export function getMentionStyles(type: MentionEntityType) {
-  if (type === "TASK")
-    return { textColor: "#5b21b6", backgroundColor: "#ede9fe" };
-  if (type === "DOCUMENT")
-    return { textColor: "#0369a1", backgroundColor: "#e0f2fe" };
-  if (type === "USER")
-    return { textColor: "#15803d", backgroundColor: "#dcfce7" };
+  if (type === "TASK") return { textColor: "#5b21b6", backgroundColor: "#ede9fe" };
+  if (type === "DOCUMENT") return { textColor: "#0369a1", backgroundColor: "#e0f2fe" };
+  if (type === "USER") return { textColor: "#15803d", backgroundColor: "#dcfce7" };
   return { textColor: "#1f2937", backgroundColor: "#e5e7eb" };
 }
 
@@ -292,8 +289,7 @@ export function extractMentions(blocks: Block[]) {
     const documentMatch = href.match(
       /\/documents\/([0-9a-f-]{36})(?:$|[/?#])/i,
     );
-    if (documentMatch)
-      return { entityType: "DOCUMENT", entityId: documentMatch[1] };
+    if (documentMatch) return { entityType: "DOCUMENT", entityId: documentMatch[1] };
     return null;
   }
 

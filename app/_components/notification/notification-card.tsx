@@ -245,14 +245,12 @@ export function NotificationCard({
         body: JSON.stringify({ invitationId: notification.entityId }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success)
-        throw new Error(data.message || "Failed to join.");
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to join.");
       toast({
         title: "Workspace Joined",
         description: "You have joined successfully.",
       });
-      if (data.data?.workspaceId)
-        window.location.assign(`/workspaces/${data.data.workspaceId}`);
+      if (data.data?.workspaceId) window.location.assign(`/workspaces/${data.data.workspaceId}`);
     } catch (err) {
       toast({
         title: "Error",
@@ -390,8 +388,7 @@ export function NotificationCard({
         <div className="mb-3">
           <p className="text-[12.5px] text-muted-foreground leading-relaxed">
             {parts.map((part, i) => {
-              if (part.type === "text")
-                return <span key={i}>{part.value}</span>;
+              if (part.type === "text") return <span key={i}>{part.value}</span>;
               return (
                 <button
                   key={i}

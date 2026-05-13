@@ -31,8 +31,7 @@ export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
   useEffect(() => {
     if (notifications.length > prevCountRef.current) {
       const latest = notifications[0];
-      if (latest && !latest.isRead)
-        toast({ title: latest.title, description: latest.message });
+      if (latest && !latest.isRead) toast({ title: latest.title, description: latest.message });
     }
     prevCountRef.current = notifications.length;
   }, [notifications]);

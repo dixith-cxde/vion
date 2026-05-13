@@ -94,12 +94,12 @@ export function SocketProvider() {
                 }
 
                 if (notification.workspaceId) {
-                  window.location.href = `/workspaces/${notification.workspaceId}/notifications`;
+                  window.location.href = `/workspaces/${notification.workspaceId}/notification`;
 
                   return;
                 }
 
-                window.location.href = "/notifications";
+                window.location.href = `/workspaces/${notification.workspaceId}/notification`;
               },
             },
           });
