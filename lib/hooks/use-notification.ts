@@ -47,7 +47,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   });
 
   const notifications = workspaceId
-    ? data.filter((notification) => notification.workspaceId === workspaceId)
+    ? data.filter(
+        (notification) =>
+          notification.workspaceId === workspaceId || notification.type === "INVITE_RECEIVED"
+      )
     : data;
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
