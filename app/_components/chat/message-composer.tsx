@@ -9,9 +9,10 @@ import { useSendMessage } from "@/lib/hooks/chat/use-send-message";
 
 type MessageComposerProps = {
   channelId: string;
+  workspaceId: string;
 };
 
-export function MessageComposer({ channelId }: MessageComposerProps) {
+export function MessageComposer({ channelId, workspaceId }: MessageComposerProps) {
   const [content, setContent] = useState("");
 
   const mutation = useSendMessage(channelId);
@@ -27,6 +28,7 @@ export function MessageComposer({ channelId }: MessageComposerProps) {
 
     try {
       await mutation.mutateAsync({
+        workspaceId,
         content: trimmed,
         contentJson: null,
       });

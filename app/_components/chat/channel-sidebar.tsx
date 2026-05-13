@@ -1,7 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+
 import { useWorkspaceChannels } from "@/lib/hooks/chat/use-workspace-channels";
+
+import { ChannelWithRelations } from "@/types/channel.type";
+import { ChannelType } from "@/lib/generated/prisma/enums";
 
 type ChannelSidebarProps = {
   workspaceId: string;
@@ -16,7 +20,9 @@ export function ChannelSidebar({
   activeChannelId,
   onSelectChannel,
 }: ChannelSidebarProps) {
-  const { data: channels = [], isLoading } = useWorkspaceChannels(workspaceId);
+  const { data, isLoading } = useWorkspaceChannels(workspaceId);
+
+  const channels = data?.channels ?? [];
 
   return (
     <aside className="w-72 border-r bg-muted/30">
@@ -29,7 +35,7 @@ export function ChannelSidebar({
           <p className="px-2 py-1 text-sm text-muted-foreground">Loading channels...</p>
         )}
 
-        {channels.map((channel) => (
+        {channels.map((channel: ChannelWithRelations) => (
           <button
             key={channel.id}
             onClick={() => onSelectChannel(channel.id)}
@@ -41,7 +47,9 @@ export function ChannelSidebar({
                 : "hover:bg-muted"
             )}
           >
-            # {channel.name}
+            {channel.type === ChannelType.SELF
+              ? `${channel.members[0].user.name ?? "user"} (self)`
+              : `# ${channel.name}`}
           </button>
         ))}
       </div>

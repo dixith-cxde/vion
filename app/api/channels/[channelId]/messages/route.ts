@@ -15,22 +15,15 @@ export async function POST(request: NextRequest, { params }: Params) {
   try {
     const currentUser = await getCurrentDBUser();
 
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!currentUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { channelId } = await params;
-
     const body = await request.json();
-
     const parsed = sendMessageSchema.safeParse(body);
 
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-    }
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
     const { workspaceId, content, contentJson, parentId } = parsed.data;
-
     const message = await sendMessage({
       workspaceId,
       channelId,

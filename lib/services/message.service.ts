@@ -26,6 +26,7 @@ export async function sendMessage({
   contentJson,
   parentId,
 }: SendMessageType): Promise<MessageWithRelations> {
+  console.log({ authorId });
   const channelMember = await prisma.channelMember.findFirst({
     where: {
       channelId,
@@ -35,6 +36,7 @@ export async function sendMessage({
       id: true,
     },
   });
+  console.log(channelMember);
 
   if (!channelMember) {
     throw new Error("User is not a member of this channel.");

@@ -12,7 +12,6 @@ export const sendMessageSchema = z.object({
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 
 export const getChannelMessagesSchema = z.object({
-  channelId: z.string().min(1),
   cursor: z.string().optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
 });

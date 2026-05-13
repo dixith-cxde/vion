@@ -15,9 +15,10 @@ type ChatWorkspaceProps = {
 };
 
 export function ChatWorkspace({ workspaceId }: ChatWorkspaceProps) {
-  const { data, isLoading: channelsLoading } = useWorkspaceChannels();
+  const { data, isLoading: channelsLoading } = useWorkspaceChannels(workspaceId);
 
-  const channels = data ?? [];
+  const channels = data?.channels ?? [];
+  console.log(channels);
 
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
 
@@ -72,7 +73,9 @@ export function ChatWorkspace({ workspaceId }: ChatWorkspaceProps) {
 
         <MessageList messages={messages} isLoading={messagesLoading} />
 
-        {activeChannelId && <MessageComposer channelId={activeChannelId} />}
+        {activeChannelId && (
+          <MessageComposer channelId={activeChannelId} workspaceId={workspaceId} />
+        )}
       </div>
     </div>
   );

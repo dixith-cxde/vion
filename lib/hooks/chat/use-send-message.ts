@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ChatMessage } from "@/types/channel.type";
 
 type SendMessagePayload = {
+  workspaceId: string;
   content: string;
   contentJson: unknown;
 };
@@ -17,7 +18,11 @@ type ChannelMessagesResponse = {
   nextCursor: string | null;
 };
 
-async function sendMessage({ channelId, payload }: SendMessageParams): Promise<ChatMessage> {
+async function sendMessage({
+  channelId,
+  payload,
+  workspaceId,
+}: SendMessageParams): Promise<ChatMessage> {
   const response = await fetch(`/api/channels/${channelId}/messages`, {
     method: "POST",
 

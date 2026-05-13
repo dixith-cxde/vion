@@ -1,68 +1,62 @@
-import { prisma } from "@/lib/prisma";
 import { currentUser } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
+import { createWorkspace } from "@/lib/services/workspace.service";
 
 export async function getOrCreateUser() {
   const clerkUser = await currentUser();
-  if (!clerkUser) return null;
+
+  if (!clerkUser) {
+    return null;
+  }
 
   const user = await prisma.user.findUnique({
-    where: { clerkId: clerkUser.id },
+    where: {
+      clerkId: clerkUser.id,
+    },
   });
 
-  // CASE 1: USER DOES NOT EXIST
   if (!user) {
-    return await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           clerkId: clerkUser.id,
-          email: clerkUser.emailAddresses[0]?.emailAddress || "",
-          name:
-            `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
-            "User",
+
+          email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
+
+          name: `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "User",
+
           imageUrl: clerkUser.imageUrl,
+
           username: clerkUser.username || clerkUser.firstName || "user",
         },
       });
 
-      const workspace = await tx.workspace.create({
-        data: {
-          name: `${newUser.name}'s Workspace`,
-          ownerId: newUser.id,
-        },
-      });
+      await createWorkspace({
+        tx,
 
-      await tx.workspaceMember.create({
-        data: {
-          workspaceId: workspace.id,
-          userId: newUser.id,
-          role: "OWNER",
-        },
+        name: `${newUser.name}'s Workspace`,
+
+        ownerId: newUser.id,
       });
 
       return newUser;
     });
   }
 
-  // CASE 2: USER EXISTS BUT NO WORKSPACE MEMBER
   const existingMembership = await prisma.workspaceMember.findFirst({
-    where: { userId: user.id },
+    where: {
+      userId: user.id,
+    },
   });
 
   if (!existingMembership) {
     await prisma.$transaction(async (tx) => {
-      const workspace = await tx.workspace.create({
-        data: {
-          name: `${user.name}'s Workspace`,
-          ownerId: user.id,
-        },
-      });
+      await createWorkspace({
+        tx,
 
-      await tx.workspaceMember.create({
-        data: {
-          workspaceId: workspace.id,
-          userId: user.id,
-          role: "OWNER",
-        },
+        name: `${user.name}'s Workspace`,
+
+        ownerId: user.id,
       });
     });
   }
@@ -73,13 +67,13 @@ export async function getOrCreateUser() {
 export async function getCurrentDBUser() {
   const clerkUser = await currentUser();
 
-  if (!clerkUser) return null;
+  if (!clerkUser) {
+    return null;
+  }
 
-  const user = await prisma.user.findUnique({
+  return prisma.user.findUnique({
     where: {
       clerkId: clerkUser.id,
     },
   });
-
-  return user;
 }
