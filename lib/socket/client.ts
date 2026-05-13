@@ -7,15 +7,24 @@ let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 
 export async function connectSocket(token: string) {
   if (socket?.connected) return socket;
-  socket = io({ auth: { token }, withCredentials: true });
+
+  socket = io({
+    auth: {
+      token,
+    },
+
+    withCredentials: true,
+  });
 
   return socket;
 }
 
 export function getSocket() {
-  if (!socket) throw new Error("Socket connection not initialized");
-
   return socket;
+}
+
+export function hasSocket() {
+  return !!socket;
 }
 
 export function disconnectSocket() {

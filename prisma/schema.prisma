@@ -78,7 +78,7 @@ model WorkspaceMember {
 
   workspaceId String
   userId      String
-  role        Role   @default(MEMBER)
+  role        WorkspaceRole @default(MEMBER)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   user      User      @relation(fields: [userId], references: [id])
@@ -378,7 +378,7 @@ model Invitation {
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
   email String
-  role  Role   @default(MEMBER)
+  role  WorkspaceRole @default(MEMBER)
 
   invitedById String
   invitedBy   User   @relation(fields: [invitedById], references: [id])
@@ -429,7 +429,7 @@ model Activity {
 
 // -- ENUMS ---------------------------------------------------
 
-enum Role {
+enum WorkspaceRole {
   OWNER
   ADMIN
   MEMBER

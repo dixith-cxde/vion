@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { socket } from "@/lib/socket/client";
+import { getSocket } from "@/lib/socket/client";
 
 export function useChannelRoom(channelId?: string) {
   useEffect(() => {
     if (!channelId) {
+      return;
+    }
+
+    const socket = getSocket();
+
+    if (!socket) {
       return;
     }
 

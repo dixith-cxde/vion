@@ -3,7 +3,7 @@ import { Server as SocketIOServer } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
 
 declare global {
-  // eslint-disable-next-line no-var
+
   var __vion_io__: SocketIOServer<ClientToServerEvents, ServerToClientEvents> | undefined;
 }
 

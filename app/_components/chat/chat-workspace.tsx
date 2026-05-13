@@ -1,80 +1,81 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Channel } from "@/lib/generated/prisma/client";
-import { getSocket } from "@/lib/socket/client";
+import { useMemo } from "react";
 import { useWorkspaceChannels } from "@/lib/hooks/chat/use-workspace-channels";
 import { useChannelMessages } from "@/lib/hooks/chat/use-channel-messages";
+import { useCreateDM } from "@/lib/hooks/chat/use-create-dm";
+import { useChannelRoom } from "@/lib/hooks/chat/use-channel-room";
+import { getSocket } from "@/lib/socket/client";
 import { ChatMessage } from "@/types/channel.type";
+import { useChatWorkspace } from "./channel-workspace-provider";
 import { ChannelSidebar } from "./channel-sidebar";
 import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";
 
-type ChatWorkspaceProps = {
-  workspaceId: string;
-};
+export function ChatWorkspace() {
+  const { workspaceId, activeChannelId, setActiveChannelId, setActiveDMUserId } =
+    useChatWorkspace();
 
-export function ChatWorkspace({ workspaceId }: ChatWorkspaceProps) {
-  const { data, isLoading: channelsLoading } = useWorkspaceChannels(workspaceId);
+  const { data: channelData } = useWorkspaceChannels(workspaceId);
 
-  const channels = data?.channels ?? [];
-  console.log(channels);
+  const channels = channelData?.channels ?? [];
 
-  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
-
-  const activeChannelId = selectedChannelId ?? channels[0]?.id ?? null;
-
-  useEffect(() => {
-    if (!activeChannelId) {
-      return;
-    }
-
-    const socket = getSocket();
-
-    const channelId = activeChannelId;
-
-    socket.emit("channel:join", {
-      channelId,
-    });
-
-    return () => {
-      socket.emit("channel:leave", {
-        channelId,
-      });
-    };
-  }, [activeChannelId]);
-
-  const { data: messagesData, isLoading: messagesLoading } = useChannelMessages(
-    activeChannelId ?? ""
+  const activeChannel = useMemo(
+    () => channels.find((channel) => channel.id === activeChannelId) ?? null,
+    [channels, activeChannelId]
   );
 
-  const messages: ChatMessage[] = useMemo(() => {
-    if (!messagesData) {
-      return [];
+  const resolvedChannelId = activeChannelId ?? channels[0]?.id ?? null;
+
+  useChannelRoom(resolvedChannelId ?? undefined);
+
+  const { data: messagesData, isLoading } = useChannelMessages(resolvedChannelId ?? "");
+
+  const messages: ChatMessage[] = messagesData?.pages.flatMap((page) => page.messages) ?? [];
+
+  const createDM = useCreateDM();
+
+  async function handleSelectDM(targetUserId: string) {
+    try {
+      setActiveDMUserId(targetUserId);
+
+      const result = await createDM.mutateAsync({
+        workspaceId,
+
+        targetUserId,
+      });
+
+      const channel = result.data;
+
+      setActiveChannelId(channel.id);
+
+      const socket = getSocket();
+
+      if (!socket) {
+        return;
+      }
+
+      socket.emit("channel:join", {
+        channelId: channel.id,
+      });
+    } catch (err) {
+      console.error("FAILED_TO_OPEN_DM", err);
     }
-
-    return messagesData.pages.flatMap((page) => page.messages);
-  }, [messagesData]);
-
-  const activeChannel = channels.find((channel: Channel) => channel.id === activeChannelId);
+  }
 
   return (
     <div className="flex h-full overflow-hidden rounded-xl border bg-background">
-      <ChannelSidebar
-        workspaceId={workspaceId}
-        activeChannelId={activeChannelId}
-        onSelectChannel={setSelectedChannelId}
-      />
+      <ChannelSidebar onSelectDM={handleSelectDM} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-medium">{activeChannel?.name ?? "Select channel"}</h2>
+          <h2 className="text-sm font-medium">{activeChannel?.name ?? "Conversation"}</h2>
         </div>
 
-        <MessageList messages={messages} isLoading={messagesLoading} />
+        <MessageList messages={messages} isLoading={isLoading} />
 
-        {activeChannelId && (
-          <MessageComposer channelId={activeChannelId} workspaceId={workspaceId} />
+        {resolvedChannelId && (
+          <MessageComposer workspaceId={workspaceId} channelId={resolvedChannelId} />
         )}
       </div>
     </div>

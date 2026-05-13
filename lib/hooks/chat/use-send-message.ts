@@ -18,26 +18,17 @@ type ChannelMessagesResponse = {
   nextCursor: string | null;
 };
 
-async function sendMessage({
-  channelId,
-  payload,
-  workspaceId,
-}: SendMessageParams): Promise<ChatMessage> {
+async function sendMessage({ channelId, payload }: SendMessageParams): Promise<ChatMessage> {
   const response = await fetch(`/api/channels/${channelId}/messages`, {
     method: "POST",
-
     credentials: "include",
-
     headers: {
       "Content-Type": "application/json",
     },
-
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to send message");
-  }
+  if (!response.ok) throw new Error("Failed to send message");
 
   const data = await response.json();
   return data.message;
@@ -50,6 +41,7 @@ export function useSendMessage(channelId: string) {
     mutationFn: (payload: SendMessagePayload) =>
       sendMessage({
         channelId,
+
         payload,
       }),
 
@@ -63,27 +55,47 @@ export function useSendMessage(channelId: string) {
         channelId,
       ]);
 
+      const tempId = `temp-${uuidv4()}`;
+
       const optimisticMessage = {
-        id: `temp-${uuidv4()}`,
+        id: tempId,
+
         type: "TEXT",
-        workspaceId: "optimistic",
+
+        workspaceId: payload.workspaceId,
+
         channelId,
+
         parentId: null,
+
         content: payload.content,
+
         contentJson: payload.contentJson ?? null,
+
         createdAt: new Date(),
+
         updatedAt: new Date(),
+
         deletedAt: null,
+
         isEdited: false,
+
         authorId: "optimistic",
+
         optimistic: true,
+
         author: {
           id: "optimistic",
+
           name: "Sending...",
+
           imageUrl: null,
         },
+
         reactions: [],
+
         attachments: [],
+
         replies: [],
       } satisfies ChatMessage;
 
@@ -95,9 +107,11 @@ export function useSendMessage(channelId: string) {
               pages: [
                 {
                   messages: [optimisticMessage],
+
                   nextCursor: null,
                 },
               ],
+
               pageParams: [null],
             };
           }
@@ -106,11 +120,13 @@ export function useSendMessage(channelId: string) {
 
           updatedPages[0] = {
             ...updatedPages[0],
-            messages: [optimisticMessage, ...updatedPages[0].messages],
+
+            messages: [...updatedPages[0].messages, optimisticMessage],
           };
 
           return {
             ...old,
+
             pages: updatedPages,
           };
         }
@@ -118,6 +134,8 @@ export function useSendMessage(channelId: string) {
 
       return {
         previousMessages,
+
+        tempId,
       };
     },
 
@@ -129,7 +147,7 @@ export function useSendMessage(channelId: string) {
       queryClient.setQueryData(["channel-messages", channelId], context.previousMessages);
     },
 
-    onSuccess: (serverMessage) => {
+    onSuccess: (serverMessage, _payload, context) => {
       queryClient.setQueryData<InfiniteData<ChannelMessagesResponse>>(
         ["channel-messages", channelId],
         (old) => {
@@ -139,13 +157,15 @@ export function useSendMessage(channelId: string) {
 
           const updatedPages = old.pages.map((page) => ({
             ...page,
+
             messages: page.messages.map((message) =>
-              message.id.startsWith("temp-") ? serverMessage : message
+              message.id === context?.tempId ? serverMessage : message
             ),
           }));
 
           return {
             ...old,
+
             pages: updatedPages,
           };
         }
