@@ -28,6 +28,7 @@ model User {
   channelMemberships ChannelMember[]
   reactions          MessageReaction[]
   reads              MessageRead[]
+  mentions           MessageMention[]
 
   githubAccount GitHubAccount?
 
@@ -99,13 +100,23 @@ model Channel {
 
   name String?
 
+  slug        String?
   description String?
   topic       String?
+  icon        String?
 
   type       ChannelType
   visibility ChannelVisibility
 
   dmKey String? @unique
+
+  entityType String?
+  entityId   String?
+
+  position Int @default(0)
+
+  isDefault  Boolean @default(false)
+  isArchived Boolean @default(false)
 
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -126,7 +137,10 @@ model Channel {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  @@unique([workspaceId, slug])
   @@index([workspaceId])
+  @@index([workspaceId, type])
+  @@index([workspaceId, visibility])
 }
 
 model ChannelMember {
@@ -140,12 +154,17 @@ model ChannelMember {
   channel Channel @relation(fields: [channelId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
-  lastReadAt DateTime?
+  lastReadAt        DateTime?
+  lastReadMessageId String?
+
+  mutedUntil DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
 }
 
 // -- MESSAGE --------------------------------------------------
@@ -178,12 +197,14 @@ model Message {
 
   reactions      MessageReaction[]
   reads          MessageRead[]
+  mentions       MessageMention[]
   attachments    MessageAttachment[]
   pinnedMessages PinnedMessage[]
 
   @@index([workspaceId])
   @@index([channelId])
   @@index([parentId])
+  @@index([channelId, createdAt])
 }
 
 model MessageReaction {
@@ -215,29 +236,47 @@ model MessageRead {
   @@unique([messageId, userId])
 }
 
+model MessageMention {
+  id String @id @default(uuid())
+
+  messageId String
+  userId    String
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+}
+
 model MessageAttachment {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   messageId String
   url       String
   name      String
   mimeType  String?
   extension String?
   size      Int?
-  message   Message  @relation(fields: [messageId], references: [id])
+
+  message Message @relation(fields: [messageId], references: [id])
+
   createdAt DateTime @default(now())
 }
 
 // -- PINNED MESSAGE ------------------------------------------
 
 model PinnedMessage {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   messageId  String
   channelId  String
   pinnedById String
-  pinnedBy   User     @relation(fields: [pinnedById], references: [id])
-  message    Message  @relation(fields: [messageId], references: [id])
-  channel    Channel  @relation(fields: [channelId], references: [id])
-  createdAt  DateTime @default(now())
+
+  pinnedBy User    @relation(fields: [pinnedById], references: [id])
+  message  Message @relation(fields: [messageId], references: [id])
+  channel  Channel @relation(fields: [channelId], references: [id])
+
+  createdAt DateTime @default(now())
 
   @@unique([messageId, channelId])
 }
@@ -440,6 +479,7 @@ enum ChannelType {
   GROUP
   SELF
   SYSTEM
+  ENTITY
 }
 
 enum ChannelRole {
@@ -485,4 +525,7 @@ enum NotificationType {
   INVITE_RECEIVED
   MENTIONED
   DOCUMENT_LINKED
+  CHANNEL_INVITED
+  CHANNEL_ADDED
+  ENTITY_MENTION
 }

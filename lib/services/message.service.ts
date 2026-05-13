@@ -36,7 +36,6 @@ export async function sendMessage({
       id: true,
     },
   });
-  console.log(channelMember);
 
   if (!channelMember) {
     throw new Error("User is not a member of this channel.");
@@ -98,10 +97,12 @@ export async function getChannelMessages({
   cursor,
   limit = 20,
 }: GetChannelMessagesType): Promise<MessageWithRelations[]> {
+  console.log({ channelId, userId });
   const channelMember = await prisma.channelMember.findFirst({
     where: { channelId, userId },
     select: { id: true },
   });
+  console.log({ channelMember });
 
   if (!channelMember) {
     throw new Error("User is not a member of this channel.");

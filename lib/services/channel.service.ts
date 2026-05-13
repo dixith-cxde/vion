@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ChannelRole, ChannelType, ChannelVisibility } from "@/lib/generated/prisma/enums";
 import { ChannelWithMembers } from "../../types/channel.type";
 
-type CreateChannelType = {
+export type CreateChannelType = {
   workspaceId: string;
   createdById: string;
   name?: string;
@@ -22,7 +22,6 @@ type CreateDMChannelType = {
 
 type CreateSelfChannelType = {
   workspaceId: string;
-
   userId: string;
 };
 
@@ -38,6 +37,33 @@ type IsChannelMemberType = {
   userId: string;
 };
 
+const channelInclude = {
+  createdBy: true,
+
+  members: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          imageUrl: true,
+          username: true,
+        },
+      },
+    },
+  },
+
+  messages: {
+    orderBy: {
+      createdAt: "desc" as const,
+    },
+
+    take: 1,
+  },
+
+  pinnedMessages: true,
+};
+
 export async function createChannel({
   createdById,
   memberIds,
@@ -49,9 +75,25 @@ export async function createChannel({
   dmKey,
   workspaceId,
 }: CreateChannelType): Promise<ChannelWithMembers> {
-  const uniqueMemberIds = Array.from(new Set([...memberIds, createdById]));
+  let resolvedMemberIds = [...memberIds, createdById];
 
-  const workspaceMembers = await prisma.workspaceMember.findMany({
+  if (type === ChannelType.GROUP && visibility === ChannelVisibility.PUBLIC) {
+    const workspaceMembers = await prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+      },
+
+      select: {
+        userId: true,
+      },
+    });
+
+    resolvedMemberIds = workspaceMembers.map((member) => member.userId);
+  }
+
+  const uniqueMemberIds = Array.from(new Set(resolvedMemberIds));
+
+  const validWorkspaceMembers = await prisma.workspaceMember.findMany({
     where: {
       workspaceId,
 
@@ -65,15 +107,17 @@ export async function createChannel({
     },
   });
 
-  const validMemberIds = workspaceMembers.map((member) => member.userId);
+  const validMemberIds = validWorkspaceMembers.map((member) => member.userId);
 
-  if (validMemberIds.length !== uniqueMemberIds.length) {
-    throw new Error("Some users are not members of the workspace.");
-  }
+  const missingMemberIds = uniqueMemberIds.filter((userId) => !validMemberIds.includes(userId));
 
-  return prisma.channel.create({
+  if (missingMemberIds.length > 0) throw new Error("Some users are not members of the workspace.");
+
+  const channel = await prisma.channel.create({
     data: {
       name,
+
+      slug: name?.toLowerCase().trim().replace(/\s+/g, "-"),
 
       description,
 
@@ -90,7 +134,7 @@ export async function createChannel({
       createdById,
 
       members: {
-        create: uniqueMemberIds.map((userId) => ({
+        create: validMemberIds.map((userId) => ({
           userId,
 
           role: userId === createdById ? ChannelRole.ADMIN : ChannelRole.MEMBER,
@@ -98,14 +142,10 @@ export async function createChannel({
       },
     },
 
-    include: {
-      members: {
-        include: {
-          user: true,
-        },
-      },
-    },
+    include: channelInclude,
   });
+
+  return channel;
 }
 
 export async function createDMChannel({
@@ -113,9 +153,7 @@ export async function createDMChannel({
   currentUserId,
   workspaceId,
 }: CreateDMChannelType): Promise<ChannelWithMembers> {
-  if (targetUserId === currentUserId) {
-    throw new Error("Self chat is not possible here");
-  }
+  if (targetUserId === currentUserId) throw new Error("Self chat is not possible here");
 
   const dmKey = [currentUserId, targetUserId].sort().join("_");
 
@@ -124,18 +162,10 @@ export async function createDMChannel({
       dmKey,
     },
 
-    include: {
-      members: {
-        include: {
-          user: true,
-        },
-      },
-    },
+    include: channelInclude,
   });
 
-  if (existingDM) {
-    return existingDM;
-  }
+  if (existingDM) return existingDM;
 
   return createChannel({
     workspaceId,
@@ -169,18 +199,10 @@ export async function createSelfChannel({
       },
     },
 
-    include: {
-      members: {
-        include: {
-          user: true,
-        },
-      },
-    },
+    include: channelInclude,
   });
 
-  if (existingSelfChannel) {
-    return existingSelfChannel;
-  }
+  if (existingSelfChannel) return existingSelfChannel;
 
   return createChannel({
     workspaceId,
@@ -209,6 +231,8 @@ export async function getWorkspaceChannels({
 
       deletedAt: null,
 
+      isArchived: false,
+
       OR: [
         {
           type: ChannelType.GROUP,
@@ -226,17 +250,13 @@ export async function getWorkspaceChannels({
       ],
     },
 
-    include: {
-      createdBy: true,
-
-      members: {
-        include: {
-          user: true,
-        },
-      },
-    },
+    include: channelInclude,
 
     orderBy: [
+      {
+        position: "asc",
+      },
+
       {
         updatedAt: "desc",
       },
@@ -268,6 +288,8 @@ export async function isChannelMember({
 
       deletedAt: null,
 
+      isArchived: false,
+
       OR: [
         {
           type: ChannelType.GROUP,
@@ -298,7 +320,6 @@ export async function addUserToWorkspacePublicChannels({
   userId,
 }: {
   workspaceId: string;
-
   userId: string;
 }) {
   const publicChannels = await prisma.channel.findMany({
@@ -310,6 +331,8 @@ export async function addUserToWorkspacePublicChannels({
       visibility: ChannelVisibility.PUBLIC,
 
       deletedAt: null,
+
+      isArchived: false,
     },
 
     select: {
@@ -317,9 +340,7 @@ export async function addUserToWorkspacePublicChannels({
     },
   });
 
-  if (publicChannels.length === 0) {
-    return;
-  }
+  if (publicChannels.length === 0) return;
 
   await prisma.channelMember.createMany({
     data: publicChannels.map((channel) => ({

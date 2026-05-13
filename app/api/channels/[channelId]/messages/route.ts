@@ -99,7 +99,6 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const parsed = getChannelMessagesSchema.safeParse({
       cursor: searchParams.get("cursor") || undefined,
-
       limit: Number(searchParams.get("limit") || 20),
     });
 
@@ -118,11 +117,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const messages = await getChannelMessages({
       channelId,
-
       userId: currentUser.id,
-
       cursor,
-
       limit,
     });
 
