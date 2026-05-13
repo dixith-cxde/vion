@@ -11,6 +11,7 @@ import { useChatWorkspace } from "./channel-workspace-provider";
 import { ChannelSidebar } from "./channel-sidebar";
 import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";
+import { useChatRealtime } from "@/lib/hooks/chat/use-chat-realtime";
 
 export function ChatWorkspace() {
   const { workspaceId, activeChannelId, setActiveChannelId, setActiveDMUserId } =
@@ -27,11 +28,18 @@ export function ChatWorkspace() {
 
   const resolvedChannelId = activeChannelId ?? channels[0]?.id ?? null;
 
+  useChatRealtime({ channelId: resolvedChannelId });
   useChannelRoom(resolvedChannelId ?? undefined);
 
   const { data: messagesData, isLoading } = useChannelMessages(resolvedChannelId ?? "");
 
-  const messages: ChatMessage[] = messagesData?.pages.flatMap((page) => page.messages) ?? [];
+  const messages: ChatMessage[] = Array.from(
+    new Map(
+      (messagesData?.pages.flatMap((page) => page.messages) ?? [])
+        .filter((message): message is ChatMessage => Boolean(message?.id))
+        .map((message) => [message.id, message])
+    ).values()
+  );
 
   const createDM = useCreateDM();
 
