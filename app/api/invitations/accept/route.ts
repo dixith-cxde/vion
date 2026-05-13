@@ -2,16 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
+import { InvitationStatus } from "@/lib/generated/prisma/enums";
+import { addUserToWorkspacePublicChannels } from "@/lib/services/channel.service";
 
 export async function POST(req: Request) {
   try {
     const user = await getCurrentDBUser();
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, message: "UNAUTHORIZED" },
-        { status: 401 },
-      );
+      return NextResponse.json({ success: false, message: "UNAUTHORIZED" }, { status: 401 });
     }
 
     const userId = user.id;
@@ -24,7 +23,7 @@ export async function POST(req: Request) {
           success: false,
           message: "Invitation token or invitation id is required",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -37,34 +36,25 @@ export async function POST(req: Request) {
         });
 
     if (!invite) {
-      return NextResponse.json(
-        { success: false, message: "Invalid invitation" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, message: "Invalid invitation" }, { status: 400 });
     }
 
-    if (invite.status !== "PENDING") {
+    if (invite.status !== InvitationStatus.PENDING) {
       return NextResponse.json(
         { success: false, message: "Invitation already used" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (invite.expiresAt < new Date()) {
-      return NextResponse.json(
-        { success: false, message: "Invitation expired" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, message: "Invitation expired" }, { status: 400 });
     }
 
     // email check
     const userEmail = user.email;
 
     if (!userEmail || userEmail.toLowerCase() !== invite.email.toLowerCase()) {
-      return NextResponse.json(
-        { success: false, message: "Email mismatch" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, message: "Email mismatch" }, { status: 403 });
     }
 
     // prevent duplicate membership
@@ -78,29 +68,25 @@ export async function POST(req: Request) {
     });
 
     if (existingMember) {
-      return NextResponse.json(
-        { success: false, message: "Already a member" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, message: "Already a member" }, { status: 400 });
     }
 
     // transaction
-    await prisma.$transaction([
-      prisma.workspaceMember.create({
+    await prisma.$transaction(async (tx) => {
+      await tx.workspaceMember.create({
         data: {
           workspaceId: invite.workspaceId,
           userId,
           role: invite.role,
           invitedById: invite.invitedById,
         },
-      }),
+      });
 
-      prisma.invitation.update({
+      await tx.invitation.update({
         where: { id: invite.id },
-        data: { status: "ACCEPTED" },
-      }),
-
-      prisma.relationship.create({
+        data: { status: InvitationStatus.ACCEPTED },
+      });
+      await tx.relationship.create({
         data: {
           workspaceId: invite.workspaceId,
           sourceEntityType: "USER",
@@ -109,8 +95,13 @@ export async function POST(req: Request) {
           targetEntityId: invite.workspaceId,
           relationshipType: "MEMBER_OF",
         },
-      }),
-    ]);
+      });
+
+      await addUserToWorkspacePublicChannels({
+        workspaceId: invite.workspaceId,
+        userId,
+      });
+    });
 
     await createNotification({
       userId,
@@ -133,7 +124,7 @@ export async function POST(req: Request) {
         success: false,
         message: err instanceof Error ? err.message : "Internal server error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

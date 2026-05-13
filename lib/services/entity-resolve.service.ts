@@ -19,10 +19,8 @@ export async function resolveEntityLabels<TRelationship extends ResolvableRelati
     if (rel.sourceEntityType === "TASK") taskIds.add(rel.sourceEntityId);
     if (rel.targetEntityType === "TASK") taskIds.add(rel.targetEntityId);
 
-    if (rel.sourceEntityType === "DOCUMENT")
-      documentIds.add(rel.sourceEntityId);
-    if (rel.targetEntityType === "DOCUMENT")
-      documentIds.add(rel.targetEntityId);
+    if (rel.sourceEntityType === "DOCUMENT") documentIds.add(rel.sourceEntityId);
+    if (rel.targetEntityType === "DOCUMENT") documentIds.add(rel.targetEntityId);
 
     if (rel.sourceEntityType === "MESSAGE") messageIds.add(rel.sourceEntityId);
     if (rel.targetEntityType === "MESSAGE") messageIds.add(rel.targetEntityId);

@@ -89,14 +89,12 @@ export async function GET(
 
     for (const rel of outgoing) {
       if (rel.targetEntityType === "TASK") taskIds.add(rel.targetEntityId);
-      if (rel.targetEntityType === "DOCUMENT")
-        documentIds.add(rel.targetEntityId);
+      if (rel.targetEntityType === "DOCUMENT") documentIds.add(rel.targetEntityId);
     }
 
     for (const rel of incoming) {
       if (rel.sourceEntityType === "TASK") taskIds.add(rel.sourceEntityId);
-      if (rel.sourceEntityType === "DOCUMENT")
-        documentIds.add(rel.sourceEntityId);
+      if (rel.sourceEntityType === "DOCUMENT") documentIds.add(rel.sourceEntityId);
     }
 
     // Resolve titles in parallel
@@ -120,8 +118,7 @@ export async function GET(
 
     function resolveTitle(type: string, id: string): string {
       if (type === "TASK") return taskTitleMap.get(id) ?? "Untitled task";
-      if (type === "DOCUMENT")
-        return documentTitleMap.get(id) ?? "Untitled document";
+      if (type === "DOCUMENT") return documentTitleMap.get(id) ?? "Untitled document";
       return "Unknown";
     }
 
