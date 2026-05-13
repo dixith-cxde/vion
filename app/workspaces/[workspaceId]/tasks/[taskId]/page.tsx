@@ -209,22 +209,20 @@ export default function TaskPage() {
     void load();
   }, [taskId, workspaceId]);
 
-  if (loading)
-    return (
+  if (loading) { return (
       <div className="flex min-h-[60vh] items-center justify-center gap-2.5">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">Loading task…</p>
       </div>
-    );
+    ); }
 
-  if (!task || loadError)
-    return (
+  if (!task || loadError) { return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <p className="text-sm text-muted-foreground">
           {loadError ?? "Task could not be loaded."}
         </p>
       </div>
-    );
+    ); }
 
   return (
     <EditorCollaborationProvider

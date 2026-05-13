@@ -105,12 +105,11 @@ export default function WorkspaceDashboard() {
   }, [workspaceId]);
 
   const summary = useMemo(() => {
-    if (!data)
-      return {
+    if (!data) { return {
         doneTasks: 0,
         inProgressTasks: 0,
         latestDoc: null as DashboardData["documents"][number] | null,
-      };
+      }; }
 
     const sorted = [...data.documents].sort(
       (a, b) =>
@@ -514,9 +513,7 @@ function getTaskIcon(status: string) {
 }
 
 function getTaskIconClass(status: string) {
-  if (status === "DONE")
-    return "border-emerald-100 bg-emerald-50 text-emerald-600";
-  if (status === "IN_PROGRESS")
-    return "border-amber-100 bg-amber-50 text-amber-600";
+  if (status === "DONE") return "border-emerald-100 bg-emerald-50 text-emerald-600";
+  if (status === "IN_PROGRESS") return "border-amber-100 bg-amber-50 text-amber-600";
   return "border-slate-200 bg-slate-50 text-slate-500";
 }

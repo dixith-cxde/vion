@@ -118,8 +118,7 @@ export default function TasksPage() {
           actionLabel="Create first task"
           onAction={async () => {
             const taskId = await createTask("New Task", "TODO");
-            if (taskId)
-              router.push(`/workspaces/${workspaceId}/tasks/${taskId}`);
+            if (taskId) router.push(`/workspaces/${workspaceId}/tasks/${taskId}`);
           }}
         />
       ) : lifecycleTasks.length === 0 ? (

@@ -303,8 +303,7 @@ export async function PATCH(
         });
 
         // 3. emit removal event
-        for (const n of notifications)
-          emitNotificationRemoval({ userId: n.userId, notificationId: n.id });
+        for (const n of notifications) emitNotificationRemoval({ userId: n.userId, notificationId: n.id });
 
         // 4. delete relationship
         await prisma.relationship.deleteMany({
