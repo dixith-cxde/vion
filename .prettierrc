@@ -10,5 +10,16 @@
   "bracketSpacing": true,
   "bracketSameLine": false,
   "quoteProps": "as-needed",
-  "embeddedLanguageFormatting": "auto"
+  "embeddedLanguageFormatting": "auto",
+
+  /*
+   * Better compact formatting
+   */
+  "proseWrap": "preserve",
+  "htmlWhitespaceSensitivity": "css",
+
+  /*
+   * Keeps object/type formatting tighter
+   */
+  "singleAttributePerLine": false
 }
