@@ -18,7 +18,7 @@ export default async function ChatPage({ params }: WorkspacePageProps) {
   }
 
   return (
-    <section className="h-[calc(100vh-4rem)] overflow-hidden p-4">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
       <ChatWorkspaceProvider workspaceId={workspaceId} currentUserId={user.id}>
         <ChatWorkspace />
       </ChatWorkspaceProvider>

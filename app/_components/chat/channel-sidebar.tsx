@@ -1,19 +1,19 @@
 "use client";
 
-import { Hash } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MessageSquareText } from "lucide-react";
 import { ChannelType } from "@/lib/generated/prisma/enums";
 import { useWorkspaceChannels } from "@/lib/hooks/chat/use-workspace-channels";
-import { ChannelWithRelations } from "@/types/channel.type";
 import { useChatWorkspace } from "./channel-workspace-provider";
+import { ChannelList } from "./channel-list";
 import { MemberList } from "./member-list";
 
 type ChannelSidebarProps = {
+  onSelectChannel: (channelId: string) => void;
   onSelectDM: (userId: string) => void;
 };
 
-export function ChannelSidebar({ onSelectDM }: ChannelSidebarProps) {
-  const { workspaceId, activeChannelId, setActiveChannelId } = useChatWorkspace();
+export function ChannelSidebar({ onSelectChannel, onSelectDM }: ChannelSidebarProps) {
+  const { workspaceId, activeChannelId } = useChatWorkspace();
 
   const { data, isLoading } = useWorkspaceChannels(workspaceId);
 
@@ -24,57 +24,39 @@ export function ChannelSidebar({ onSelectDM }: ChannelSidebarProps) {
   const selfChannels = channels.filter((channel) => channel.type === ChannelType.SELF);
 
   return (
-    <aside className="flex w-72 flex-col border-r bg-muted/30">
-      <div className="border-b px-4 py-3">
-        <h2 className="text-sm font-semibold">Conversations</h2>
+    <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden border-r border-border/60 bg-muted/20">
+      <div className="shrink-0 border-b border-border/60 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-2xl border border-border/60 bg-background/80 text-muted-foreground">
+            <MessageSquareText className="size-4" />
+          </div>
+
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Conversations</h2>
+            <p className="text-xs text-muted-foreground">Channels and direct messages</p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="px-4 py-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Channels
-          </h3>
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <ChannelList
+          title="Channels"
+          emptyLabel="No shared channels yet"
+          isLoading={isLoading}
+          channels={groupChannels}
+          activeChannelId={activeChannelId}
+          onSelectChannel={onSelectChannel}
+        />
 
-        <div className="flex flex-col gap-1 px-2">
-          {isLoading && (
-            <p className="px-2 py-1 text-sm text-muted-foreground">Loading channels...</p>
-          )}
-
-          {groupChannels.map((channel: ChannelWithRelations) => (
-            <button
-              key={channel.id}
-              onClick={() => setActiveChannelId(channel.id)}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-
-                activeChannelId === channel.id
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              <Hash className="h-4 w-4" />
-
-              <span className="truncate">{channel.name}</span>
-            </button>
-          ))}
-
-          {selfChannels.map((channel: ChannelWithRelations) => (
-            <button
-              key={channel.id}
-              onClick={() => setActiveChannelId(channel.id)}
-              className={cn(
-                "rounded-lg px-3 py-2 text-left text-sm transition-colors",
-
-                activeChannelId === channel.id
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              {`${channel.members[0]?.user.username ?? "user"} (self)`}
-            </button>
-          ))}
-        </div>
+        {selfChannels.length > 0 ? (
+          <ChannelList
+            title="Personal"
+            emptyLabel="No personal spaces yet"
+            channels={selfChannels}
+            activeChannelId={activeChannelId}
+            onSelectChannel={onSelectChannel}
+          />
+        ) : null}
 
         <MemberList onSelectUser={onSelectDM} />
       </div>

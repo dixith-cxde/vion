@@ -16,17 +16,17 @@ export function MemberList({ onSelectUser }: MemberListProps) {
   const { data: members = [], isLoading } = useWorkspaceMembers(workspaceId);
 
   return (
-    <div className="border-t">
-      <div className="px-4 py-3">
+    <div className="flex min-h-0 flex-1 flex-col border-t border-border/60">
+      <div className="shrink-0 px-5 py-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Direct Messages
         </h2>
       </div>
 
-      <ScrollArea className="h-[240px]">
-        <div className="space-y-1 p-2">
+      <ScrollArea className="min-h-0 flex-1 px-2 pb-3">
+        <div className="space-y-1">
           {isLoading && (
-            <p className="px-2 py-1 text-sm text-muted-foreground">Loading members...</p>
+            <p className="px-3 py-2 text-sm text-muted-foreground">Loading members...</p>
           )}
 
           {members
@@ -39,12 +39,14 @@ export function MemberList({ onSelectUser }: MemberListProps) {
                   key={member.user.id}
                   onClick={() => onSelectUser(member.user.id)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted",
+                    "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors",
+                    "hover:bg-background/70",
 
-                    activeDMUserId === member.user.id && "bg-muted"
+                    activeDMUserId === member.user.id &&
+                      "bg-background text-foreground ring-1 ring-border/70"
                   )}
                 >
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="size-9">
                     <AvatarImage src={member.user.imageUrl || undefined} />
 
                     <AvatarFallback>{label.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -53,7 +55,7 @@ export function MemberList({ onSelectUser }: MemberListProps) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{label}</p>
 
-                    <p className="truncate text-xs text-muted-foreground">{member.role}</p>
+                    <p className="truncate text-xs text-muted-foreground">Direct message</p>
                   </div>
                 </button>
               );
