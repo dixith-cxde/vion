@@ -5,10 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "@blocknote/mantine/style.css";
 import "./editor.css";
 
-import {
-  EditorCollaborationProvider,
-  useCollaborativeMeta,
-} from "./collaboration-context";
+import { EditorCollaborationProvider, useCollaborativeMeta } from "./collaboration-context";
 import { CollaborationPresence } from "./collaboration-presence";
 import EditorWrapper from "./document-editor-wrapper";
 import { RelationshipsPanel } from "@/app/_components/relationship/relationship-panel";
@@ -32,11 +29,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -124,25 +117,19 @@ export default function DocumentEditor(props: EditorProps) {
   );
 }
 
-function Content({
-  documentId,
-  workspaceId,
-  initialContent,
-  meta,
-}: EditorProps) {
+function Content({ documentId, workspaceId, initialContent, meta }: EditorProps) {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveErrorShownRef = useRef(false);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
 
-  const { meta: collaborativeMeta, updateMeta } =
-    useCollaborativeMeta<DocumentMetaState>({
-      title: meta.title,
-      summary: meta.summary ?? "",
-      status: isDocStatus(meta.status) ? meta.status : "DRAFT",
-      version: meta.version,
-      authorId: meta.authorId ?? "",
-    });
+  const { meta: collaborativeMeta, updateMeta } = useCollaborativeMeta<DocumentMetaState>({
+    title: meta.title,
+    summary: meta.summary ?? "",
+    status: isDocStatus(meta.status) ? meta.status : "DRAFT",
+    version: meta.version,
+    authorId: meta.authorId ?? "",
+  });
 
   const createdAt = useMemo(() => formatDate(meta.createdAt), [meta.createdAt]);
   const updatedAt = useMemo(() => formatDate(meta.updatedAt), [meta.updatedAt]);
@@ -165,7 +152,7 @@ function Content({
     () => () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -173,26 +160,19 @@ function Content({
     saveTimeoutRef.current = setTimeout(async () => {
       try {
         setSaveState("saving");
-        const authorMember = members.find(
-          (m) => m.user.id === collaborativeMeta.authorId,
-        );
-        const res = await fetch(
-          `/api/workspaces/${workspaceId}/documents/${documentId}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: collaborativeMeta.title.trim() || "Untitled",
-              summary: collaborativeMeta.summary,
-              status: collaborativeMeta.status,
-              version: collaborativeMeta.version,
-              authorId: collaborativeMeta.authorId || undefined,
-              authorName: authorMember
-                ? formatMemberLabel(authorMember.user)
-                : undefined,
-            }),
-          },
-        );
+        const authorMember = members.find((m) => m.user.id === collaborativeMeta.authorId);
+        const res = await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: collaborativeMeta.title.trim() || "Untitled",
+            summary: collaborativeMeta.summary,
+            status: collaborativeMeta.status,
+            version: collaborativeMeta.version,
+            authorId: collaborativeMeta.authorId || undefined,
+            authorName: authorMember ? formatMemberLabel(authorMember.user) : undefined,
+          }),
+        });
         if (!res.ok) throw new Error();
         saveErrorShownRef.current = false;
         setSaveState("saved");
@@ -211,7 +191,7 @@ function Content({
 
   const selectedAuthor = useMemo(
     () => members.find((m) => m.user.id === collaborativeMeta.authorId) ?? null,
-    [members, collaborativeMeta.authorId],
+    [members, collaborativeMeta.authorId]
   );
 
   return (
@@ -224,7 +204,7 @@ function Content({
           <span
             className={cn(
               "text-[11px] font-medium transition-colors duration-300",
-              SAVE_STATE_TEXT[saveState],
+              SAVE_STATE_TEXT[saveState]
             )}
           >
             {SAVE_STATE_LABEL[saveState]}
@@ -232,21 +212,24 @@ function Content({
         </div>
 
         {/* Writing surface */}
-        <ScrollArea className="flex-1">
-          <div className="mx-auto w-full px-8 pb-10 pt-10">
-            <Input
-              value={collaborativeMeta.title}
-              onChange={(e) => updateMeta({ title: e.target.value })}
-              className="h-auto border-0 bg-transparent p-0 !text-5xl font-bold tracking-tight shadow-none focus-visible:ring-0 rounded-none px-1"
-              placeholder="Untitled"
-            />
-            <Textarea
-              value={collaborativeMeta.summary}
-              onChange={(e) => updateMeta({ summary: e.target.value })}
-              rows={1}
-              className="mt-3 min-h-0 resize-none border-0 bg-transparent p-0 text-base leading-relaxed text-muted-foreground shadow-none focus-visible:ring-0"
-              placeholder="Add a short summary…"
-            />
+        <ScrollArea className="flex-1 overflow-auto">
+          <div className="mx-auto w-full px-8 pb-10 pt-10 bg-white">
+            <div className="sticky inset-0 bg-white opacity-100 z-10 pb-5">
+              <Input
+                value={collaborativeMeta.title}
+                onChange={(e) => updateMeta({ title: e.target.value })}
+                className="h-auto border-0 p-0 !text-5xl font-bold tracking-tight shadow-none focus-visible:ring-0 rounded-none px-1 bg-inherit"
+                placeholder="Untitled"
+              />
+              <Textarea
+                value={collaborativeMeta.summary}
+                onChange={(e) => updateMeta({ summary: e.target.value })}
+                rows={1}
+                className="mt-3 min-h-0 resize-none border-0 bg-inherit  p-0 text-base leading-relaxed text-muted-foreground shadow-none focus-visible:ring-0"
+                placeholder="Add a short summary…"
+              />
+            </div>
+
             <Separator className="my-6" />
             <EditorWrapper
               documentId={documentId}
@@ -277,7 +260,7 @@ function Content({
                     className={cn(
                       "h-7 w-full rounded-lg border px-3 text-[11px] font-medium shadow-none focus-visible:ring-0",
                       DOC_STATUS_CLASS[collaborativeMeta.status] ??
-                        "bg-zinc-50 text-zinc-500 border-zinc-200",
+                        "bg-zinc-50 text-zinc-500 border-zinc-200"
                     )}
                   >
                     <SelectValue />
@@ -316,15 +299,11 @@ function Content({
               </SidebarRow>
 
               <SidebarRow label="Created">
-                <span className="text-[11px] text-muted-foreground">
-                  {createdAt}
-                </span>
+                <span className="text-[11px] text-muted-foreground">{createdAt}</span>
               </SidebarRow>
 
               <SidebarRow label="Updated">
-                <span className="text-[11px] text-muted-foreground">
-                  {updatedAt}
-                </span>
+                <span className="text-[11px] text-muted-foreground">{updatedAt}</span>
               </SidebarRow>
             </div>
           </div>
@@ -341,18 +320,10 @@ function Content({
   );
 }
 
-function SidebarRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function SidebarRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="shrink-0 text-[11px] text-muted-foreground">
-        {label}
-      </span>
+      <span className="shrink-0 text-[11px] text-muted-foreground">{label}</span>
       <div className="min-w-0 flex-1 text-right">{children}</div>
     </div>
   );
@@ -378,9 +349,7 @@ function AuthorPicker({
           className="h-7 w-full justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 text-[11px] font-medium text-emerald-700 shadow-none hover:bg-emerald-100 hover:text-emerald-700"
         >
           <span className="truncate">
-            {selectedAuthor
-              ? formatMemberLabel(selectedAuthor.user)
-              : "Unassigned"}
+            {selectedAuthor ? formatMemberLabel(selectedAuthor.user) : "Unassigned"}
           </span>
           <ChevronsUpDown className="ml-1 size-3 shrink-0 opacity-40" />
         </Button>
@@ -401,12 +370,7 @@ function AuthorPicker({
                 }}
                 className="gap-2 text-xs"
               >
-                <Check
-                  className={cn(
-                    "size-3.5",
-                    !value ? "opacity-100" : "opacity-0",
-                  )}
-                />
+                <Check className={cn("size-3.5", !value ? "opacity-100" : "opacity-0")} />
                 Unassigned
               </CommandItem>
               {members.map((member) => (
@@ -422,7 +386,7 @@ function AuthorPicker({
                   <Check
                     className={cn(
                       "size-3.5",
-                      value === member.user.id ? "opacity-100" : "opacity-0",
+                      value === member.user.id ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {formatMemberLabel(member.user)}

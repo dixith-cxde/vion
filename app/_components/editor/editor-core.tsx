@@ -39,11 +39,7 @@ interface EditorProps {
   onChange: (blocks: Block[]) => void;
 }
 
-export default function EditorCore({
-  initialContent,
-  editable = true,
-  onChange,
-}: EditorProps) {
+export default function EditorCore({ initialContent, editable = true, onChange }: EditorProps) {
   const { isLoaded: clerkLoaded } = useUser();
   const {
     entityId,
@@ -111,15 +107,11 @@ export default function EditorCore({
     const normalizedQuery = mentionQuery.trim().toLowerCase();
     if (!normalizedQuery) return entities;
 
-    return entities.filter((entity) =>
-      entity.label.toLowerCase().includes(normalizedQuery),
-    );
+    return entities.filter((entity) => entity.label.toLowerCase().includes(normalizedQuery));
   }, [entities, mentionQuery]);
 
   const highlightedIndex =
-    filteredEntities.length > 0
-      ? Math.min(activeIndex, filteredEntities.length - 1)
-      : 0;
+    filteredEntities.length > 0 ? Math.min(activeIndex, filteredEntities.length - 1) : 0;
 
   if (!editorReady && mode === "collaborative") {
     return (
@@ -203,10 +195,7 @@ function EditorCoreInstance({
   setShowMentions,
   showMentions,
 }: EditorCoreInstanceProps) {
-  const parsedInitialContent = useMemo(
-    () => parseInitialContent(initialContent),
-    [initialContent],
-  );
+  const parsedInitialContent = useMemo(() => parseInitialContent(initialContent), [initialContent]);
   const hasBootstrappedContentRef = useRef(false);
   const isBootstrappingContentRef = useRef(false);
   const editor = useCreateBlockNote(
@@ -226,7 +215,7 @@ function EditorCoreInstance({
         : {}),
       initialContent: provider ? undefined : parsedInitialContent,
     },
-    [fragment, provider],
+    [fragment, provider]
   );
 
   useEffect(() => {
@@ -268,12 +257,7 @@ function EditorCoreInstance({
       const cursor = editor.getTextCursorPosition();
       const block = cursor.block;
 
-      const nextContent = replaceMentionTokenInBlock(
-        block,
-        item,
-        mentionQuery,
-        workspaceId,
-      );
+      const nextContent = replaceMentionTokenInBlock(block, item, mentionQuery, workspaceId);
 
       editor.updateBlock(block, { content: nextContent });
       editor.setTextCursorPosition(block, "end");
@@ -285,31 +269,27 @@ function EditorCoreInstance({
         return;
       }
 
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/relationships`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceEntityType: entityType,
-            sourceEntityId: entityId,
-            targetEntityType: item.type,
-            targetEntityId: item.id,
-            relationshipType: "REFERENCES",
-          }),
-        },
-      );
+      const response = await fetch(`/api/workspaces/${workspaceId}/relationships`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceEntityType: entityType,
+          sourceEntityId: entityId,
+          targetEntityType: item.type,
+          targetEntityId: item.id,
+          relationshipType: "REFERENCES",
+        }),
+      });
 
       if (!response.ok) {
         toast({
           title: "Mention link failed",
-          description:
-            "The reference was inserted, but the relationship was not saved.",
+          description: "The reference was inserted, but the relationship was not saved.",
           variant: "destructive",
         });
       }
     },
-    [editor, entityId, entityType, mentionQuery, workspaceId],
+    [editor, entityId, entityType, mentionQuery, workspaceId]
   );
 
   useEffect(() => {
@@ -328,18 +308,14 @@ function EditorCoreInstance({
       if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
-        setActiveIndex(
-          (currentIndex) => (currentIndex + 1) % filteredEntities.length,
-        );
+        setActiveIndex((currentIndex) => (currentIndex + 1) % filteredEntities.length);
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
         setActiveIndex(
-          (currentIndex) =>
-            (currentIndex - 1 + filteredEntities.length) %
-            filteredEntities.length,
+          (currentIndex) => (currentIndex - 1 + filteredEntities.length) % filteredEntities.length
         );
       }
 
@@ -359,11 +335,7 @@ function EditorCoreInstance({
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
-      if (
-        target &&
-        dropdownRef.current &&
-        !dropdownRef.current.contains(target)
-      ) {
+      if (target && dropdownRef.current && !dropdownRef.current.contains(target)) {
         setShowMentions(false);
         setMentionQuery("");
       }
@@ -401,7 +373,7 @@ function EditorCoreInstance({
 
   return (
     <div
-      className="relative h-full w-full"
+      className="relative h-full w-full  overflow-scroll"
       onMouseDown={(e) => {
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
@@ -426,7 +398,7 @@ function EditorCoreInstance({
         editable={editable}
         theme={lightTheme}
         onChange={handleChange}
-        className="h-full w-full"
+        className="h-full w-full overflow-scroll "
         sideMenu={editable}
         slashMenu={editable}
         formattingToolbar={editable}

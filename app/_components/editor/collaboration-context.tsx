@@ -216,11 +216,8 @@ export function EditorCollaborationProvider({
 
     return () => {
       provider?.awareness.setLocalState(null);
-
       provider?.destroy();
-
       doc.destroy();
-
       sessionRef.current = buildNullSession();
     };
   }, [roomName, resolvedServerUrl, serverResolved]);

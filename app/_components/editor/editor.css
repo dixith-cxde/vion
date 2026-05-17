@@ -3,25 +3,26 @@
    ============================================================ */
 
 .vion-blocknote {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .vion-blocknote .bn-container,
 .vion-blocknote .bn-editor {
-    height: 100%;
-    background: transparent !important;
+  height: 100%;
+  background: transparent !important;
 }
 
 .vion-blocknote .bn-editor .ProseMirror {
-    max-width: 100%;
-    margin: 0;
-    padding: 0.25rem 0 6rem;
-    font-size: 0.9375rem;
-    line-height: 1.9;
-    color: #1a1c23 !important;
-    caret-color: #1a1c23;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.25rem 0 6rem;
+  font-size: 0.9375rem;
+  line-height: 1.9;
+  color: #1a1c23 !important;
+  caret-color: #1a1c23;
 }
 
 /* ============================================================
@@ -30,34 +31,34 @@
 
 .vion-blocknote .bn-editor [data-content-type="heading"][data-level="1"],
 .vion-blocknote .bn-editor h1 {
-    font-size: 1.75rem !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.03em !important;
-    line-height: 1.25 !important;
-    color: #0f1117 !important;
-    margin-top: 2rem !important;
-    margin-bottom: 0.4rem !important;
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.25 !important;
+  color: #0f1117 !important;
+  margin-top: 2rem !important;
+  margin-bottom: 0.4rem !important;
 }
 
 .vion-blocknote .bn-editor [data-content-type="heading"][data-level="2"],
 .vion-blocknote .bn-editor h2 {
-    font-size: 1.2rem !important;
-    font-weight: 650 !important;
-    letter-spacing: -0.02em !important;
-    line-height: 1.35 !important;
-    color: #13151e !important;
-    margin-top: 1.75rem !important;
-    margin-bottom: 0.3rem !important;
+  font-size: 1.2rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.35 !important;
+  color: #13151e !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.3rem !important;
 }
 
 .vion-blocknote .bn-editor [data-content-type="heading"][data-level="3"],
 .vion-blocknote .bn-editor h3 {
-    font-size: 1rem !important;
-    font-weight: 600 !important;
-    letter-spacing: -0.01em !important;
-    line-height: 1.45 !important;
-    color: #1a1c23 !important;
-    margin-top: 1.25rem !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.45 !important;
+  color: #1a1c23 !important;
+  margin-top: 1.25rem !important;
 }
 
 /* ============================================================
@@ -67,28 +68,28 @@
 .vion-blocknote .bn-formatting-toolbar,
 .vion-blocknote .bn-slash-menu,
 .vion-blocknote .bn-drag-handle-menu {
-    background-color: #ffffff !important;
-    border: 1px solid #ebebeb !important;
-    border-radius: 12px !important;
-    box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.08),
-        0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  background-color: #ffffff !important;
+  border: 1px solid #ebebeb !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04) !important;
 }
 
 .vion-blocknote .bn-side-menu {
-    background: transparent !important;
-    opacity: 0;
-    transition: opacity 150ms ease;
+  background: transparent !important;
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 
 .vion-blocknote .bn-editor:hover .bn-side-menu,
 .vion-blocknote .bn-side-menu:hover {
-    opacity: 1;
+  opacity: 1;
 }
 
 .vion-blocknote .bn-editor span {
-    border-radius: 0;
-    padding: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 /* ============================================================
@@ -97,26 +98,26 @@
 
 .vion-blocknote .bn-editor a[href*="/tasks/"],
 .bn-editor a[href*="/tasks/"] {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 5px;
-    margin: 0 1px;
-    padding: 1px 7px 2px;
-    font-weight: 600;
-    font-size: 0.8em;
-    line-height: 1.7;
-    text-decoration: none !important;
-    background-color: #ede9fe !important;
-    color: #5b21b6 !important;
-    border: none !important;
-    box-shadow: none !important;
-    transition: background-color 100ms ease;
-    cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  margin: 0 1px;
+  padding: 1px 7px 2px;
+  font-weight: 600;
+  font-size: 0.8em;
+  line-height: 1.7;
+  text-decoration: none !important;
+  background-color: #ede9fe !important;
+  color: #5b21b6 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: background-color 100ms ease;
+  cursor: pointer;
 }
 
 .vion-blocknote .bn-editor a[href*="/tasks/"]:hover,
 .bn-editor a[href*="/tasks/"]:hover {
-    background-color: #ddd6fe !important;
+  background-color: #ddd6fe !important;
 }
 
 /* ============================================================
@@ -125,26 +126,26 @@
 
 .vion-blocknote .bn-editor a[href*="/documents/"],
 .bn-editor a[href*="/documents/"] {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 5px;
-    margin: 0 1px;
-    padding: 1px 7px 2px;
-    font-weight: 600;
-    font-size: 0.8em;
-    line-height: 1.7;
-    text-decoration: none !important;
-    background-color: #e0f2fe !important;
-    color: #0369a1 !important;
-    border: none !important;
-    box-shadow: none !important;
-    transition: background-color 100ms ease;
-    cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  margin: 0 1px;
+  padding: 1px 7px 2px;
+  font-weight: 600;
+  font-size: 0.8em;
+  line-height: 1.7;
+  text-decoration: none !important;
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: background-color 100ms ease;
+  cursor: pointer;
 }
 
 .vion-blocknote .bn-editor a[href*="/documents/"]:hover,
 .bn-editor a[href*="/documents/"]:hover {
-    background-color: #bae6fd !important;
+  background-color: #bae6fd !important;
 }
 
 /* ============================================================
@@ -153,26 +154,26 @@
 
 .vion-blocknote .bn-editor a[href*="/members/"],
 .bn-editor a[href*="/members/"] {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 5px;
-    margin: 0 1px;
-    padding: 1px 7px 2px;
-    font-weight: 600;
-    font-size: 0.8em;
-    line-height: 1.7;
-    text-decoration: none !important;
-    background-color: #dcfce7 !important;
-    color: #15803d !important;
-    border: none !important;
-    box-shadow: none !important;
-    transition: background-color 100ms ease;
-    cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  margin: 0 1px;
+  padding: 1px 7px 2px;
+  font-weight: 600;
+  font-size: 0.8em;
+  line-height: 1.7;
+  text-decoration: none !important;
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: background-color 100ms ease;
+  cursor: pointer;
 }
 
 .vion-blocknote .bn-editor a[href*="/members/"]:hover,
 .bn-editor a[href*="/members/"]:hover {
-    background-color: #bbf7d0 !important;
+  background-color: #bbf7d0 !important;
 }
 
 /* ============================================================
@@ -180,40 +181,40 @@
    ============================================================ */
 
 .bn-editor .ProseMirror .collaboration-cursor__caret {
-    border-left: 2px solid currentColor;
-    border-right: none;
-    margin-left: -1px;
-    margin-right: -1px;
-    position: relative;
-    display: inline-block;
-    width: 0;
-    word-break: normal;
-    pointer-events: none;
-    overflow: visible;
+  border-left: 2px solid currentColor;
+  border-right: none;
+  margin-left: -1px;
+  margin-right: -1px;
+  position: relative;
+  display: inline-block;
+  width: 0;
+  word-break: normal;
+  pointer-events: none;
+  overflow: visible;
 }
 
 .bn-editor .ProseMirror .collaboration-cursor__label {
-    display: block;
-    position: absolute;
-    top: -1.8em;
-    left: 0;
-    padding: 2px 7px;
-    border-radius: 4px 4px 4px 0;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.5;
-    white-space: nowrap;
-    color: #fff !important;
-    pointer-events: none;
-    user-select: none;
-    z-index: 999;
-    opacity: 1 !important;
-    visibility: visible !important;
+  display: block;
+  position: absolute;
+  top: -1.8em;
+  left: 0;
+  padding: 2px 7px;
+  border-radius: 4px 4px 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: #fff !important;
+  pointer-events: none;
+  user-select: none;
+  z-index: 999;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .bn-editor .ProseMirror .collaboration-cursor__label[style] {
-    border: none;
-    box-shadow: none;
-    border-radius: 4px 4px 4px 0;
-    padding: 2px 6px;
+  border: none;
+  box-shadow: none;
+  border-radius: 4px 4px 4px 0;
+  padding: 2px 6px;
 }
