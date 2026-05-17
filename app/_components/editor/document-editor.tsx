@@ -213,7 +213,7 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
 
         {/* Writing surface */}
         <ScrollArea className="flex-1 overflow-auto">
-          <div className="mx-auto w-full px-8 pb-10 pt-10 bg-white">
+          <div className="mx-auto w-full h-full overflow-scroll px-8 pb-10 pt-10 bg-white">
             <div className="sticky inset-0 bg-white opacity-100 z-10 pb-5">
               <Input
                 value={collaborativeMeta.title}

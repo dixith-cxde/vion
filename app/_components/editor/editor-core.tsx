@@ -35,7 +35,6 @@ import { useUser } from "@clerk/nextjs";
 interface EditorProps {
   initialContent?: Block[];
   editable?: boolean;
-
   onChange: (blocks: Block[]) => void;
 }
 
@@ -106,7 +105,6 @@ export default function EditorCore({ initialContent, editable = true, onChange }
   const filteredEntities = useMemo(() => {
     const normalizedQuery = mentionQuery.trim().toLowerCase();
     if (!normalizedQuery) return entities;
-
     return entities.filter((entity) => entity.label.toLowerCase().includes(normalizedQuery));
   }, [entities, mentionQuery]);
 
@@ -198,6 +196,7 @@ function EditorCoreInstance({
   const parsedInitialContent = useMemo(() => parseInitialContent(initialContent), [initialContent]);
   const hasBootstrappedContentRef = useRef(false);
   const isBootstrappingContentRef = useRef(false);
+
   const editor = useCreateBlockNote(
     {
       ...(provider
@@ -234,7 +233,6 @@ function EditorCoreInstance({
       return;
     }
 
-    // Guard immediately before any async gap
     hasBootstrappedContentRef.current = true;
 
     try {
@@ -244,8 +242,6 @@ function EditorCoreInstance({
       console.warn("Bootstrap failed:", err);
       hasBootstrappedContentRef.current = false;
     } finally {
-      // Use setTimeout instead of queueMicrotask to ensure
-      // ProseMirror has finished processing the transaction
       setTimeout(() => {
         isBootstrappingContentRef.current = false;
       }, 0);
@@ -265,9 +261,7 @@ function EditorCoreInstance({
       setShowMentions(false);
       setMentionQuery("");
 
-      if (item.type === "USER") {
-        return;
-      }
+      if (item.type === "USER") return;
 
       const response = await fetch(`/api/workspaces/${workspaceId}/relationships`, {
         method: "POST",
@@ -308,15 +302,13 @@ function EditorCoreInstance({
       if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
-        setActiveIndex((currentIndex) => (currentIndex + 1) % filteredEntities.length);
+        setActiveIndex((i) => (i + 1) % filteredEntities.length);
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
-        setActiveIndex(
-          (currentIndex) => (currentIndex - 1 + filteredEntities.length) % filteredEntities.length
-        );
+        setActiveIndex((i) => (i - 1 + filteredEntities.length) % filteredEntities.length);
       }
 
       if (event.key === "Enter" || event.key === "Tab") {
@@ -351,9 +343,7 @@ function EditorCoreInstance({
   }, [filteredEntities, highlightedIndex, selectMention, showMentions]);
 
   const handleChange = () => {
-    if (isBootstrappingContentRef.current) {
-      return;
-    }
+    if (isBootstrappingContentRef.current) return;
 
     const currentMentionQuery = getMentionQueryAtCursor();
 
@@ -372,8 +362,16 @@ function EditorCoreInstance({
   };
 
   return (
+    /*
+     * IMPORTANT: overflow-visible is required here.
+     * The MentionDropdown uses absolute positioning and must escape this
+     * container visually. Any overflow-hidden or overflow-scroll on this
+     * outer div will clip the dropdown to the editor bounds.
+     * The scroll behaviour lives on BlockNoteView only.
+     */
     <div
-      className="relative h-full w-full  overflow-scroll"
+      className="relative w-full overflow-visible"
+      style={{ minHeight: "320px" }}
       onMouseDown={(e) => {
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
@@ -387,8 +385,7 @@ function EditorCoreInstance({
               editor.setTextCursorPosition(lastBlock, "end");
             }
           }
-        } catch (err) {
-          // Document not ready yet, focus only
+        } catch {
           editor.focus();
         }
       }}
@@ -398,7 +395,7 @@ function EditorCoreInstance({
         editable={editable}
         theme={lightTheme}
         onChange={handleChange}
-        className="h-full w-full overflow-scroll "
+        className="h-full w-full overflow-scroll"
         sideMenu={editable}
         slashMenu={editable}
         formattingToolbar={editable}

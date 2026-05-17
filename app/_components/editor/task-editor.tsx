@@ -21,11 +21,13 @@ export default function TaskEditor({
   onChange,
 }: Props) {
   return (
-    <EditorCore
-      key={`${workspaceId}:${taskId}`}
-      initialContent={initialContent}
-      editable={true}
-      onChange={onChange}
-    />
+    <div className="w-full h-full">
+      <EditorCore
+        key={`${workspaceId}:${taskId}`}
+        initialContent={initialContent}
+        editable={true}
+        onChange={onChange}
+      />
+    </div>
   );
 }

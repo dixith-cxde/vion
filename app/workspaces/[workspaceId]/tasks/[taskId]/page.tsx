@@ -22,11 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -39,11 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/lib/hooks/use-debounce";
-import type {
-  Task,
-  TaskLifecycle,
-  TaskStatus,
-} from "@/lib/generated/prisma/client";
+import type { Task, TaskLifecycle, TaskStatus } from "@/lib/generated/prisma/client";
 import { toast } from "@/hooks/use-toast";
 import { SaveState } from "@/types";
 import { cn } from "@/lib/utils";
@@ -134,9 +126,7 @@ type TaskMetaState = {
 };
 
 function normalizePriority(value: string): TaskPriority {
-  return TASK_PRIORITY_OPTIONS.includes(value as TaskPriority)
-    ? (value as TaskPriority)
-    : "MEDIUM";
+  return TASK_PRIORITY_OPTIONS.includes(value as TaskPriority) ? (value as TaskPriority) : "MEDIUM";
 }
 function formatMemberLabel(m: { name: string | null; email: string | null }) {
   return m.name ?? m.email ?? "Unknown";
@@ -174,9 +164,7 @@ export default function TaskPage() {
 
   const [task, setTask] = useState<TaskRecord | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
-  const [initialEditorContent, setInitialEditorContent] = useState<
-    Block[] | undefined
-  >(undefined);
+  const [initialEditorContent, setInitialEditorContent] = useState<Block[] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -190,9 +178,7 @@ export default function TaskPage() {
         if (!taskRes.ok) throw new Error();
         const taskJson = (await taskRes.json()) as { data: TaskRecord };
         setTask(taskJson.data);
-        setInitialEditorContent(
-          safeParseDescription(taskJson.data.description),
-        );
+        setInitialEditorContent(safeParseDescription(taskJson.data.description));
         if (memberRes.ok) {
           const membersJson = (await memberRes.json()) as {
             data: MemberOption[];
@@ -209,20 +195,22 @@ export default function TaskPage() {
     void load();
   }, [taskId, workspaceId]);
 
-  if (loading) { return (
+  if (loading) {
+    return (
       <div className="flex min-h-[60vh] items-center justify-center gap-2.5">
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">Loading task…</p>
       </div>
-    ); }
+    );
+  }
 
-  if (!task || loadError) { return (
+  if (!task || loadError) {
+    return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-sm text-muted-foreground">
-          {loadError ?? "Task could not be loaded."}
-        </p>
+        <p className="text-sm text-muted-foreground">{loadError ?? "Task could not be loaded."}</p>
       </div>
-    ); }
+    );
+  }
 
   return (
     <EditorCollaborationProvider
@@ -235,8 +223,7 @@ export default function TaskPage() {
         lifecycle: task.lifecycle,
         assignedToId: task.assignedToId ?? task.assigneeId,
         dueDate: formatDateInputValue(task.dueDate),
-        estimatedAt:
-          typeof task.estimatedAt === "number" ? String(task.estimatedAt) : "",
+        estimatedAt: typeof task.estimatedAt === "number" ? String(task.estimatedAt) : "",
       }}
     >
       <TaskPageContent
@@ -263,9 +250,7 @@ function TaskPageContent({
   members: MemberOption[];
   initialEditorContent?: Block[];
 }) {
-  const [editorContent, setEditorContent] = useState<Block[] | undefined>(
-    initialEditorContent,
-  );
+  const [editorContent, setEditorContent] = useState<Block[] | undefined>(initialEditorContent);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const metaSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const editorSaveErrorShownRef = useRef(false);
@@ -279,22 +264,21 @@ function TaskPageContent({
     lifecycle: task.lifecycle,
     assignedToId: task.assignedToId ?? task.assigneeId,
     dueDate: formatDateInputValue(task.dueDate),
-    estimatedAt:
-      typeof task.estimatedAt === "number" ? String(task.estimatedAt) : "",
+    estimatedAt: typeof task.estimatedAt === "number" ? String(task.estimatedAt) : "",
   });
 
   const createdAt = useMemo(() => formatDate(task.createdAt), [task.createdAt]);
   const updatedAt = useMemo(() => formatDate(task.updatedAt), [task.updatedAt]);
   const selectedAssignee = useMemo(
     () => members.find((m) => m.user.id === meta.assignedToId) ?? null,
-    [members, meta.assignedToId],
+    [members, meta.assignedToId]
   );
 
   useEffect(
     () => () => {
       if (metaSaveTimeoutRef.current) clearTimeout(metaSaveTimeoutRef.current);
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -302,24 +286,19 @@ function TaskPageContent({
     metaSaveTimeoutRef.current = setTimeout(async () => {
       try {
         setSaveState("saving");
-        const res = await fetch(
-          `/api/workspaces/${workspaceId}/tasks/${taskId}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: meta.title.trim() || "Untitled task",
-              status: meta.status,
-              priority: meta.priority,
-              lifecycle: meta.lifecycle,
-              assignedToId: meta.assignedToId,
-              dueDate: meta.dueDate
-                ? new Date(meta.dueDate).toISOString()
-                : null,
-              estimatedAt: meta.estimatedAt ? Number(meta.estimatedAt) : null,
-            }),
-          },
-        );
+        const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: meta.title.trim() || "Untitled task",
+            status: meta.status,
+            priority: meta.priority,
+            lifecycle: meta.lifecycle,
+            assignedToId: meta.assignedToId,
+            dueDate: meta.dueDate ? new Date(meta.dueDate).toISOString() : null,
+            estimatedAt: meta.estimatedAt ? Number(meta.estimatedAt) : null,
+          }),
+        });
         if (!res.ok) throw new Error();
         metaSaveErrorShownRef.current = false;
         setSaveState("saved");
@@ -343,14 +322,11 @@ function TaskPageContent({
       try {
         setSaveState("saving");
         const mentions = extractMentions(nextContent);
-        const descRes = await fetch(
-          `/api/workspaces/${workspaceId}/tasks/${taskId}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description: JSON.stringify(nextContent) }),
-          },
-        );
+        const descRes = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description: JSON.stringify(nextContent) }),
+        });
         if (!descRes.ok) throw new Error();
         await fetch(`/api/workspaces/${workspaceId}/relationships/bulk`, {
           method: "POST",
@@ -375,17 +351,14 @@ function TaskPageContent({
   }, [debouncedContent, taskId, workspaceId]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-4rem)] w-full overflow-auto bg-background ">
       {/* Main column */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-auto">
         {/* Top bar */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <CollaborationPresence />
           <span
-            className={cn(
-              "text-[11px] font-medium transition-colors",
-              SAVE_STATE_TEXT[saveState],
-            )}
+            className={cn("text-[11px] font-medium transition-colors", SAVE_STATE_TEXT[saveState])}
           >
             {SAVE_STATE_LABEL[saveState]}
           </span>
@@ -409,10 +382,7 @@ function TaskPageContent({
               {task.createdBy && (
                 <>
                   <span className="text-muted-foreground/25">·</span>
-                  <span>
-                    By{" "}
-                    {task.createdBy.name ?? task.createdBy.email ?? "Unknown"}
-                  </span>
+                  <span>By {task.createdBy.name ?? task.createdBy.email ?? "Unknown"}</span>
                 </>
               )}
             </div>
@@ -436,9 +406,7 @@ function TaskPageContent({
               <PropCell label="Priority">
                 <PillSelect
                   value={meta.priority}
-                  onValueChange={(v) =>
-                    updateMeta({ priority: v as TaskPriority })
-                  }
+                  onValueChange={(v) => updateMeta({ priority: v as TaskPriority })}
                   className={PRIORITY_CLASS[meta.priority]}
                 >
                   {TASK_PRIORITY_OPTIONS.map((v) => (
@@ -452,9 +420,7 @@ function TaskPageContent({
               <PropCell label="Lifecycle">
                 <PillSelect
                   value={meta.lifecycle}
-                  onValueChange={(v) =>
-                    updateMeta({ lifecycle: v as TaskLifecycle })
-                  }
+                  onValueChange={(v) => updateMeta({ lifecycle: v as TaskLifecycle })}
                   className={LIFECYCLE_CLASS[meta.lifecycle]}
                 >
                   {TASK_LIFECYCLE_OPTIONS.map((v) => (
@@ -492,9 +458,7 @@ function TaskPageContent({
                     min="0"
                     placeholder="0"
                     value={meta.estimatedAt}
-                    onChange={(e) =>
-                      updateMeta({ estimatedAt: e.target.value })
-                    }
+                    onChange={(e) => updateMeta({ estimatedAt: e.target.value })}
                     className="h-auto flex-1 border-0 bg-transparent p-0 text-[11px] font-semibold text-indigo-600 shadow-none focus-visible:ring-0"
                   />
                   <span className="text-[10px] text-indigo-400">hrs</span>
@@ -521,23 +485,13 @@ function TaskPageContent({
 
       {/* Right sidebar — relationships only */}
       <aside className="hidden w-72 shrink-0 flex-col border-l bg-background xl:flex">
-        <RelationshipsPanel
-          workspaceId={workspaceId}
-          entityType="TASK"
-          entityId={taskId}
-        />
+        <RelationshipsPanel workspaceId={workspaceId} entityType="TASK" entityId={taskId} />
       </aside>
     </div>
   );
 }
 
-function PropCell({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function PropCell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
@@ -564,7 +518,7 @@ function PillSelect({
       <SelectTrigger
         className={cn(
           "h-8 w-full rounded-lg border px-3 text-[11px] font-medium shadow-none focus-visible:ring-0",
-          className,
+          className
         )}
       >
         <SelectValue />
@@ -594,9 +548,7 @@ function AssignedToPicker({
           className="h-8 w-full justify-between rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[11px] font-medium text-cyan-700 shadow-none hover:bg-cyan-100 hover:text-cyan-700"
         >
           <span className="truncate">
-            {selectedMember
-              ? formatMemberLabel(selectedMember.user)
-              : "Unassigned"}
+            {selectedMember ? formatMemberLabel(selectedMember.user) : "Unassigned"}
           </span>
           <ChevronsUpDown className="ml-1 size-3 shrink-0 opacity-40" />
         </Button>
@@ -617,12 +569,7 @@ function AssignedToPicker({
                 }}
                 className="gap-2 text-xs"
               >
-                <Check
-                  className={cn(
-                    "size-3.5",
-                    !value ? "opacity-100" : "opacity-0",
-                  )}
-                />
+                <Check className={cn("size-3.5", !value ? "opacity-100" : "opacity-0")} />
                 Unassigned
               </CommandItem>
               {members.map((member) => (
@@ -638,7 +585,7 @@ function AssignedToPicker({
                   <Check
                     className={cn(
                       "size-3.5",
-                      value === member.user.id ? "opacity-100" : "opacity-0",
+                      value === member.user.id ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {formatMemberLabel(member.user)}
