@@ -15,10 +15,7 @@ export default clerkMiddleware(async (auth, req) => {
   if (!isAuthenticated && isProtectedRoute(req)) {
     console.log("REDIRECTING");
     // return redirectToSignIn();
-    return NextResponse.json(
-      { success: false, message: "Unauthorized" },
-      { status: 401 },
-    );
+    return NextResponse.redirect(new URL("/sign-in", req.url));
   }
 });
 
