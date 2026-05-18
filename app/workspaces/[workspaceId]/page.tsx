@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  ForwardRefExoticComponent,
+  ReactNode,
+  RefAttributes,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -9,6 +16,7 @@ import {
   CheckCircle2,
   CheckSquare2,
   FileText,
+  LucideProps,
   TimerReset,
   Zap,
 } from "lucide-react";
@@ -21,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import GreetingUser from "@/app/_components/ui/greeting-user";
+import { cn } from "@/lib/utils";
 
 // Types
 // ---------------------------------------------------------------------------
@@ -223,13 +232,22 @@ export default function WorkspaceDashboard() {
     );
   }
 
-  const statCards = [
+  type TStatCard = {
+    label: string;
+    value: number;
+    icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
+    accent: string;
+    hint: string;
+    link?: string;
+  };
+  const statCards: TStatCard[] = [
     {
       label: "Documents",
       value: data.documents.length,
       icon: FileText,
       accent: "blue" as AccentKey,
       hint: `${data.documents.length} total`,
+      link: `/workspaces/${workspaceId}/documents`,
     },
     {
       label: "Tasks",
@@ -237,6 +255,7 @@ export default function WorkspaceDashboard() {
       icon: TimerReset,
       accent: "amber" as AccentKey,
       hint: `${summary.inProgressTasks} in progress`,
+      link: `/workspaces/${workspaceId}/tasks`,
     },
     {
       label: "Completed",
@@ -282,66 +301,201 @@ export default function WorkspaceDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 select-none">
+      <div className="mb-6 grid select-none grid-cols-2 gap-3 md:grid-cols-4">
         {statCards.map((card) => (
           <Card
             key={card.label}
-            className={`p-4 rounded-md bg-${card.accent}`}
-            style={{ border: `1px solid var(--vion-${card.accent}-border)` }}
+            className={cn(
+              "group relative overflow-hidden rounded-md border p-4 transition-all duration-300",
+              "hover:-translate-y-1 hover:shadow-md",
+              "hover:shadow-black/5 dark:hover:shadow-black/30",
+              "cursor-pointer"
+            )}
+            onClick={() => card.link && router.push(card.link)}
+            style={{
+              background: `var(--vion-${card.accent})`,
+              border: `1px solid var(--vion-${card.accent}-border)`,
+            }}
           >
-            <CardContent className="w-full p-0">
-              <div className="flex justify-between items-center">
-                <p className="text-md font-bold uppercase" style={textColor(card.accent)}>
-                  {card.label}
-                </p>
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-0 opacity-[0.03]",
+                "transition-opacity duration-300 group-hover:opacity-[0.06]"
+              )}
+            >
+              <div
+                className="h-full w-full"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
+                  backgroundSize: "18px 18px",
+                }}
+              />
+            </div>
+
+            <div
+              className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              style={{
+                background:
+                  "radial-gradient(circle at top right, rgba(255,255,255,0.08), transparent 45%)",
+              }}
+            />
+
+            <CardContent className="relative z-10 w-full p-0">
+              <div className="flex items-start justify-between">
+                <div className="min-w-0">
+                  <p
+                    className="text-[11px] font-bold uppercase tracking-[0.18em] opacity-80"
+                    style={textColor(card.accent)}
+                  >
+                    {card.label}
+                  </p>
+
+                  <div className="mt-3 flex items-end gap-2">
+                    <p
+                      className={cn(
+                        "text-4xl font-black tracking-tight tabular-nums",
+                        "transition-all duration-300",
+                        "group-hover:scale-[1.02] group-hover:tracking-tighter"
+                      )}
+                      style={textColor(card.accent)}
+                    >
+                      {card.value}
+                    </p>
+
+                    {card.hint && (
+                      <span className="mb-1 truncate text-xs font-medium text-muted-foreground">
+                        / {card.hint}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 <div
-                  className="flex size-8 items-center justify-center rounded-lg"
+                  className={cn(
+                    "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                    "transition-all duration-300",
+                    "group-hover:scale-110 group-hover:rotate-3"
+                  )}
                   style={iconBox(card.accent)}
                 >
-                  <card.icon className="size-3.5" />
+                  <card.icon className="size-4" />
                 </div>
               </div>
-
-              <p
-                className="text-3xl font-bold tracking-tight tabular-nums "
-                style={textColor(card.accent)}
-              >
-                {card.value}{" "}
-                {card.hint && (
-                  <p className="mt-1 text-[11px] text-muted-foreground inline-block">{card.hint}</p>
-                )}
-              </p>
             </CardContent>
+
+            <div className="absolute bottom-0 left-0 h-[3px] w-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full w-1/2 transition-all duration-700",
+                  "translate-x-[-120%] group-hover:translate-x-[220%]"
+                )}
+                style={{
+                  background: `linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--vion-${card.accent}-border),
+                    transparent
+                  )`,
+                }}
+              />
+            </div>
           </Card>
         ))}
       </div>
 
       {/* Completion bar */}
       {data.tasks.length > 0 && (
-        <Card className="mb-6 rounded-md border shadow-none">
-          <CardContent className="px-5 py-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-lg font-medium text-foreground">
-                <Zap className="size-4" style={textColor("amber")} />
-                Task completion
-              </span>
-              <span className="text-xs font-semibold tabular-nums text-foreground">
-                {summary.doneTasks}/{data.tasks.length}
-                <span className="ml-1.5 font-normal text-muted-foreground">
-                  ({summary.completionRate}%)
-                </span>
-              </span>
+        <Card
+          className={cn(
+            "group relative mb-6 overflow-hidden rounded-xl border shadow-none",
+            "transition-all duration-300",
+            "hover:border-white/10 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20"
+          )}
+        >
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 opacity-[0.025]",
+              "transition-opacity duration-300 group-hover:opacity-[0.05]"
+            )}
+          >
+            <div
+              className="h-full w-full"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
+                backgroundSize: "20px 20px",
+              }}
+            />
+          </div>
+
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/70 to-transparent opacity-70" />
+
+          <CardContent className="relative z-10 px-5 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="flex size-8 items-center justify-center rounded-md border"
+                    style={{
+                      background: "var(--vion-amber)",
+                      borderColor: "var(--vion-amber-border)",
+                    }}
+                  >
+                    <Zap className="size-4" style={textColor("amber")} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                      Task completion
+                    </p>
+
+                    <p className="mt-0.5 text-xl font-bold tracking-tight text-foreground">
+                      {summary.completionRate}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p className="text-lg font-bold tabular-nums text-foreground">
+                  {summary.doneTasks}
+                  <span className="mx-1 text-muted-foreground">/</span>
+                  {data.tasks.length}
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">completed tasks</p>
+              </div>
             </div>
-            <Progress value={summary.completionRate} className="h-1.5" />
-            <div className="mt-2.5 flex flex-wrap items-center gap-4">
-              <ProgressDot color="var(--vion-green-text)" label={`${summary.doneTasks} done`} />
-              <ProgressDot
-                color="var(--vion-amber-text)"
-                label={`${summary.inProgressTasks} in progress`}
-              />
-              <ProgressDot color="var(--muted-foreground)" label={`${summary.todoTasks} todo`} />
+
+            <div className="mt-5">
+              <div className="relative">
+                <Progress value={summary.completionRate} className="h-2 rounded-full bg-muted/60" />
+
+                <div
+                  className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-white/20 blur-sm transition-all duration-500"
+                  style={{
+                    width: `${summary.completionRate}%`,
+                  }}
+                />
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <ProgressDot color="var(--vion-green-text)" label={`${summary.doneTasks} done`} />
+
+                <ProgressDot
+                  color="var(--vion-amber-text)"
+                  label={`${summary.inProgressTasks} in progress`}
+                />
+
+                <ProgressDot color="var(--muted-foreground)" label={`${summary.todoTasks} todo`} />
+              </div>
             </div>
           </CardContent>
+
+          <div className="absolute bottom-0 left-0 h-[3px] w-full overflow-hidden">
+            <div className="h-full w-1/2 translate-x-[-120%] bg-gradient-to-r from-transparent via-amber-400/80 to-transparent transition-all duration-700 group-hover:translate-x-[220%]" />
+          </div>
         </Card>
       )}
 

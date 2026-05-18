@@ -2,29 +2,23 @@
 
 import { Bell, CheckCheck, Inbox, LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  type NotificationItem,
-  useNotifications,
-} from "@/lib/hooks/use-notification";
+import { type NotificationItem, useNotifications } from "@/lib/hooks/use-notification";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { NotificationCard } from "./notification-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type Tab = "unread" | "all";
 
 export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
-    useNotifications({ workspaceId });
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications({
+    workspaceId,
+  });
   const [activeTab, setActiveTab] = useState<Tab>("unread");
 
-  const unread = useMemo(
-    () => notifications.filter((n) => !n.isRead),
-    [notifications],
-  );
-  const read = useMemo(
-    () => notifications.filter((n) => n.isRead),
-    [notifications],
-  );
+  const unread = useMemo(() => notifications.filter((n) => !n.isRead), [notifications]);
+  const read = useMemo(() => notifications.filter((n) => n.isRead), [notifications]);
   const displayed = activeTab === "unread" ? unread : notifications;
 
   const prevCountRef = useRef(0);
@@ -46,16 +40,14 @@ export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[14.5px] font-medium text-foreground">
-                Notifications
-              </span>
-              <span className="text-[12.5px] text-muted-foreground">
+              <span className="text-[14.5px] font-medium text-foreground">Notifications</span>
+              {/*<span className="text-[12.5px] text-muted-foreground">
                 {notifications.length}
-              </span>
+              </span>*/}
               {unreadCount > 0 && (
-                <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background leading-none">
+                <Badge className="" variant={"secondary"}>
                   {unreadCount} new
-                </span>
+                </Badge>
               )}
             </div>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
@@ -64,14 +56,15 @@ export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
           </div>
         </div>
 
-        <button
+        <Button
           onClick={() => void markAllAsRead()}
           disabled={unreadCount === 0}
-          className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          variant={"secondary"}
+          // className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <CheckCheck className="size-3.5" />
-          Mark all read
-        </button>
+          Mark all as read
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -84,7 +77,7 @@ export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
               "relative py-2.5 mr-5 text-[12.5px] font-medium capitalize transition-colors",
               activeTab === tab
                 ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground/70",
+                : "text-muted-foreground hover:text-foreground/70"
             )}
           >
             {tab === "unread" ? "Unread" : "All"}

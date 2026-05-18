@@ -9,10 +9,7 @@ export const ENTITY_TYPE = {
 
 export type EntityType = (typeof ENTITY_TYPE)[keyof typeof ENTITY_TYPE];
 
-export const ENTITY_COLOR: Record<
-  EntityType,
-  { bg: string; text: string; border: string }
-> = {
+export const ENTITY_COLOR: Record<EntityType, { bg: string; text: string; border: string }> = {
   TASK: {
     bg: "bg-violet-50",
     text: "text-violet-600",
@@ -63,10 +60,7 @@ export const TASK_STATUS = {
 
 export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
 
-export const TASK_STATUS_COLOR: Record<
-  TaskStatus,
-  { bg: string; text: string; dot: string }
-> = {
+export const TASK_STATUS_COLOR: Record<TaskStatus, { bg: string; text: string; dot: string }> = {
   TODO: { bg: "bg-slate-100", text: "text-slate-500", dot: "bg-slate-400" },
   IN_PROGRESS: {
     bg: "bg-amber-50",
@@ -100,12 +94,11 @@ export const DOC_STATUS = {
 
 export type DocStatus = (typeof DOC_STATUS)[keyof typeof DOC_STATUS];
 
-export const DOC_STATUS_COLOR: Record<DocStatus, { bg: string; text: string }> =
-  {
-    INCOMING: { bg: "bg-emerald-100", text: "text-emerald-700" },
-    ONGOING: { bg: "bg-sky-100", text: "text-sky-700" },
-    PAST: { bg: "bg-slate-100", text: "text-slate-500" },
-  };
+export const DOC_STATUS_COLOR: Record<DocStatus, { bg: string; text: string }> = {
+  INCOMING: { bg: "bg-emerald-100", text: "text-emerald-700" },
+  ONGOING: { bg: "bg-sky-100", text: "text-sky-700" },
+  PAST: { bg: "bg-slate-100", text: "text-slate-500" },
+};
 
 export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
   INCOMING: "Incoming",
@@ -125,18 +118,38 @@ export const NOTIFICATION_TYPE = {
   DOCUMENT_UPDATED: "DOCUMENT_UPDATED",
 } as const;
 
-export type NotificationType =
-  (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];
+export type NotificationType = (typeof NOTIFICATION_TYPE)[keyof typeof NOTIFICATION_TYPE];
 
-export const NOTIFICATION_TYPE_COLOR: Record<
-  NotificationType,
-  { bg: string; text: string }
-> = {
-  MENTIONED: { bg: "bg-sky-100", text: "text-sky-700" },
-  TASK_ASSIGNED: { bg: "bg-violet-100", text: "text-violet-700" },
-  INVITE_RECEIVED: { bg: "bg-emerald-100", text: "text-emerald-700" },
-  COMMIT_LINKED: { bg: "bg-amber-100", text: "text-amber-700" },
-  DOCUMENT_UPDATED: { bg: "bg-slate-100", text: "text-slate-600" },
+export const NOTIFICATION_TYPE_COLOR = {
+  MENTIONED: {
+    bg: "bg-sky-100",
+    text: "text-sky-700",
+    border: "border-l-sky-800",
+  },
+
+  TASK_ASSIGNED: {
+    bg: "bg-violet-100",
+    text: "text-violet-700",
+    border: "border-l-violet-800",
+  },
+
+  INVITE_RECEIVED: {
+    bg: "bg-emerald-100",
+    text: "text-emerald-700",
+    border: "border-l-emerald-500",
+  },
+
+  COMMIT_LINKED: {
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+    border: "border-l-amber-500",
+  },
+
+  DOCUMENT_UPDATED: {
+    bg: "bg-slate-100",
+    text: "text-slate-600",
+    border: "border-l-slate-500",
+  },
 };
 
 export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
@@ -159,8 +172,7 @@ export const RELATIONSHIP_TYPE = {
   BLOCKS: "BLOCKS",
 } as const;
 
-export type RelationshipType =
-  (typeof RELATIONSHIP_TYPE)[keyof typeof RELATIONSHIP_TYPE];
+export type RelationshipType = (typeof RELATIONSHIP_TYPE)[keyof typeof RELATIONSHIP_TYPE];
 
 export const RELATIONSHIP_LABEL: Record<RelationshipType, string> = {
   EXPLAINS: "Explains",
@@ -184,10 +196,7 @@ export const TIME_FILTER = {
 
 export type TimeFilter = (typeof TIME_FILTER)[keyof typeof TIME_FILTER];
 
-export const TIME_FILTER_COLOR: Record<
-  TimeFilter,
-  { bg: string; text: string }
-> = {
+export const TIME_FILTER_COLOR: Record<TimeFilter, { bg: string; text: string }> = {
   ALL: { bg: "bg-slate-100", text: "text-slate-500" },
   TODAY: { bg: "bg-rose-100", text: "text-rose-600" },
   TOMORROW: { bg: "bg-amber-100", text: "text-amber-600" },

@@ -13,11 +13,7 @@ import { type NotificationItem } from "@/lib/hooks/use-notification";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import {
-  parseMention,
-  formatLabel,
-  formatNotificationDateTime,
-} from "./notification-utils";
+import { parseMention, formatLabel, formatNotificationDateTime } from "./notification-utils";
 import {
   NOTIFICATION_TYPE_COLOR,
   NOTIFICATION_TYPE_LABEL,
@@ -48,11 +44,7 @@ function Avatar({
       style={{ width: size, height: size }}
     >
       {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={name ?? ""}
-          className="w-full h-full object-cover rounded-full"
-        />
+        <img src={imageUrl} alt={name ?? ""} className="w-full h-full object-cover rounded-full" />
       ) : (
         <div
           className="w-full h-full rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium"
@@ -98,11 +90,7 @@ function AvatarStack({
             }}
           >
             {u.imageUrl ? (
-              <img
-                src={u.imageUrl}
-                alt={u.name ?? ""}
-                className="w-full h-full object-cover"
-              />
+              <img src={u.imageUrl} alt={u.name ?? ""} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center text-[8px] font-medium text-muted-foreground">
                 {u.name?.charAt(0).toUpperCase() ?? "?"}
@@ -148,16 +136,10 @@ function actionSentence(type: string): string {
 // Main card
 // ---------------------------------------------------------------------------
 
-export function NotificationCard({
-  notification,
-}: {
-  notification: NotificationItem;
-}) {
+export function NotificationCard({ notification }: { notification: NotificationItem }) {
   const isUnread = !notification.isRead;
   const [joiningInvite, setJoiningInvite] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<
-    "toggle" | "delete" | null
-  >(null);
+  const [loadingAction, setLoadingAction] = useState<"toggle" | "delete" | null>(null);
   const router = useRouter();
   const parts = parseMention(notification.message);
 
@@ -165,9 +147,9 @@ export function NotificationCard({
   const typeColor = NOTIFICATION_TYPE_COLOR[typeKey] ?? {
     bg: "bg-slate-100",
     text: "text-slate-600",
+    border: "",
   };
-  const typeLabel =
-    NOTIFICATION_TYPE_LABEL[typeKey] ?? formatLabel(notification.type);
+  const typeLabel = NOTIFICATION_TYPE_LABEL[typeKey] ?? formatLabel(notification.type);
 
   // Short relative time for the top-right of the card
   function shortTime(iso: string): string {
@@ -188,7 +170,7 @@ export function NotificationCard({
     window.dispatchEvent(
       new CustomEvent("notification:update", {
         detail: { id: notification.id, isRead: next },
-      }),
+      })
     );
     try {
       const res = await fetch(`/api/notifications/${notification.id}`, {
@@ -201,14 +183,14 @@ export function NotificationCard({
         window.dispatchEvent(
           new CustomEvent("notification:update", {
             detail: { id: notification.id, isRead: actual },
-          }),
+          })
         );
       }
     } catch {
       window.dispatchEvent(
         new CustomEvent("notification:update", {
           detail: { id: notification.id, isRead: !next },
-        }),
+        })
       );
     } finally {
       setLoadingAction(null);
@@ -227,7 +209,7 @@ export function NotificationCard({
       window.dispatchEvent(
         new CustomEvent("notification:remove", {
           detail: { id: notification.id },
-        }),
+        })
       );
     } finally {
       setLoadingAction(null);
@@ -254,8 +236,7 @@ export function NotificationCard({
     } catch (err) {
       toast({
         title: "Error",
-        description:
-          err instanceof Error ? err.message : "Failed to join workspace.",
+        description: err instanceof Error ? err.message : "Failed to join workspace.",
         variant: "destructive",
       });
     } finally {
@@ -279,10 +260,11 @@ export function NotificationCard({
   return (
     <div
       className={cn(
-        "group relative rounded-[14px] transition-colors duration-100 cursor-pointer overflow-hidden",
+        // "group relative rounded-sm transition-colors duration-100 cursor-pointer overflow-hidden",
         isUnread
-          ? "bg-background border border-border/60 hover:border-border/90 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
-          : "bg-muted/25 border border-transparent hover:bg-muted/40",
+          ? ` border border-border/60  shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] `
+          : "bg-muted/25 border border-transparent hover:bg-muted/40 ",
+        `rounded-sm group `
       )}
       onClick={navigateToEntity}
     >
@@ -296,17 +278,20 @@ export function NotificationCard({
         <div className="flex items-start justify-between gap-3 mb-3">
           {/* Left: avatar + sender info */}
           <div className="flex items-center gap-2.5 min-w-0">
+            {/*{notification.sender && (*/}
             <Avatar
               name={notification.sender?.name}
-              imageUrl={notification.sender?.imageUrl}
+              imageUrl={notification.sender?.imageUrl ?? "/system.svg"}
               size={34}
             />
+            {/*)}*/}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap leading-none">
                 <span
                   className={cn(
                     "text-[13px] font-medium",
                     isUnread ? "text-foreground" : "text-muted-foreground",
+                    !notification.sender && "uppercase"
                   )}
                 >
                   {notification.sender?.name ?? "System"}
@@ -319,33 +304,61 @@ export function NotificationCard({
           </div>
 
           {/* Right: type badge + relative time */}
-          <div className="flex items-center gap-2 shrink-0 mt-0.5">
-            <span
+          <div className="flex shrink-0 items-center gap-2">
+            <div
               className={cn(
-                "rounded-full px-2 py-[3px] text-[10px] font-medium leading-none whitespace-nowrap",
+                "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-medium leading-none whitespace-nowrap",
                 isUnread
                   ? `${typeColor.bg} ${typeColor.text}`
-                  : "bg-background border border-border/40 text-muted-foreground",
+                  : "border border-border/40 bg-background text-muted-foreground"
               )}
             >
-              {typeLabel}
-            </span>
-            <span className="text-[11px] text-muted-foreground/60 whitespace-nowrap">
+              <div
+                className={cn(
+                  "size-2 rounded-full shrink-0",
+                  isUnread ? "bg-current opacity-70" : "bg-muted-foreground/50"
+                )}
+              />
+
+              <span>{typeLabel}</span>
+            </div>
+
+            <span className="whitespace-nowrap text-[11px] text-muted-foreground/60">
               {shortTime(notification.createdAt)}
             </span>
           </div>
         </div>
 
         {/* ── ROW 2: Notification title ── */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <p
+        <div className="flex items-start justify-between gap-2 mb-2 ">
+          {/*<p
             className={cn(
               "text-[14px] font-medium leading-snug flex-1",
-              isUnread ? "text-foreground" : "text-muted-foreground",
+              isUnread ? "text-foreground" : "text-muted-foreground"
             )}
           >
             {notification.title}
-          </p>
+          </p>*/}
+          <div className="mb-3">
+            <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+              {parts.map((part, i) => {
+                if (part.type === "text") return <span key={i}>{part.value}</span>;
+                return (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToEntity();
+                    }}
+                    className="inline-flex items-center gap-1 mx-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors"
+                  >
+                    <FileText className="size-3 shrink-0" />
+                    {part.value}
+                  </button>
+                );
+              })}
+            </p>
+          </div>
 
           {/* Hover actions + chevron — always reserving space */}
           <div className="flex items-center gap-0.5 shrink-0">
@@ -385,26 +398,6 @@ export function NotificationCard({
         </div>
 
         {/* ── ROW 3: Message body with inline mention chips ── */}
-        <div className="mb-3">
-          <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-            {parts.map((part, i) => {
-              if (part.type === "text") return <span key={i}>{part.value}</span>;
-              return (
-                <button
-                  key={i}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigateToEntity();
-                  }}
-                  className="inline-flex items-center gap-1 mx-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors"
-                >
-                  <FileText className="size-3 shrink-0" />
-                  {part.value}
-                </button>
-              );
-            })}
-          </p>
-        </div>
 
         {/* ── ROW 4: Linked entity pill — entityType + entityId from API ── */}
         {notification.entityType && notification.entityId && (
