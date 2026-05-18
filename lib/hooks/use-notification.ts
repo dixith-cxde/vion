@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type NotificationItem = {
   id: string;
@@ -41,6 +41,8 @@ async function fetchNotifications() {
 export function useNotifications(options: UseNotificationsOptions = {}) {
   const { workspaceId } = options;
 
+  const queryClient = useQueryClient();
+
   const { data = [], isLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
@@ -55,27 +57,80 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
-  async function markAsRead(notificationId: string) {
-    await fetch(`/api/notifications/${notificationId}`, {
-      method: "PATCH",
-    });
-  }
+  const toggleReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: "PATCH",
+      });
 
-  async function markAllAsRead() {
-    await fetch("/api/notifications/mark-all", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(workspaceId ? { workspaceId } : {}),
-    });
-  }
+      if (!response.ok) {
+        throw new Error("Failed to update notification");
+      }
+
+      return response.json();
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["notifications"],
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete notification");
+      }
+
+      return response.json();
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["notifications"],
+      });
+    },
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/notifications/mark-all", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(workspaceId ? { workspaceId } : {}),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to mark all as read");
+      }
+
+      return response.json();
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["notifications"],
+      });
+    },
+  });
 
   return {
     notifications,
     unreadCount,
     loading: isLoading,
-    markAsRead,
-    markAllAsRead,
+
+    toggleRead: toggleReadMutation.mutateAsync,
+    deleteNotification: deleteMutation.mutateAsync,
+    markAllAsRead: markAllMutation.mutateAsync,
+
+    isToggling: toggleReadMutation.isPending,
+    isDeleting: deleteMutation.isPending,
   };
 }

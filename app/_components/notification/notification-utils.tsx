@@ -65,3 +65,25 @@ export function formatNotificationDateTime(value: string) {
     minute: "2-digit",
   }).format(new Date(value));
 }
+
+export function actionSentence(type: string): string {
+  switch (type) {
+    case "MENTIONED":
+      return "mentioned you in";
+
+    case "TASK_ASSIGNED":
+      return "assigned a task to you";
+
+    case "INVITE_RECEIVED":
+      return "invited you to a workspace";
+
+    case "COMMIT_LINKED":
+      return "linked a commit";
+
+    case "DOCUMENT_UPDATED":
+      return "updated a document";
+
+    default:
+      return formatLabel(type).toLowerCase();
+  }
+}

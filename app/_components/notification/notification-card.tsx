@@ -8,17 +8,35 @@ import {
   LoaderCircle,
   Trash2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { type NotificationItem } from "@/lib/hooks/use-notification";
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+
 import { useRouter } from "next/navigation";
-import { parseMention, formatLabel, formatNotificationDateTime } from "./notification-utils";
+
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+
+import { type NotificationItem } from "@/lib/hooks/use-notification";
+
 import {
   NOTIFICATION_TYPE_COLOR,
   NOTIFICATION_TYPE_LABEL,
   type NotificationType,
 } from "@/lib/constants";
+
+import {
+  actionSentence,
+  formatLabel,
+  formatNotificationDateTime,
+  parseMention,
+} from "./notification-utils";
+import { useMemo, useState } from "react";
+
+interface NotificationCardProps {
+  notification: NotificationItem;
+
+  onToggleRead: (id: string) => Promise<void>;
+
+  onDelete: (id: string) => Promise<void>;
+}
 
 function Avatar({
   name,
@@ -26,7 +44,9 @@ function Avatar({
   size = 32,
 }: {
   name: string | null | undefined;
+
   imageUrl: string | null | undefined;
+
   size?: number;
 }) {
   const initials = name
@@ -40,15 +60,20 @@ function Avatar({
 
   return (
     <div
-      className="relative shrink-0 rounded-full overflow-hidden"
-      style={{ width: size, height: size }}
+      className="relative shrink-0 overflow-hidden rounded-full"
+      style={{
+        width: size,
+        height: size,
+      }}
     >
       {imageUrl ? (
-        <img src={imageUrl} alt={name ?? ""} className="w-full h-full object-cover rounded-full" />
+        <img src={imageUrl} alt={name ?? ""} className="h-full w-full rounded-full object-cover" />
       ) : (
         <div
-          className="w-full h-full rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium"
-          style={{ fontSize: Math.round(size * 0.34) }}
+          className="flex h-full w-full items-center justify-center rounded-full bg-muted font-medium text-muted-foreground"
+          style={{
+            fontSize: Math.round(size * 0.34),
+          }}
         >
           {initials}
         </div>
@@ -57,196 +82,82 @@ function Avatar({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Small stacked avatar group — for future recipients array if added to API
-// ---------------------------------------------------------------------------
-
-function AvatarStack({
-  users,
-  max = 3,
-}: {
-  users: Array<{ id: string; name: string | null; imageUrl: string | null }>;
-  max?: number;
-}) {
-  const visible = users.slice(0, max);
-  const overflow = users.length - max;
-  return (
-    <div className="flex items-center">
-      {visible.map((u, i) => (
-        <div
-          key={u.id}
-          className="relative"
-          style={{
-            marginRight: i < visible.length - 1 ? -6 : 0,
-            zIndex: max - i,
-          }}
-        >
-          <div
-            className="rounded-full overflow-hidden"
-            style={{
-              width: 20,
-              height: 20,
-              border: "1.5px solid hsl(var(--background))",
-            }}
-          >
-            {u.imageUrl ? (
-              <img src={u.imageUrl} alt={u.name ?? ""} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center text-[8px] font-medium text-muted-foreground">
-                {u.name?.charAt(0).toUpperCase() ?? "?"}
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-      {overflow > 0 && (
-        <div
-          className="rounded-full bg-muted border border-background flex items-center justify-center text-[9px] font-medium text-muted-foreground"
-          style={{ width: 20, height: 20, marginLeft: 2 }}
-        >
-          +{overflow}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sentence that describes the notification action
-// ---------------------------------------------------------------------------
-
-function actionSentence(type: string): string {
-  switch (type) {
-    case "MENTIONED":
-      return "mentioned you in";
-    case "TASK_ASSIGNED":
-      return "assigned a task to you";
-    case "INVITE_RECEIVED":
-      return "invited you to a workspace";
-    case "COMMIT_LINKED":
-      return "linked a commit";
-    case "DOCUMENT_UPDATED":
-      return "updated a document";
-    default:
-      return formatLabel(type).toLowerCase();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Main card
-// ---------------------------------------------------------------------------
-
-export function NotificationCard({ notification }: { notification: NotificationItem }) {
-  const isUnread = !notification.isRead;
-  const [joiningInvite, setJoiningInvite] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<"toggle" | "delete" | null>(null);
+export function NotificationCard({ notification, onToggleRead, onDelete }: NotificationCardProps) {
   const router = useRouter();
+  const [now] = useState(() => Date.now());
+
+  const isUnread = !notification.isRead;
   const parts = parseMention(notification.message);
 
   const typeKey = notification.type as NotificationType;
+
   const typeColor = NOTIFICATION_TYPE_COLOR[typeKey] ?? {
     bg: "bg-slate-100",
     text: "text-slate-600",
     border: "",
   };
+
   const typeLabel = NOTIFICATION_TYPE_LABEL[typeKey] ?? formatLabel(notification.type);
 
-  // Short relative time for the top-right of the card
   function shortTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
+    const diff = now - new Date(iso).getTime();
+
     const m = Math.floor(diff / 60000);
+
     if (m < 1) return "just now";
+
     if (m < 60) return `${m}m ago`;
+
     const h = Math.floor(m / 60);
+
     if (h < 24) return `${h}h ago`;
+
     return `${Math.floor(h / 24)}d ago`;
-  }
-
-  async function toggleRead(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (loadingAction) return;
-    setLoadingAction("toggle");
-    const next = !notification.isRead;
-    window.dispatchEvent(
-      new CustomEvent("notification:update", {
-        detail: { id: notification.id, isRead: next },
-      })
-    );
-    try {
-      const res = await fetch(`/api/notifications/${notification.id}`, {
-        method: "PATCH",
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const actual = data?.data?.isRead;
-      if (actual !== next) {
-        window.dispatchEvent(
-          new CustomEvent("notification:update", {
-            detail: { id: notification.id, isRead: actual },
-          })
-        );
-      }
-    } catch {
-      window.dispatchEvent(
-        new CustomEvent("notification:update", {
-          detail: { id: notification.id, isRead: !next },
-        })
-      );
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  async function deleteNotification(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (loadingAction) return;
-    setLoadingAction("delete");
-    try {
-      const res = await fetch(`/api/notifications/${notification.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error();
-      window.dispatchEvent(
-        new CustomEvent("notification:remove", {
-          detail: { id: notification.id },
-        })
-      );
-    } finally {
-      setLoadingAction(null);
-    }
   }
 
   async function handleInvite(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!notification.entityId || joiningInvite) return;
+
+    if (!notification.entityId) return;
+
     try {
-      setJoiningInvite(true);
       const res = await fetch("/api/invitations/accept", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invitationId: notification.entityId }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId: notification.entityId,
+        }),
       });
+
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || "Failed to join.");
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to join.");
+      }
+
       toast({
         title: "Workspace Joined",
         description: "You have joined successfully.",
       });
-      if (data.data?.workspaceId) window.location.assign(`/workspaces/${data.data.workspaceId}`);
+
+      if (data.data?.workspaceId) {
+        window.location.assign(`/workspaces/${data.data.workspaceId}`);
+      }
     } catch (err) {
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to join workspace.",
         variant: "destructive",
       });
-    } finally {
-      setJoiningInvite(false);
     }
   }
 
   function navigateToEntity() {
     if (notification.entityId && notification.workspaceId) {
       const base = `/workspaces/${notification.workspaceId}`;
+
       if (notification.entityType === "DOCUMENT") {
         router.push(`${base}/documents/${notification.entityId}`);
       } else if (notification.entityType === "TASK") {
@@ -260,33 +171,29 @@ export function NotificationCard({ notification }: { notification: NotificationI
   return (
     <div
       className={cn(
-        // "group relative rounded-sm transition-colors duration-100 cursor-pointer overflow-hidden",
+        "group relative cursor-pointer overflow-hidden rounded-sm transition-colors duration-100",
+
         isUnread
-          ? ` border border-border/60  shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] `
-          : "bg-muted/25 border border-transparent hover:bg-muted/40 ",
-        `rounded-sm group `
+          ? "border border-border/60 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]"
+          : "border border-transparent bg-muted/25 hover:bg-muted/40"
       )}
       onClick={navigateToEntity}
     >
-      {/* Unread bar */}
       {isUnread && (
-        <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-foreground rounded-r-[1px]" />
+        <span className="absolute bottom-0 left-0 top-0 w-[3px] rounded-r-[1px] bg-foreground" />
       )}
 
       <div className={cn("px-4 py-[15px]", isUnread && "pl-5")}>
-        {/* ── ROW 1: Sender avatar + name + action + time + type badge ── */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          {/* Left: avatar + sender info */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/*{notification.sender && (*/}
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <Avatar
               name={notification.sender?.name}
               imageUrl={notification.sender?.imageUrl ?? "/system.svg"}
               size={34}
             />
-            {/*)}*/}
+
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap leading-none">
+              <div className="flex flex-wrap items-center gap-1.5 leading-none">
                 <span
                   className={cn(
                     "text-[13px] font-medium",
@@ -296,6 +203,7 @@ export function NotificationCard({ notification }: { notification: NotificationI
                 >
                   {notification.sender?.name ?? "System"}
                 </span>
+
                 <span className="text-[12px] text-muted-foreground">
                   {actionSentence(notification.type)}
                 </span>
@@ -303,11 +211,11 @@ export function NotificationCard({ notification }: { notification: NotificationI
             </div>
           </div>
 
-          {/* Right: type badge + relative time */}
           <div className="flex shrink-0 items-center gap-2">
             <div
               className={cn(
-                "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-medium leading-none whitespace-nowrap",
+                "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-medium leading-none",
+
                 isUnread
                   ? `${typeColor.bg} ${typeColor.text}`
                   : "border border-border/40 bg-background text-muted-foreground"
@@ -315,7 +223,8 @@ export function NotificationCard({ notification }: { notification: NotificationI
             >
               <div
                 className={cn(
-                  "size-2 rounded-full shrink-0",
+                  "size-2 shrink-0 rounded-full",
+
                   isUnread ? "bg-current opacity-70" : "bg-muted-foreground/50"
                 )}
               />
@@ -329,30 +238,26 @@ export function NotificationCard({ notification }: { notification: NotificationI
           </div>
         </div>
 
-        {/* ── ROW 2: Notification title ── */}
-        <div className="flex items-start justify-between gap-2 mb-2 ">
-          {/*<p
-            className={cn(
-              "text-[14px] font-medium leading-snug flex-1",
-              isUnread ? "text-foreground" : "text-muted-foreground"
-            )}
-          >
-            {notification.title}
-          </p>*/}
+        <div className="mb-2 flex items-start justify-between gap-2">
           <div className="mb-3">
-            <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+            <p className="text-[12.5px] leading-relaxed text-muted-foreground">
               {parts.map((part, i) => {
-                if (part.type === "text") return <span key={i}>{part.value}</span>;
+                if (part.type === "text") {
+                  return <span key={i}>{part.value}</span>;
+                }
+
                 return (
                   <button
                     key={i}
                     onClick={(e) => {
                       e.stopPropagation();
+
                       navigateToEntity();
                     }}
-                    className="inline-flex items-center gap-1 mx-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors"
+                    className="mx-0.5 inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 transition-colors hover:bg-sky-100"
                   >
                     <FileText className="size-3 shrink-0" />
+
                     {part.value}
                   </button>
                 );
@@ -360,99 +265,88 @@ export function NotificationCard({ notification }: { notification: NotificationI
             </p>
           </div>
 
-          {/* Hover actions + chevron — always reserving space */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
-              <button
-                onClick={toggleRead}
-                disabled={loadingAction === "toggle"}
-                title={isUnread ? "Mark as read" : "Mark as unread"}
-                className="flex size-[26px] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              >
-                {loadingAction === "toggle" ? (
-                  <LoaderCircle className="size-3.5 animate-spin" />
-                ) : isUnread ? (
-                  <CheckCircleIcon className="size-3.5" />
-                ) : (
-                  <ArchiveRestoreIcon className="size-3.5" />
-                )}
-              </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <div className="flex items-center gap-0.5 opacity-40 transition-opacity duration-150 group-hover:opacity-100">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  void deleteNotification(e);
+
+                  void onToggleRead(notification.id);
                 }}
-                disabled={loadingAction === "delete"}
-                title="Delete"
-                className="flex size-[26px] items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"
+                title={isUnread ? "Mark as read" : "Mark as unread"}
+                className="flex size-[26px] items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
               >
-                {loadingAction === "delete" ? (
-                  <LoaderCircle className="size-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="size-3.5" />
-                )}
+                <CheckCircleIcon className="size-3.5" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+
+                  void onDelete(notification.id);
+                }}
+                title="Delete"
+                className="flex size-[26px] items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-red-50 hover:text-red-500"
+              >
+                <Trash2 className="size-3.5" />
               </button>
             </div>
-            <ChevronRight className="size-[15px] text-muted-foreground/40 ml-0.5" />
+
+            <ChevronRight className="ml-0.5 size-[15px] text-muted-foreground/70 transition-colors group-hover:text-foreground/70" />
           </div>
         </div>
 
-        {/* ── ROW 3: Message body with inline mention chips ── */}
-
-        {/* ── ROW 4: Linked entity pill — entityType + entityId from API ── */}
         {notification.entityType && notification.entityId && (
           <div className="mb-3">
             <button
               onClick={(e) => {
                 e.stopPropagation();
+
                 navigateToEntity();
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 text-[12px] text-muted-foreground hover:bg-muted/60 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted/60"
             >
-              <FileText className="size-3.5 text-sky-600 shrink-0" />
+              <FileText className="size-3.5 shrink-0 text-sky-600" />
+
               <span className="font-medium text-foreground/80">
                 {formatLabel(notification.entityType)}
               </span>
+
               <span className="text-muted-foreground/50">·</span>
-              <span className="font-mono text-[10.5px] text-muted-foreground/60 truncate max-w-[120px]">
-                {notification.entityId.slice(0, 8)}...
+
+              <span className="max-w-[120px] truncate font-mono text-[10.5px] text-muted-foreground/60">
+                {notification.entityId.slice(0, 8)}
+                ...
               </span>
             </button>
           </div>
         )}
 
-        {/* ── ROW 5: Invite CTA ── */}
         {notification.type === "INVITE_RECEIVED" && (
           <div className="mb-3">
             <button
               onClick={(e) => {
-                e.stopPropagation();
                 void handleInvite(e);
               }}
-              disabled={joiningInvite}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-muted/40"
             >
-              {joiningInvite ? (
-                <>
-                  <LoaderCircle className="size-3 animate-spin" /> Joining...
-                </>
-              ) : (
-                "Accept invite"
-              )}
+              Accept invite
             </button>
           </div>
         )}
 
-        {/* ── ROW 6: Footer — full timestamp ── */}
-        <div className="flex items-center gap-2 pt-2.5 border-t border-border/40">
+        <div className="flex items-center gap-2 border-t border-border/40 pt-2.5">
           <span className="text-[11px] text-muted-foreground/50">
             {formatNotificationDateTime(notification.createdAt)}
           </span>
+
           {notification.workspaceId && (
             <>
-              <span className="size-[3px] rounded-full bg-border/60 shrink-0" />
+              <span className="size-[3px] shrink-0 rounded-full bg-border/60" />
+
               <span className="font-mono text-[10.5px] text-muted-foreground/40">
-                ws/{notification.workspaceId.slice(0, 8)}
+                ws/
+                {notification.workspaceId.slice(0, 8)}
               </span>
             </>
           )}
