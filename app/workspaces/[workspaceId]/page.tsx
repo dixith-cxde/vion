@@ -138,6 +138,7 @@ export default function WorkspaceDashboard() {
         const res = await fetch(`/api/workspaces/${workspaceId}/dashboard`);
         if (!res.ok) throw new Error("Failed to load dashboard");
         const json = (await res.json()) as DashboardData;
+        console.log({ json });
         setData(json);
       } catch (err) {
         console.error(err);
@@ -281,35 +282,35 @@ export default function WorkspaceDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 select-none">
         {statCards.map((card) => (
           <Card
             key={card.label}
-            className="rounded-2xl shadow-none"
+            className={`p-4 rounded-md bg-${card.accent}`}
             style={{ border: `1px solid var(--vion-${card.accent}-border)` }}
           >
-            <CardContent className="px-4 py-4">
-              <div className="mb-2.5 flex items-center justify-between gap-2">
+            <CardContent className="w-full p-0">
+              <div className="flex justify-between items-center">
+                <p className="text-md font-bold uppercase" style={textColor(card.accent)}>
+                  {card.label}
+                </p>
                 <div
                   className="flex size-8 items-center justify-center rounded-lg"
                   style={iconBox(card.accent)}
                 >
                   <card.icon className="size-3.5" />
                 </div>
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-widest"
-                  style={textColor(card.accent)}
-                >
-                  {card.label}
-                </p>
               </div>
+
               <p
-                className="text-3xl font-bold tracking-tight tabular-nums"
+                className="text-3xl font-bold tracking-tight tabular-nums "
                 style={textColor(card.accent)}
               >
-                {card.value}
+                {card.value}{" "}
+                {card.hint && (
+                  <p className="mt-1 text-[11px] text-muted-foreground inline-block">{card.hint}</p>
+                )}
               </p>
-              {card.hint && <p className="mt-1 text-[11px] text-muted-foreground">{card.hint}</p>}
             </CardContent>
           </Card>
         ))}
@@ -317,11 +318,11 @@ export default function WorkspaceDashboard() {
 
       {/* Completion bar */}
       {data.tasks.length > 0 && (
-        <Card className="mb-6 rounded-2xl border shadow-none">
+        <Card className="mb-6 rounded-md border shadow-none">
           <CardContent className="px-5 py-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-xs font-medium text-foreground">
-                <Zap className="size-3.5" style={textColor("amber")} />
+              <span className="flex items-center gap-2 text-lg font-medium text-foreground">
+                <Zap className="size-4" style={textColor("amber")} />
                 Task completion
               </span>
               <span className="text-xs font-semibold tabular-nums text-foreground">
