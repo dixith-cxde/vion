@@ -76,11 +76,7 @@ type ApiFailure = {
   message?: string;
 };
 
-export default function SettingsClient({
-  workspaceId,
-}: {
-  workspaceId: string;
-}) {
+export default function SettingsClient({ workspaceId }: { workspaceId: string }) {
   const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -94,8 +90,7 @@ export default function SettingsClient({
   const [isSavingName, setIsSavingName] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
-  const [memberPendingRemoval, setMemberPendingRemoval] =
-    useState<WorkspaceMember | null>(null);
+  const [memberPendingRemoval, setMemberPendingRemoval] = useState<WorkspaceMember | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
@@ -136,9 +131,7 @@ export default function SettingsClient({
       try {
         const [workspaceRes, membersRes, invitationsRes] = await Promise.all([
           fetchJson<WorkspaceData>(`/api/workspaces/${workspaceId}`),
-          fetchJson<WorkspaceMember[]>(
-            `/api/workspaces/${workspaceId}/members`,
-          ),
+          fetchJson<WorkspaceMember[]>(`/api/workspaces/${workspaceId}/members`),
           fetchJson<Invitation[]>(`/api/workspaces/${workspaceId}/invitations`),
         ]);
 
@@ -172,22 +165,17 @@ export default function SettingsClient({
 
   const filteredMembers = members.filter((member) => {
     const matchesRole = roleFilter === "ALL" || member.role === roleFilter;
-    const haystack =
-      `${member.user.name} ${member.user.email} ${member.role}`.toLowerCase();
-    const matchesSearch =
-      !normalizedSearch || haystack.includes(normalizedSearch);
+    const haystack = `${member.user.name} ${member.user.email} ${member.role}`.toLowerCase();
+    const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
     return matchesRole && matchesSearch;
   });
 
   const filteredInvitations = invitations.filter((invite) => {
-    const haystack =
-      `${invite.email} ${invite.role} ${invite.status}`.toLowerCase();
+    const haystack = `${invite.email} ${invite.role} ${invite.status}`.toLowerCase();
     return !normalizedSearch || haystack.includes(normalizedSearch);
   });
 
-  const adminCount = members.filter(
-    (member) => member.role !== "MEMBER",
-  ).length;
+  const adminCount = members.filter((member) => member.role !== "MEMBER").length;
   const ownerCount = members.filter((member) => member.role === "OWNER").length;
   const workspaceAgeLabel = workspace?.createdAt
     ? getWorkspaceAgeLabel(workspace.createdAt)
@@ -218,12 +206,10 @@ export default function SettingsClient({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ name: trimmedName }),
-        },
+        }
       );
 
-      setWorkspace((current) =>
-        current ? { ...current, name: updated.name } : current,
-      );
+      setWorkspace((current) => (current ? { ...current, name: updated.name } : current));
       setDraftName(updated.name);
       toast({
         title: "Workspace updated",
@@ -360,7 +346,7 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full bg-background overflow-auto">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
         <section className="pb-5">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
@@ -376,18 +362,16 @@ export default function SettingsClient({
                   Team members
                 </h1>
                 <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Manage membership, invitations, and workspace identity with a
-                  simpler full-width layout.
+                  Manage membership, invitations, and workspace identity with a simpler full-width
+                  layout.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <InlineInfo icon={Users}>
-                  {members.length} active{" "}
-                  {members.length === 1 ? "member" : "members"}
+                  {members.length} active {members.length === 1 ? "member" : "members"}
                 </InlineInfo>
                 <InlineInfo icon={Mail}>
-                  {invitations.length} pending{" "}
-                  {invitations.length === 1 ? "invite" : "invites"}
+                  {invitations.length} pending {invitations.length === 1 ? "invite" : "invites"}
                 </InlineInfo>
                 <InlineInfo icon={CalendarDays}>{workspaceAgeLabel}</InlineInfo>
               </div>
@@ -406,9 +390,7 @@ export default function SettingsClient({
 
               <Select
                 value={roleFilter}
-                onValueChange={(value) =>
-                  setRoleFilter(value as "ALL" | MemberRole)
-                }
+                onValueChange={(value) => setRoleFilter(value as "ALL" | MemberRole)}
               >
                 <SelectTrigger className="h-10 min-w-40 rounded-lg border-border bg-background px-3 shadow-none focus-visible:ring-0">
                   <SelectValue placeholder="All roles" />
@@ -477,11 +459,7 @@ export default function SettingsClient({
                   icon={Clock3}
                   label="Workspace age"
                   value={workspaceAgeLabel}
-                  meta={
-                    workspace?.createdAt
-                      ? formatDate(workspace.createdAt)
-                      : "Unknown"
-                  }
+                  meta={workspace?.createdAt ? formatDate(workspace.createdAt) : "Unknown"}
                 />
               </div>
             </section>
@@ -503,9 +481,7 @@ export default function SettingsClient({
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Created{" "}
-                        {workspace?.createdAt
-                          ? formatDate(workspace.createdAt)
-                          : "recently"}
+                        {workspace?.createdAt ? formatDate(workspace.createdAt) : "recently"}
                       </p>
                     </div>
                     <Badge
@@ -579,9 +555,7 @@ export default function SettingsClient({
                   <FieldShell label="Role">
                     <Select
                       value={inviteRole}
-                      onValueChange={(value) =>
-                        setInviteRole(value as MemberRole)
-                      }
+                      onValueChange={(value) => setInviteRole(value as MemberRole)}
                     >
                       <SelectTrigger className="h-10 w-full rounded-lg border-border bg-background px-3 shadow-none focus-visible:ring-0">
                         <SelectValue placeholder="Choose a role" />
@@ -594,8 +568,8 @@ export default function SettingsClient({
                   </FieldShell>
 
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Members can collaborate across the workspace. Admins can
-                    invite people and manage workspace membership.
+                    Members can collaborate across the workspace. Admins can invite people and
+                    manage workspace membership.
                   </p>
 
                   <Button
@@ -723,9 +697,7 @@ export default function SettingsClient({
 
                             <Select
                               value={member.role}
-                              onValueChange={(value) =>
-                                updateRole(member.id, value as MemberRole)
-                              }
+                              onValueChange={(value) => updateRole(member.id, value as MemberRole)}
                               disabled={isOwner || isBusy}
                             >
                               <SelectTrigger className="h-10 min-w-36 rounded-lg border-border bg-background shadow-none focus-visible:ring-0">
@@ -736,9 +708,7 @@ export default function SettingsClient({
                                   <SelectItem value="OWNER">Owner</SelectItem>
                                 ) : (
                                   <>
-                                    <SelectItem value="MEMBER">
-                                      Member
-                                    </SelectItem>
+                                    <SelectItem value="MEMBER">Member</SelectItem>
                                     <SelectItem value="ADMIN">Admin</SelectItem>
                                   </>
                                 )}
@@ -788,22 +758,16 @@ export default function SettingsClient({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={activeActionId !== null}>
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={activeActionId !== null}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={
-                memberPendingRemoval === null || activeActionId !== null
-              }
+              disabled={memberPendingRemoval === null || activeActionId !== null}
               onClick={() => {
                 if (memberPendingRemoval) {
                   void removeMember(memberPendingRemoval);
                 }
               }}
             >
-              {activeActionId !== null ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : null}
+              {activeActionId !== null ? <LoaderCircle className="size-4 animate-spin" /> : null}
               Remove member
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -813,10 +777,7 @@ export default function SettingsClient({
   );
 }
 
-async function fetchJson<T>(
-  input: RequestInfo,
-  init?: RequestInit,
-): Promise<T> {
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
   const contentType = response.headers.get("content-type") ?? "";
 
@@ -828,9 +789,7 @@ async function fetchJson<T>(
 
   if (!response.ok || payload?.success === false) {
     throw new Error(
-      payload && "message" in payload && payload.message
-        ? payload.message
-        : "Request failed.",
+      payload && "message" in payload && payload.message ? payload.message : "Request failed."
     );
   }
 
@@ -858,9 +817,7 @@ function StatCard({
         <Icon className="size-4" />
         <p className="text-sm">{label}</p>
       </div>
-      <p className="text-2xl font-semibold tracking-[-0.04em] text-foreground">
-        {value}
-      </p>
+      <p className="text-2xl font-semibold tracking-[-0.04em] text-foreground">{value}</p>
       <p className="mt-1 text-sm text-muted-foreground">{meta}</p>
     </div>
   );
@@ -877,23 +834,13 @@ function SectionHeader({
 }) {
   return (
     <div className={compact ? "space-y-1" : "space-y-1.5"}>
-      <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-        {title}
-      </h2>
-      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
+      <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">{title}</h2>
+      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
     </div>
   );
 }
 
-function InlineInfo({
-  icon: Icon,
-  children,
-}: {
-  icon: typeof Users;
-  children: React.ReactNode;
-}) {
+function InlineInfo({ icon: Icon, children }: { icon: typeof Users; children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center gap-2 rounded-lg border-0 bg-muted px-3 py-1.5">
       <Icon className="size-3.5 text-muted-foreground" />
@@ -902,13 +849,7 @@ function InlineInfo({
   );
 }
 
-function FieldShell({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function FieldShell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-2">
       <span className="text-sm font-medium text-foreground">{label}</span>
@@ -932,29 +873,15 @@ function EmptyState({
         <Icon className="size-5 text-muted-foreground" />
       </div>
       <h3 className="mt-4 text-sm font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
     </div>
   );
 }
 
-function AvatarCircle({
-  name,
-  imageUrl,
-}: {
-  name: string;
-  imageUrl?: string | null;
-}) {
+function AvatarCircle({ name, imageUrl }: { name: string; imageUrl?: string | null }) {
   if (imageUrl) {
     return (
-      <Image
-        src={imageUrl}
-        alt={name}
-        width={48}
-        height={48}
-        className="size-12 object-cover"
-      />
+      <Image src={imageUrl} alt={name} width={48} height={48} className="size-12 object-cover" />
     );
   }
 
@@ -1028,10 +955,7 @@ function formatDate(value: string) {
 
 function getWorkspaceAgeLabel(value: string) {
   const createdAt = new Date(value).getTime();
-  const diffInDays = Math.max(
-    0,
-    Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24)),
-  );
+  const diffInDays = Math.max(0, Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24)));
 
   if (diffInDays === 0) {
     return "Today";
