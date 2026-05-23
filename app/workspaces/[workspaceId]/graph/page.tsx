@@ -1,20 +1,24 @@
+import { WorkspaceGraph } from "@/app/_components/graph/workspace-graph";
+
 type WorkspacePageProps = {
   params: Promise<{
     workspaceId: string;
   }>;
+  searchParams: Promise<{
+    entityType?: string;
+    entityId?: string;
+  }>;
 };
 
-export default async function GraphPage({ params }: WorkspacePageProps) {
+export default async function GraphPage({ params, searchParams }: WorkspacePageProps) {
   const { workspaceId } = await params;
+  const query = await searchParams;
 
   return (
-    <section className="min-h-[calc(100vh-4rem)] bg-background px-4 py-8 md:px-6">
-      <div className="mx-auto max-w-5xl">
-        <h1 className="text-2xl font-semibold tracking-tight">Graph</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Workspace <span className="font-mono">{workspaceId}</span>
-        </p>
-      </div>
-    </section>
+    <WorkspaceGraph
+      workspaceId={workspaceId}
+      initialEntityId={query.entityId}
+      initialEntityType={query.entityType}
+    />
   );
 }
