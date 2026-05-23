@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useWorkspaceMembers } from "@/lib/hooks/chat/use-workspace-members";
@@ -18,9 +19,14 @@ export function MemberList({ onSelectUser }: MemberListProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col border-t border-border/60">
       <div className="shrink-0 px-5 py-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Direct Messages
-        </h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Direct Messages
+          </h2>
+          <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px]">
+            {members.filter((member) => member.user.id !== currentUserId).length}
+          </Badge>
+        </div>
       </div>
 
       <ScrollArea className="min-h-0 flex-1 px-2 pb-3">
@@ -55,7 +61,9 @@ export function MemberList({ onSelectUser }: MemberListProps) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{label}</p>
 
-                    <p className="truncate text-xs text-muted-foreground">Direct message</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {member.role.toLowerCase()} · Direct message
+                    </p>
                   </div>
                 </button>
               );

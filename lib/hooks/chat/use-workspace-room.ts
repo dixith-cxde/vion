@@ -4,9 +4,10 @@ import { useEffect } from "react";
 import { getSocket } from "@/lib/socket/client";
 
 export function useWorkspaceRoom(workspaceId: string) {
-  const socket = getSocket();
   useEffect(() => {
     if (!workspaceId) return;
+
+    const socket = getSocket();
 
     socket?.emit("workspace:join", {
       workspaceId,

@@ -1,20 +1,3 @@
-import { Prisma } from "@/lib/generated/prisma/client";
+import { ChatMessageRecord } from "@/lib/chat/runtime";
 
-export type MessageWithRelations = Prisma.MessageGetPayload<{
-  include: {
-    author: {
-      select: {
-        id: true;
-        name: true;
-        imageUrl: true;
-      };
-    };
-    reactions: {
-      include: {
-        user: true;
-      };
-    };
-    attachments: true;
-    replies: true;
-  };
-}>;
+export type MessageWithRelations = ChatMessageRecord;

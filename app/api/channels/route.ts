@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-import { getCurrentDBUser } from '@/lib/services/user.service';
+import { getCurrentDBUser } from "@/lib/services/user.service";
 
-import { createChannel, getWorkspaceChannels } from '@/lib/services/channel.service';
+import { createChannel, getWorkspaceChannels } from "@/lib/services/channel.service";
+import { emitChannelCreated } from "@/lib/socket/chat.events";
 
-import { createChannelSchema } from '@/lib/validators/channel';
+import { createChannelSchema } from "@/lib/validators/channel";
 
 // -- GET CHANNELS ---------------------------------------------
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (!currentUser) {
       return NextResponse.json(
         {
-          error: 'Unauthorized',
+          error: "Unauthorized",
         },
         {
           status: 401,
@@ -25,18 +26,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
-    const workspaceId = searchParams.get('workspaceId');
-
-    const cursor = searchParams.get('cursor');
-
-    const limitParam = searchParams.get('limit');
-
+    const workspaceId = searchParams.get("workspaceId");
+    const cursor = searchParams.get("cursor");
+    const limitParam = searchParams.get("limit");
     const limit = limitParam ? Number(limitParam) : 20;
 
     if (!workspaceId) {
       return NextResponse.json(
         {
-          error: 'workspaceId is required',
+          error: "workspaceId is required",
         },
         {
           status: 400,
@@ -46,11 +44,8 @@ export async function GET(request: NextRequest) {
 
     const channels = await getWorkspaceChannels({
       workspaceId,
-
       userId: currentUser.id,
-
       cursor: cursor || undefined,
-
       limit,
     });
 
@@ -63,16 +58,8 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (err) {
-    console.error('ERROR_FETCHING_CHANNELS', err);
-
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch channels',
-      },
-      {
-        status: 500,
-      }
-    );
+    console.error("ERROR_FETCHING_CHANNELS", err);
+    return NextResponse.json({ error: "Failed to fetch channels" }, { status: 500 });
   }
 }
 
@@ -82,7 +69,7 @@ export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentDBUser();
     if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -93,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.message }, { status: 400 });
     }
 
-    const { workspaceId, name, type, visibility, memberIds } = parsed.data;
+    const { workspaceId, name, description, topic, type, visibility, memberIds } = parsed.data;
 
     const channel = await createChannel({
       workspaceId,
@@ -102,11 +89,20 @@ export async function POST(request: NextRequest) {
 
       name,
 
+      description,
+
+      topic,
+
       type,
 
       visibility,
 
       memberIds,
+    });
+
+    emitChannelCreated({
+      workspaceId,
+      channel,
     });
 
     return NextResponse.json(
@@ -118,11 +114,11 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (err) {
-    console.error('ERROR_CREATING_CHANNEL', err);
+    console.error("ERROR_CREATING_CHANNEL", err);
 
     return NextResponse.json(
       {
-        error: 'Failed to create channel',
+        error: "Failed to create channel",
       },
       {
         status: 500,

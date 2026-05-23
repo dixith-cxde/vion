@@ -22,11 +22,8 @@ async function fetchWorkspaceChannels({
 
   const response = await fetch(`/api/channels?${params.toString()}`, {
     method: "GET",
-
     credentials: "include",
-
     signal,
-
     headers: {
       "Content-Type": "application/json",
     },
@@ -48,15 +45,10 @@ export function useWorkspaceChannels(workspaceId: string) {
         workspaceId,
         signal,
       }),
-
     enabled: Boolean(workspaceId),
-
     staleTime: 1000 * 30,
-
     gcTime: 1000 * 60 * 5,
-
     retry: 2,
-
     refetchOnWindowFocus: false,
   });
 }

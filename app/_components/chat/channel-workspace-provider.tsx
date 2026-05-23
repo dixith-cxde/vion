@@ -15,9 +15,7 @@ const ChatWorkspaceContext = createContext<ChatWorkspaceContextType | null>(null
 
 type ChatWorkspaceProviderProps = {
   workspaceId: string;
-
   currentUserId: string;
-
   children: React.ReactNode;
 };
 
@@ -27,21 +25,15 @@ export function ChatWorkspaceProvider({
   children,
 }: ChatWorkspaceProviderProps) {
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-
   const [activeDMUserId, setActiveDMUserId] = useState<string | null>(null);
 
   const value = useMemo(
     () => ({
       workspaceId,
-
       currentUserId,
-
       activeChannelId,
-
       setActiveChannelId,
-
       activeDMUserId,
-
       setActiveDMUserId,
     }),
     [workspaceId, currentUserId, activeChannelId, activeDMUserId]

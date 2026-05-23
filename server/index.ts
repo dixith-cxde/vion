@@ -1,13 +1,22 @@
+import { loadEnvConfig } from "@next/env";
 import { createServer } from "http";
-import next from "next";
-import { registerSocketServer } from "./socket";
-import { initializeCollabServer } from "./socket/collab/collab.server";
 
+const projectDir = process.cwd();
 const dev = process.env.NODE_ENV !== "production";
+
+loadEnvConfig(projectDir, dev);
+
 const hostname = "localhost";
 const port = 3000;
 
 async function bootstrap() {
+  const [{ default: next }, { registerSocketServer }, { initializeCollabServer }] =
+    await Promise.all([
+      import("next"),
+      import("./socket"),
+      import("./socket/collab/collab.server"),
+    ]);
+
   const app = next({
     dev,
     hostname,

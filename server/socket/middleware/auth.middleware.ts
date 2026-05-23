@@ -1,10 +1,12 @@
 import { verifyToken } from "@clerk/backend";
 import { Socket } from "socket.io";
 import { ClientToServerEvents, ServerToClientEvents } from "@/types/socket.type";
+import { prisma } from "@/lib/prisma";
 
 export type AuthenticatedSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
   data: {
     userId: string;
+    clerkId: string;
   };
 };
 
@@ -29,7 +31,22 @@ export async function socketAuthMiddleware(
       return next(new Error("Invalid authentication token"));
     }
 
-    socket.data.userId = payload.sub;
+    const user = await prisma.user.findUnique({
+      where: {
+        clerkId: payload.sub,
+      },
+      select: {
+        id: true,
+        clerkId: true,
+      },
+    });
+
+    if (!user) {
+      return next(new Error("Database user not found"));
+    }
+
+    socket.data.userId = user.id;
+    socket.data.clerkId = user.clerkId;
 
     next();
   } catch (error) {

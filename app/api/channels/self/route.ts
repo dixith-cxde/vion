@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentDBUser } from '@/lib/services/user.service';
 import { createSelfChannel } from '@/lib/services/channel.service';
+import { emitChannelCreated } from '@/lib/socket/chat.events';
 import { createSelfChannelSchema } from '@/lib/validators/channel';
 
 export async function POST(request: NextRequest) {
@@ -21,6 +22,11 @@ export async function POST(request: NextRequest) {
     const channel = await createSelfChannel({
       workspaceId,
       userId: currentUser.id,
+    });
+
+    emitChannelCreated({
+      workspaceId,
+      channel,
     });
 
     return NextResponse.json({ channel }, { status: 201 });

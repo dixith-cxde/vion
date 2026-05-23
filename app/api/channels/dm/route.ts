@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { createDMChannel } from "@/lib/services/channel.service";
+import { emitChannelCreated } from "@/lib/socket/chat.events";
 import { createDMChannelSchema } from "@/lib/validators/channel";
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest) {
       currentUserId: currentUser.id,
 
       targetUserId,
+    });
+
+    emitChannelCreated({
+      workspaceId,
+      channel,
     });
 
     return NextResponse.json(

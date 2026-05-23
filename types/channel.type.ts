@@ -1,22 +1,8 @@
-import { Prisma } from "@/lib/generated/prisma/client";
 import { ChannelType, ChannelVisibility } from "@/lib/generated/prisma/enums";
+import { ChatChannelSummary } from "@/lib/chat/runtime";
 import { MessageWithRelations } from "./message.type";
 
-const channelWithRelations = Prisma.validator<Prisma.ChannelDefaultArgs>()({
-  include: {
-    createdBy: true,
-    messages: {
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    },
-    pinnedMessages: true,
-    members: {
-      include: { user: { select: { id: true, name: true, imageUrl: true, username: true } } },
-    },
-  },
-});
-
-export type ChannelWithRelations = Prisma.ChannelGetPayload<typeof channelWithRelations>;
+export type ChannelWithRelations = ChatChannelSummary;
 
 export type ChannelWithMembers = ChannelWithRelations;
 

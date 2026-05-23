@@ -17,10 +17,10 @@ type ChannelSidebarProps = {
 };
 
 export function ChannelSidebar({ onSelectChannel, onSelectDM }: ChannelSidebarProps) {
-  const { workspaceId, activeChannelId } = useChatWorkspace();
+  const { workspaceId, activeChannelId, currentUserId } = useChatWorkspace();
 
   useWorkspaceRoom(workspaceId);
-  useChannelRealtime(workspaceId);
+  useChannelRealtime(workspaceId, currentUserId);
 
   const { data, isLoading } = useWorkspaceChannels(workspaceId);
 

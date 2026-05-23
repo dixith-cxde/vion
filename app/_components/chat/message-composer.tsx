@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useSendMessage } from "@/lib/hooks/chat/use-send-message";
+import { getSocket } from "@/lib/socket/client";
 
 type MessageComposerProps = {
   channelId: string;
@@ -18,6 +19,18 @@ export function MessageComposer({ channelId, workspaceId }: MessageComposerProps
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const mutation = useSendMessage(channelId);
+
+  function emitTyping(typing: boolean) {
+    const socket = getSocket();
+
+    if (!socket) {
+      return;
+    }
+
+    socket.emit(typing ? "typing:start" : "typing:stop", {
+      channelId,
+    });
+  }
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
@@ -34,10 +47,12 @@ export function MessageComposer({ channelId, workspaceId }: MessageComposerProps
     const trimmed = content.trim();
 
     if (!trimmed) {
+      emitTyping(false);
       return;
     }
 
     setContent("");
+    emitTyping(false);
 
     try {
       await mutation.mutateAsync({
@@ -72,7 +87,11 @@ export function MessageComposer({ channelId, workspaceId }: MessageComposerProps
           <Textarea
             ref={textareaRef}
             value={content}
-            onChange={(event) => setContent(event.target.value)}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setContent(nextValue);
+              emitTyping(nextValue.trim().length > 0);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Send a message..."
             rows={1}

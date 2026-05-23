@@ -1,6 +1,7 @@
 "use client";
 
 import { Hash, MessageSquareText } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { useWorkspaceChannels } from "@/lib/hooks/chat/use-workspace-channels";
 import { useChannelMessages } from "@/lib/hooks/chat/use-channel-messages";
 import { useCreateDM } from "@/lib/hooks/chat/use-create-dm";
@@ -13,6 +14,7 @@ import { ChannelSidebar } from "./channel-sidebar";
 import { MessageList } from "./message-list";
 import { MessageComposer } from "./message-composer";
 import { useChatRealtime } from "@/lib/hooks/chat/use-chat-realtime";
+import { useMarkChannelRead } from "@/lib/hooks/chat/use-mark-channel-read";
 
 export function ChatWorkspace() {
   const {
@@ -25,13 +27,33 @@ export function ChatWorkspace() {
 
   const { data: channelData } = useWorkspaceChannels(workspaceId);
 
-  const channels = channelData?.channels ?? [];
+  const channels = useMemo(() => channelData?.channels ?? [], [channelData?.channels]);
 
   const activeChannel = channels.find((channel) => channel.id === activeChannelId) ?? null;
 
+  useEffect(() => {
+    if (activeChannelId || channels.length === 0) {
+      return;
+    }
+
+    const fallbackChannel =
+      channels.find((channel) => channel.type === ChannelType.SELF) ?? channels[0] ?? null;
+
+    if (!fallbackChannel) {
+      return;
+    }
+
+    setActiveDMUserId(null);
+    setActiveChannelId(fallbackChannel.id);
+  }, [activeChannelId, channels, setActiveChannelId, setActiveDMUserId]);
+
   const resolvedChannelId = activeChannelId;
 
-  useChatRealtime({ channelId: resolvedChannelId ?? undefined });
+  const { typingUserIds, presenceUserIds } = useChatRealtime({
+    channelId: resolvedChannelId ?? undefined,
+    workspaceId,
+    currentUserId,
+  });
   useChannelRoom(resolvedChannelId ?? undefined);
 
   const { data: messagesData, isLoading } = useChannelMessages(resolvedChannelId ?? "");
@@ -43,6 +65,15 @@ export function ChatWorkspace() {
         .map((message) => [message.id, message])
     ).values()
   );
+
+  const latestMessageId = messages[messages.length - 1]?.id ?? null;
+
+  useMarkChannelRead({
+    channelId: resolvedChannelId ?? undefined,
+    workspaceId,
+    latestMessageId,
+    lastReadMessageId: activeChannel?.currentMember?.lastReadMessageId ?? null,
+  });
 
   const createDM = useCreateDM();
 
@@ -96,13 +127,26 @@ export function ChatWorkspace() {
 
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold text-foreground">
-                {activeChannel?.name ?? "Conversation"}
+                {activeChannel
+                  ? activeChannel.type === ChannelType.SELF
+                    ? "Your notes"
+                    : activeChannel.type === ChannelType.DM
+                      ? activeChannel.members.find((member) => member.user.id !== currentUserId)?.user
+                          .name ?? "Conversation"
+                      : activeChannel.name ?? "Conversation"
+                  : "Conversation"}
               </h2>
 
               <p className="truncate text-xs text-muted-foreground">
-                {activeChannel
+                {typingUserIds.length > 0
+                  ? "Typing..."
+                  : presenceUserIds.length > 1
+                    ? `${presenceUserIds.length} collaborators active`
+                    : activeChannel
                   ? activeChannel.type === ChannelType.GROUP
                     ? "Workspace channel"
+                    : activeChannel.type === ChannelType.SELF
+                      ? "Private space for your messages"
                     : "Direct conversation"
                   : "Choose a channel or direct message to start collaborating"}
               </p>

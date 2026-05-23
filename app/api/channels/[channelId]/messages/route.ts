@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { sendMessage, getChannelMessages } from "@/lib/services/message.service";
 import { sendMessageSchema, getChannelMessagesSchema } from "@/lib/validators/message.validator";
-import { emitChannelMessage } from "@/lib/socket/chat.events";
+import {
+  emitChannelActivity,
+  emitChannelMessage,
+  emitChannelUpdated,
+} from "@/lib/socket/chat.events";
+import { getChannelSummaryForUser } from "@/lib/services/channel.service";
 
 type Params = {
   params: Promise<{
@@ -42,26 +48,41 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    const { workspaceId, content, contentJson, parentId } = parsed.data;
+    const { workspaceId, content, contentJson, parentId, type, attachments } = parsed.data;
 
     const message = await sendMessage({
       workspaceId,
-
       channelId,
-
       authorId: currentUser.id,
-
       content,
-
-      contentJson,
-
+      contentJson: contentJson as Prisma.InputJsonValue | undefined,
       parentId,
+      type,
+      attachments,
     });
 
     emitChannelMessage({
+      workspaceId,
       channelId,
       message,
     });
+    emitChannelActivity({
+      workspaceId,
+      channelId,
+      message,
+    });
+
+    const channel = await getChannelSummaryForUser({
+      channelId,
+      userId: currentUser.id,
+    });
+
+    if (channel) {
+      emitChannelUpdated({
+        workspaceId,
+        channel,
+      });
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (err) {
@@ -115,7 +136,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const { cursor, limit } = parsed.data;
 
-    const messages = await getChannelMessages({
+    const result = await getChannelMessages({
       channelId,
       userId: currentUser.id,
       cursor,
@@ -124,7 +145,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     return NextResponse.json(
       {
-        messages,
+        messages: result.messages,
+        nextCursor: result.nextCursor,
       },
       {
         status: 200,

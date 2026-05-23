@@ -1,11 +1,21 @@
 import { InfiniteData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
 import { ChatMessage } from "@/types/channel.type";
+import { MessageType } from "@/lib/generated/prisma/enums";
 
 type SendMessagePayload = {
   workspaceId: string;
   content: string;
   contentJson: unknown;
+  parentId?: string;
+  type?: MessageType;
+  attachments?: Array<{
+    url: string;
+    name: string;
+    mimeType?: string | null;
+    extension?: string | null;
+    size?: number | null;
+  }>;
 };
 
 type SendMessageParams = {
@@ -56,11 +66,10 @@ export function useSendMessage(channelId: string) {
       ]);
 
       const tempId = `temp-${uuidv4()}`;
+      const optimisticCreatedAt = new Date();
 
       const optimisticMessage = {
         id: tempId,
-
-        type: "TEXT",
 
         workspaceId: payload.workspaceId,
 
@@ -72,9 +81,9 @@ export function useSendMessage(channelId: string) {
 
         contentJson: payload.contentJson ?? null,
 
-        createdAt: new Date(),
+        createdAt: optimisticCreatedAt,
 
-        updatedAt: new Date(),
+        updatedAt: optimisticCreatedAt,
 
         deletedAt: null,
 
@@ -84,19 +93,42 @@ export function useSendMessage(channelId: string) {
 
         optimistic: true,
 
+        type: payload.type ?? MessageType.TEXT,
+
         author: {
           id: "optimistic",
 
           name: "Sending...",
 
           imageUrl: null,
+
+          username: null,
         },
 
         reactions: [],
 
-        attachments: [],
+        attachments: (payload.attachments ?? []).map((attachment, index) => ({
+          id: `attachment-${tempId}-${index}`,
+          messageId: tempId,
+          createdAt: optimisticCreatedAt,
+          url: attachment.url,
+          name: attachment.name,
+          mimeType: attachment.mimeType ?? null,
+          extension: attachment.extension ?? null,
+          size: attachment.size ?? null,
+        })),
 
-        replies: [],
+        mentions: [],
+
+        reads: [],
+
+        pinnedMessages: [],
+
+        parent: null,
+
+        _count: {
+          replies: 0,
+        },
       } satisfies ChatMessage;
 
       queryClient.setQueryData<InfiniteData<ChannelMessagesResponse>>(
