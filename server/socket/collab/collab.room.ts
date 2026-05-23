@@ -51,7 +51,16 @@ export function getCollabRoom(name: string) {
     broadcast(room, payload, origin as WebSocket);
   });
 
-  awareness.on("update", ({ added, updated, removed }, origin) => {
+  awareness.on(
+    "update",
+    (
+      {
+        added,
+        updated,
+        removed,
+      }: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown
+    ) => {
     const changedClients = [...added, ...updated, ...removed];
 
     if (changedClients.length === 0) {
@@ -73,7 +82,8 @@ export function getCollabRoom(name: string) {
     }
 
     broadcast(room, createAwarenessMessage(room.awareness, changedClients));
-  });
+    }
+  );
 
   rooms.set(name, room);
 
