@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins, EB_Garamond } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
 import { ClerkProvider } from "@clerk/nextjs";
@@ -12,15 +12,10 @@ import { SocketProvider } from "./_components/provider/socket-provider";
 
 const poppins = Poppins({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-poppins",
   weight: ["400", "500", "600", "700"],
   display: "swap",
-});
-
-const ebGaramondHeading = EB_Garamond({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
+  fallback: ["Arial", "Helvetica", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -30,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn(poppins.variable, ebGaramondHeading.variable)}>
+    <html lang="en" className={cn(poppins.variable, "font-sans")}>
       <body className="font-sans antialiased">
         <ClerkProvider>
           <QueryProvider>

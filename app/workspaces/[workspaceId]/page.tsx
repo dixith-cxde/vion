@@ -2,7 +2,6 @@
 
 import {
   ForwardRefExoticComponent,
-  ReactNode,
   RefAttributes,
   useEffect,
   useMemo,
@@ -23,8 +22,9 @@ import {
 
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -104,6 +104,12 @@ function badgeStyle(accent: AccentKey): React.CSSProperties {
     backgroundColor: `var(--vion-${accent}-bg)`,
     color: `var(--vion-${accent}-text)`,
     border: `1px solid var(--vion-${accent}-border)`,
+  };
+}
+
+function sectionSurfaceStyle(accent: AccentKey): React.CSSProperties {
+  return {
+    backgroundColor: `color-mix(in srgb, var(--vion-${accent}-bg) 62%, var(--background))`,
   };
 }
 
@@ -236,7 +242,7 @@ export default function WorkspaceDashboard() {
     label: string;
     value: number;
     icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
-    accent: string;
+    accent: AccentKey;
     hint: string;
     link?: string;
   };
@@ -245,7 +251,7 @@ export default function WorkspaceDashboard() {
       label: "Documents",
       value: data.documents.length,
       icon: FileText,
-      accent: "blue" as AccentKey,
+      accent: "blue",
       hint: `${data.documents.length} total`,
       link: `/workspaces/${workspaceId}/documents`,
     },
@@ -253,7 +259,7 @@ export default function WorkspaceDashboard() {
       label: "Tasks",
       value: data.tasks.length,
       icon: TimerReset,
-      accent: "amber" as AccentKey,
+      accent: "amber",
       hint: `${summary.inProgressTasks} in progress`,
       link: `/workspaces/${workspaceId}/tasks`,
     },
@@ -261,14 +267,14 @@ export default function WorkspaceDashboard() {
       label: "Completed",
       value: summary.doneTasks,
       icon: CheckCircle2,
-      accent: "green" as AccentKey,
+      accent: "green",
       hint: `${summary.completionRate}% rate`,
     },
     {
       label: "Relationships",
       value: data.activity.length,
       icon: Activity,
-      accent: "purple" as AccentKey,
+      accent: "purple",
       hint: `${data.activity.length} entity links`,
     },
   ];
@@ -512,6 +518,7 @@ export default function WorkspaceDashboard() {
             title="Recent documents"
             actionLabel="View all"
             onAction={() => router.push(`/workspaces/${workspaceId}/documents`)}
+            scrollHeightClassName="h-[320px]"
           >
             {data.documents.length === 0 ? (
               <EmptyState icon={FileText} message="No documents yet." />
@@ -538,6 +545,7 @@ export default function WorkspaceDashboard() {
             title="Current work"
             actionLabel="View all"
             onAction={() => router.push(`/workspaces/${workspaceId}/tasks`)}
+            scrollHeightClassName="h-[320px]"
           >
             {data.tasks.length === 0 ? (
               <EmptyState icon={CheckSquare2} message="No tasks yet." />
@@ -566,84 +574,49 @@ export default function WorkspaceDashboard() {
         {/* Right column */}
         <div className="space-y-8">
           {/* Snapshot */}
-          <Card className="rounded-2xl border shadow-none">
-            <CardHeader className="px-5 pt-5 pb-3">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Snapshot
-              </p>
-              <CardTitle className="text-base font-semibold tracking-tight">
-                Workspace overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <div className="divide-y divide-border/60">
-                <SnapshotRow
-                  label="Total items"
-                  value={String(data.documents.length + data.tasks.length + data.activity.length)}
-                />
-                <SnapshotRow
-                  label="Completed tasks"
-                  value={String(summary.doneTasks)}
-                  accent="green"
-                />
-                <SnapshotRow
-                  label="Active relationships"
-                  value={String(data.activity.length)}
-                  accent="purple"
-                />
-                <SnapshotRow
-                  label="Last document update"
-                  value={summary.latestDoc ? formatDate(summary.latestDoc.updatedAt) : "None"}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <SectionCard
+            accent="green"
+            sectionLabel="Snapshot"
+            title="Workspace overview"
+            scrollHeightClassName="h-[240px]"
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <SnapshotRow
+                label="Total items"
+                value={String(data.documents.length + data.tasks.length + data.activity.length)}
+              />
+              <SnapshotRow label="Completed tasks" value={String(summary.doneTasks)} accent="green" />
+              <SnapshotRow
+                label="Active relationships"
+                value={String(data.activity.length)}
+                accent="purple"
+              />
+              <SnapshotRow
+                label="Last document update"
+                value={summary.latestDoc ? formatDate(summary.latestDoc.updatedAt) : "None"}
+                accent="blue"
+              />
+            </div>
+          </SectionCard>
 
           {/* Activity */}
-          <SectionCard accent="purple" sectionLabel="Activity" title="Recent relationships">
+          <SectionCard
+            accent="purple"
+            sectionLabel="Activity"
+            title="Recent relationships"
+            scrollHeightClassName="h-[320px]"
+          >
             {data.activity.length === 0 ? (
               <EmptyState icon={Activity} message="No relationships yet." />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {data.activity.map((item) => (
-                  <div
+                  <RelationshipRow
                     key={item.id}
-                    className="flex items-start gap-3 rounded-xl px-3.5 py-3"
-                    style={{ backgroundColor: `var(--vion-purple-bg)` }}
-                  >
-                    <div
-                      className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg"
-                      style={iconBox("purple")}
-                    >
-                      <Activity className="size-3.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <span
-                          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                          style={{
-                            backgroundColor: `var(--vion-purple-border)`,
-                            color: `var(--vion-purple-subtle)`,
-                          }}
-                        >
-                          {item.sourceLabel}
-                        </span>
-                        <ArrowRight className="size-3 shrink-0 text-muted-foreground/40" />
-                        <span
-                          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                          style={{
-                            backgroundColor: `var(--vion-purple-border)`,
-                            color: `var(--vion-purple-subtle)`,
-                          }}
-                        >
-                          {item.targetLabel}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {formatRelationship(item.relationshipType)}
-                      </p>
-                    </div>
-                  </div>
+                    sourceLabel={item.sourceLabel}
+                    targetLabel={item.targetLabel}
+                    relationshipType={formatRelationship(item.relationshipType)}
+                  />
                 ))}
               </div>
             )}
@@ -664,6 +637,7 @@ function SectionCard({
   title,
   actionLabel,
   onAction,
+  scrollHeightClassName,
   children,
 }: {
   accent: AccentKey;
@@ -671,36 +645,42 @@ function SectionCard({
   title: string;
   actionLabel?: string;
   onAction?: () => void;
+  scrollHeightClassName?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded-2xl border shadow-none">
-      <CardHeader className="px-5 pt-5 pb-3">
-        <div className="flex items-end justify-between">
-          <div>
-            <p
-              className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest"
-              style={textColor(accent)}
-            >
-              {sectionLabel}
-            </p>
-            <CardTitle className="text-base font-semibold tracking-tight">{title}</CardTitle>
-          </div>
-          {actionLabel && onAction && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 rounded-full text-xs gap-1 text-muted-foreground hover:text-foreground"
-              onClick={onAction}
-            >
-              {actionLabel}
-              <ArrowUpRight className="size-3" />
-            </Button>
-          )}
+    <section className="pt-2">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <p
+            className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+            style={textColor(accent)}
+          >
+            {sectionLabel}
+          </p>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
         </div>
-      </CardHeader>
-      <CardContent className="px-5 pb-5">{children}</CardContent>
-    </Card>
+        {actionLabel && onAction && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground"
+            onClick={onAction}
+          >
+            {actionLabel}
+            <ArrowUpRight className="size-3" />
+          </Button>
+        )}
+      </div>
+      <div
+        className="rounded-lg px-4 py-3 md:px-5"
+        style={sectionSurfaceStyle(accent)}
+      >
+        <ScrollArea className={cn("min-h-0 pr-3", scrollHeightClassName ?? "h-[320px]")}>
+          <div className="pr-1">{children}</div>
+        </ScrollArea>
+      </div>
+    </section>
   );
 }
 
@@ -725,27 +705,27 @@ function EntityRow({
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3.5 py-2.5 text-left transition-all hover:border-border/60 hover:bg-muted/30 hover:shadow-sm"
+      className="group flex w-full items-center gap-3 rounded-md border-b border-black/5 px-2 py-3 text-left transition-colors last:border-b-0 hover:bg-background/65 dark:border-white/5 dark:hover:bg-background/20"
     >
       <div
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+        className="flex size-8 shrink-0 items-center justify-center rounded-md"
         style={iconBox(accent)}
       >
         <Icon className="size-3.5" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground leading-snug">{title}</p>
-        {!badge && <p className="mt-0.5 text-[11px] text-muted-foreground">{meta}</p>}
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{meta}</p>
       </div>
       {badge && badgeAccent && (
         <span
-          className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+          className="shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold"
           style={badgeStyle(badgeAccent)}
         >
           {badge}
         </span>
       )}
-      <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-muted-foreground/60" />
+      <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground/25 transition-colors group-hover:text-muted-foreground/60" />
     </button>
   );
 }
@@ -760,14 +740,52 @@ function SnapshotRow({
   accent?: AccentKey;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5">
-      <p className="text-sm text-muted-foreground">{label}</p>
+    <div className="rounded-md bg-background/55 px-3 py-3 dark:bg-background/20">
+      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
       <p
-        className="text-sm font-semibold tabular-nums"
+        className="mt-1 text-lg font-semibold tabular-nums tracking-tight"
         style={accent ? textColor(accent) : { color: "var(--foreground)" }}
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+function RelationshipRow({
+  sourceLabel,
+  targetLabel,
+  relationshipType,
+}: {
+  sourceLabel: string;
+  targetLabel: string;
+  relationshipType: string;
+}) {
+  return (
+    <div className="rounded-md border-b border-black/5 px-2 py-3 last:border-b-0 dark:border-white/5">
+      <div className="flex items-start gap-3">
+        <div
+          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md"
+          style={iconBox("purple")}
+        >
+          <Activity className="size-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-6 text-foreground">
+            <span className="font-medium">{sourceLabel}</span>
+            <ArrowRight className="size-3 text-muted-foreground/50" />
+            <span className="font-medium">{targetLabel}</span>
+          </p>
+          <p
+            className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em]"
+            style={textColor("purple")}
+          >
+            {relationshipType}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -783,8 +801,8 @@ function ProgressDot({ color, label }: { color: string; label: string }) {
 
 function EmptyState({ icon: Icon, message }: { icon: typeof FileText; message: string }) {
   return (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-dashed border-border/60 px-4 py-6 text-center">
-      <Icon className="mb-2 size-4 text-muted-foreground/30" />
+    <div className="flex min-h-24 items-center gap-3 rounded-md bg-background/55 px-3 text-left dark:bg-background/20">
+      <Icon className="size-4 text-muted-foreground/35" />
       <p className="text-xs text-muted-foreground">{message}</p>
     </div>
   );
