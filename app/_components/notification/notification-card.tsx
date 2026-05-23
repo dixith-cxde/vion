@@ -33,9 +33,9 @@ import { useMemo, useState } from "react";
 interface NotificationCardProps {
   notification: NotificationItem;
 
-  onToggleRead: (id: string) => Promise<void>;
+  onToggleRead: (id: string) => Promise<unknown>;
 
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<unknown>;
 }
 
 function Avatar({
@@ -162,6 +162,10 @@ export function NotificationCard({ notification, onToggleRead, onDelete }: Notif
         router.push(`${base}/documents/${notification.entityId}`);
       } else if (notification.entityType === "TASK") {
         router.push(`${base}/tasks/${notification.entityId}`);
+      } else if (notification.entityType === "MESSAGE") {
+        router.push(`${base}/chat?messageId=${notification.entityId}`);
+      } else if (notification.entityType) {
+        router.push(`${base}/graph?entityType=${notification.entityType}&entityId=${notification.entityId}`);
       } else {
         router.push(base);
       }

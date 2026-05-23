@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { notificationWithSenderSelect } from "@/lib/services/notification.service";
 import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
@@ -20,25 +21,7 @@ export async function GET() {
           userId: user.id,
         },
         orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          type: true,
-          title: true,
-          message: true,
-          isRead: true,
-          entityType: true,
-          entityId: true,
-          workspaceId: true,
-          createdAt: true,
-
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              imageUrl: true,
-            },
-          },
-        },
+        select: notificationWithSenderSelect,
       }),
       prisma.notification.count({
         where: {

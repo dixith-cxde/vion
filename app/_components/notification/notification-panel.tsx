@@ -12,9 +12,14 @@ import { Button } from "@/components/ui/button";
 type Tab = "unread" | "all";
 
 export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications({
-    workspaceId,
-  });
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    toggleRead,
+    deleteNotification,
+    markAllAsRead,
+  } = useNotifications({ workspaceId });
   const [activeTab, setActiveTab] = useState<Tab>("unread");
 
   const unread = useMemo(() => notifications.filter((n) => !n.isRead), [notifications]);
@@ -106,30 +111,37 @@ export function NotificationPanel({ workspaceId }: { workspaceId?: string }) {
           <div className="space-y-3">
             {/* Unread group */}
             {activeTab === "all" && unread.length > 0 && (
-              <NotificationGroup
-                label="Unread"
-                count={unread.length}
-                notifications={unread}
-                onSelect={markAsRead}
-              />
-            )}
+                <NotificationGroup
+                  label="Unread"
+                  count={unread.length}
+                  notifications={unread}
+                  onToggleRead={toggleRead}
+                  onDelete={deleteNotification}
+                />
+              )}
             {/* For unread tab, render flat */}
             {activeTab === "unread" && (
               <div className="space-y-2">
                 {unread.map((n) => (
-                  <NotificationCard key={n.id} notification={n} />
+                  <NotificationCard
+                    key={n.id}
+                    notification={n}
+                    onToggleRead={toggleRead}
+                    onDelete={deleteNotification}
+                  />
                 ))}
               </div>
             )}
             {/* Read group — only in "all" tab */}
             {activeTab === "all" && read.length > 0 && (
-              <NotificationGroup
-                label="Read"
-                count={read.length}
-                notifications={read}
-                onSelect={markAsRead}
-              />
-            )}
+                <NotificationGroup
+                  label="Read"
+                  count={read.length}
+                  notifications={read}
+                  onToggleRead={toggleRead}
+                  onDelete={deleteNotification}
+                />
+              )}
           </div>
         )}
       </div>
@@ -141,12 +153,14 @@ function NotificationGroup({
   label,
   count,
   notifications,
-  onSelect,
+  onToggleRead,
+  onDelete,
 }: {
   label: string;
   count: number;
   notifications: NotificationItem[];
-  onSelect: (id: string) => void;
+  onToggleRead: (id: string) => Promise<unknown>;
+  onDelete: (id: string) => Promise<unknown>;
 }) {
   return (
     <div className="space-y-2">
@@ -158,7 +172,12 @@ function NotificationGroup({
       </div>
       <div className="space-y-2">
         {notifications.map((n) => (
-          <NotificationCard key={n.id} notification={n} />
+          <NotificationCard
+            key={n.id}
+            notification={n}
+            onToggleRead={onToggleRead}
+            onDelete={onDelete}
+          />
         ))}
       </div>
     </div>

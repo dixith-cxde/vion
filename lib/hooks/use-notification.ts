@@ -1,23 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { NotificationWithSender } from "@/types/notification.type";
 
-export type NotificationItem = {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  isRead: boolean;
-  entityType: string | null;
-  entityId: string | null;
-  workspaceId: string | null;
-  createdAt: string;
-  sender?: {
-    id: string;
-    name: string | null;
-    imageUrl: string | null;
-  } | null;
-};
+export type NotificationItem = NotificationWithSender;
 
 type UseNotificationsOptions = {
   workspaceId?: string;
@@ -46,6 +32,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const { data = [], isLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
+    refetchOnWindowFocus: false,
   });
 
   const notifications = workspaceId
@@ -70,10 +57,17 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       return response.json();
     },
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["notifications"],
-      });
+    onSuccess: (result, notificationId) => {
+      queryClient.setQueryData<NotificationItem[]>(["notifications"], (current) =>
+        (current ?? []).map((notification) =>
+          notification.id === notificationId
+            ? {
+                ...notification,
+                isRead: result.data.isRead,
+              }
+            : notification,
+        ),
+      );
     },
   });
 
@@ -90,10 +84,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       return response.json();
     },
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["notifications"],
-      });
+    onSuccess: (_result, notificationId) => {
+      queryClient.setQueryData<NotificationItem[]>(["notifications"], (current) =>
+        (current ?? []).filter((notification) => notification.id !== notificationId),
+      );
     },
   });
 
@@ -115,9 +109,16 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     },
 
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["notifications"],
-      });
+      queryClient.setQueryData<NotificationItem[]>(["notifications"], (current) =>
+        (current ?? []).map((notification) =>
+          !workspaceId || notification.workspaceId === workspaceId
+            ? {
+                ...notification,
+                isRead: true,
+              }
+            : notification,
+        ),
+      );
     },
   });
 
