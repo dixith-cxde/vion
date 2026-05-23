@@ -17,6 +17,7 @@ interface Props {
   workspaceId: string;
   initialContent?: Block[];
   setSaveState: (saveState: SaveState) => void;
+  editable?: boolean;
 }
 
 export default function EditorWrapper({
@@ -24,6 +25,7 @@ export default function EditorWrapper({
   initialContent,
   workspaceId,
   setSaveState,
+  editable = true,
 }: Props) {
   const [content, setContent] = useState(initialContent);
   const debouncedContent = useDebounce(content, 1000);
@@ -65,15 +67,15 @@ export default function EditorWrapper({
       }
     }
 
-    if (debouncedContent) {
+    if (debouncedContent && editable) {
       void save();
     }
-  }, [debouncedContent, documentId, setSaveState, workspaceId]);
+  }, [debouncedContent, documentId, editable, setSaveState, workspaceId]);
 
   return (
     <EditorCore
       initialContent={initialContent}
-      editable={true}
+      editable={editable}
       onChange={setContent}
     />
   );

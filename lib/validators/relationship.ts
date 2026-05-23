@@ -25,28 +25,33 @@ export const relationshipTypeEnum = [
   "PR_FOR",
   "COMMIT_FOR",
   "ISSUE_FOR",
+  "MENTIONS",
+] as const;
+
+const entityTypeEnum = [
+  "WORKSPACE",
+  "TASK",
+  "DOCUMENT",
+  "MESSAGE",
+  "COMMIT",
+  "CHANNEL",
+  "USER",
+  "GITHUB_REPOSITORY",
+  "GITHUB_PULL_REQUEST",
+  "GITHUB_ISSUE",
+  "GITHUB_DISCUSSION",
+  "GITHUB_RELEASE",
+  "GITHUB_BRANCH",
 ] as const;
 
 export const createRelationshipSchema = z.object({
-  sourceEntityType: z.enum([
-    "TASK",
-    "DOCUMENT",
-    "MESSAGE",
-    "COMMIT",
-    "CHANNEL",
-  ]),
+  sourceEntityType: z.enum(entityTypeEnum),
 
-  sourceEntityId: z.string().uuid(),
+  sourceEntityId: z.string().min(1),
 
-  targetEntityType: z.enum([
-    "TASK",
-    "DOCUMENT",
-    "MESSAGE",
-    "COMMIT",
-    "CHANNEL",
-  ]),
+  targetEntityType: z.enum(entityTypeEnum),
 
-  targetEntityId: z.string().uuid(),
+  targetEntityId: z.string().min(1),
 
   relationshipType: z.enum(relationshipTypeEnum),
 });

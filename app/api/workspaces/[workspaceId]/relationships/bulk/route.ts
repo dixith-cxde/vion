@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { syncEntityMentions } from "@/lib/services/entity-mention-sync.service";
+import { getCurrentDBUser } from "@/lib/services/user.service";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 type BulkMentionBody = {
@@ -11,8 +13,6 @@ type BulkMentionBody = {
     entityId?: string;
   }>;
 };
-
-const RELATIONSHIP_TARGET_TYPES = new Set(["TASK", "DOCUMENT"]);
 
 export async function POST(
   req: Request,
@@ -44,6 +44,7 @@ export async function POST(
 
     const sourceEntityType = body.sourceEntityType;
     const sourceEntityId = body.sourceEntityId;
+    const currentUser = await getCurrentDBUser();
 
     const sourceEntityExists =
       sourceEntityType === "TASK"
@@ -69,81 +70,30 @@ export async function POST(
       );
     }
 
-    const validMentions = Array.from(
-      new Map(
-        body.mentions
-          .filter(
-            (mention): mention is { entityType: "TASK" | "DOCUMENT"; entityId: string } =>
-              typeof mention.entityId === "string" &&
-              RELATIONSHIP_TARGET_TYPES.has(mention.entityType ?? ""),
-          )
-          .map((mention) => [`${mention.entityType}:${mention.entityId}`, mention]),
-      ).values(),
-    );
-
-    const existingRelationships = await prisma.relationship.findMany({
-      where: {
-        workspaceId,
-        sourceEntityType,
-        sourceEntityId,
-        relationshipType: "REFERENCES",
-      },
-      select: {
-        id: true,
-        targetEntityType: true,
-        targetEntityId: true,
-      },
-    });
-
-    const nextKeys = new Set(
-      validMentions.map((mention) => `${mention.entityType}:${mention.entityId}`),
-    );
-    const existingKeys = new Set(
-      existingRelationships.map(
-        (relationship) =>
-          `${relationship.targetEntityType}:${relationship.targetEntityId}`,
-      ),
-    );
-
-    const relationshipIdsToDelete = existingRelationships
-      .filter(
-        (relationship) =>
-          !nextKeys.has(
-            `${relationship.targetEntityType}:${relationship.targetEntityId}`,
-          ),
-      )
-      .map((relationship) => relationship.id);
-
-    const mentionsToCreate = validMentions.filter(
-      (mention) => !existingKeys.has(`${mention.entityType}:${mention.entityId}`),
-    );
-
-    if (relationshipIdsToDelete.length > 0) {
-      await prisma.relationship.deleteMany({
-        where: {
-          id: { in: relationshipIdsToDelete },
-        },
-      });
-    }
-
-    if (mentionsToCreate.length > 0) {
-      await prisma.relationship.createMany({
-        data: mentionsToCreate.map((mention) => ({
-          workspaceId,
-          sourceEntityType,
-          sourceEntityId,
-          targetEntityType: mention.entityType,
-          targetEntityId: mention.entityId,
-          relationshipType: "REFERENCES",
+    const result = await syncEntityMentions({
+      workspaceId,
+      sourceEntityType,
+      sourceEntityId,
+      mentions: body.mentions
+        .filter(
+          (mention): mention is { entityType: string; entityId: string } =>
+            typeof mention.entityType === "string" && typeof mention.entityId === "string",
+        )
+        .map((mention) => ({
+          entityType: mention.entityType,
+          entityId: mention.entityId,
         })),
-      });
-    }
+      actorId: currentUser?.id,
+      notificationEntityType: sourceEntityType,
+      notificationEntityId: sourceEntityId,
+      notificationMessage: `You were mentioned in a ${sourceEntityType.toLowerCase()}.`,
+    });
 
     return NextResponse.json({
       success: true,
       data: {
-        created: mentionsToCreate.length,
-        deleted: relationshipIdsToDelete.length,
+        created: result.createdReferences + result.createdUserMentions,
+        deleted: result.deletedReferences + result.deletedUserMentions,
       },
     });
   } catch (error) {

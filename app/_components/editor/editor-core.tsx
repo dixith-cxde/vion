@@ -13,7 +13,6 @@ import {
 } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import "./editor.css";
 
@@ -21,15 +20,14 @@ import MentionDropdown from "./mention-dropdown";
 import { useEditorCollaboration } from "./collaboration-context";
 import {
   getMentionQueryAtCursor,
+  getMentionQueryFromBlock,
   lightTheme,
-  normalizeEntities,
   parseInitialContent,
   replaceMentionTokenInBlock,
   type MentionEntity,
 } from "./editor-utils";
 
 import { toast } from "@/hooks/use-toast";
-import { User } from "@/lib/generated/prisma/client";
 import { useUser } from "@clerk/nextjs";
 
 interface EditorProps {
@@ -37,6 +35,13 @@ interface EditorProps {
   editable?: boolean;
   onChange: (blocks: Block[]) => void;
 }
+
+type MentionDropdownPosition = {
+  left: number;
+  top: number;
+  width: number;
+  placement: "top" | "bottom";
+};
 
 export default function EditorCore({ initialContent, editable = true, onChange }: EditorProps) {
   const { isLoaded: clerkLoaded } = useUser();
@@ -59,40 +64,37 @@ export default function EditorCore({ initialContent, editable = true, onChange }
   const [mentionQuery, setMentionQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [entities, setEntities] = useState<MentionEntity[]>([]);
+  const [dropdownPosition, setDropdownPosition] = useState<MentionDropdownPosition | null>(null);
 
   useEffect(() => {
     async function fetchEntities() {
       try {
         if (!workspaceId) return;
 
-        const [tasksRes, docsRes, membersRes] = await Promise.all([
-          fetch(`/api/workspaces/${workspaceId}/tasks`),
-          fetch(`/api/workspaces/${workspaceId}/documents`),
-          fetch(`/api/workspaces/${workspaceId}/members`),
-        ]);
+        const params = new URLSearchParams();
+        const trimmedQuery = mentionQuery.trim();
 
-        if (!tasksRes.ok || !docsRes.ok || !membersRes.ok) {
-          throw new Error("Failed to load mention entities");
+        if (trimmedQuery) {
+          params.set("q", trimmedQuery);
         }
 
-        const tasks = (await tasksRes.json()) as {
-          data?: Array<{ id: string; title: string }>;
-        };
-        const docs = (await docsRes.json()) as {
-          data?: Array<{ id: string; title: string }>;
-        };
-        const members = (await membersRes.json()) as {
-          data?: Array<User>;
-        };
+        params.set("limit", "20");
+
+        const response = await fetch(`/api/workspaces/${workspaceId}/entities?${params.toString()}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to load mention entities");
+        }
+        const payload = (await response.json()) as { data?: MentionEntity[] };
         entityLoadErrorShownRef.current = false;
-        setEntities(normalizeEntities(tasks, docs, members));
+        setEntities(payload.data ?? []);
       } catch (err) {
         console.error("Entity fetch failed", err);
         if (!entityLoadErrorShownRef.current) {
           entityLoadErrorShownRef.current = true;
           toast({
             title: "Mentions unavailable",
-            description: "Tasks, documents, and members could not be loaded.",
+            description: "Workspace entities could not be loaded.",
             variant: "destructive",
           });
         }
@@ -100,13 +102,9 @@ export default function EditorCore({ initialContent, editable = true, onChange }
     }
 
     void fetchEntities();
-  }, [workspaceId]);
+  }, [mentionQuery, workspaceId]);
 
-  const filteredEntities = useMemo(() => {
-    const normalizedQuery = mentionQuery.trim().toLowerCase();
-    if (!normalizedQuery) return entities;
-    return entities.filter((entity) => entity.label.toLowerCase().includes(normalizedQuery));
-  }, [entities, mentionQuery]);
+  const filteredEntities = useMemo(() => entities, [entities]);
 
   const highlightedIndex =
     filteredEntities.length > 0 ? Math.min(activeIndex, filteredEntities.length - 1) : 0;
@@ -148,6 +146,8 @@ export default function EditorCore({ initialContent, editable = true, onChange }
       setMentionQuery={setMentionQuery}
       setShowMentions={setShowMentions}
       showMentions={showMentions}
+      dropdownPosition={dropdownPosition}
+      setDropdownPosition={setDropdownPosition}
     />
   );
 }
@@ -171,6 +171,8 @@ type EditorCoreInstanceProps = {
   setMentionQuery: Dispatch<SetStateAction<string>>;
   setShowMentions: Dispatch<SetStateAction<boolean>>;
   showMentions: boolean;
+  dropdownPosition: MentionDropdownPosition | null;
+  setDropdownPosition: Dispatch<SetStateAction<MentionDropdownPosition | null>>;
 };
 
 function EditorCoreInstance({
@@ -192,6 +194,8 @@ function EditorCoreInstance({
   setMentionQuery,
   setShowMentions,
   showMentions,
+  dropdownPosition,
+  setDropdownPosition,
 }: EditorCoreInstanceProps) {
   const parsedInitialContent = useMemo(() => parseInitialContent(initialContent), [initialContent]);
   const hasBootstrappedContentRef = useRef(false);
@@ -216,6 +220,58 @@ function EditorCoreInstance({
     },
     [fragment, provider]
   );
+
+  const updateDropdownPosition = useCallback(() => {
+    if (!showMentions || typeof window === "undefined") {
+      setDropdownPosition(null);
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      setDropdownPosition(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const anchorElement =
+      selection.anchorNode?.nodeType === Node.ELEMENT_NODE
+        ? (selection.anchorNode as HTMLElement)
+        : selection.anchorNode?.parentElement;
+    const fallbackRect =
+      anchorElement
+        ?.closest(".bn-editor [data-content-type], .bn-editor .bn-block-content")
+        ?.getBoundingClientRect() ?? null;
+    const sourceRect = rect.width > 0 || rect.height > 0 ? rect : fallbackRect;
+
+    if (!sourceRect) {
+      setDropdownPosition(null);
+      return;
+    }
+
+    const viewportPadding = 16;
+    const preferredWidth = Math.min(420, Math.max(320, window.innerWidth * 0.32));
+    const maxWidth = Math.max(280, window.innerWidth - viewportPadding * 2);
+    const width = Math.min(preferredWidth, maxWidth);
+    const left = Math.min(
+      Math.max(sourceRect.left, viewportPadding),
+      window.innerWidth - width - viewportPadding
+    );
+    const roomBelow = window.innerHeight - sourceRect.bottom;
+    const placement = roomBelow > 280 ? "bottom" : "top";
+    const top =
+      placement === "bottom"
+        ? Math.min(sourceRect.bottom + 12, window.innerHeight - viewportPadding - 120)
+        : Math.max(viewportPadding, sourceRect.top - 12 - 320);
+
+    setDropdownPosition({
+      left,
+      top,
+      width,
+      placement,
+    });
+  }, [setDropdownPosition, showMentions]);
 
   useEffect(() => {
     hasBootstrappedContentRef.current = false;
@@ -270,7 +326,7 @@ function EditorCoreInstance({
           sourceEntityType: entityType,
           sourceEntityId: entityId,
           targetEntityType: item.type,
-          targetEntityId: item.id,
+          targetEntityId: item.entityId,
           relationshipType: "REFERENCES",
         }),
       });
@@ -283,7 +339,7 @@ function EditorCoreInstance({
         });
       }
     },
-    [editor, entityId, entityType, mentionQuery, workspaceId]
+    [editor, entityId, entityType, mentionQuery, setMentionQuery, setShowMentions, workspaceId]
   );
 
   useEffect(() => {
@@ -340,12 +396,46 @@ function EditorCoreInstance({
       window.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [filteredEntities, highlightedIndex, selectMention, showMentions]);
+  }, [
+    dropdownRef,
+    filteredEntities,
+    highlightedIndex,
+    selectMention,
+    setActiveIndex,
+    setMentionQuery,
+    setShowMentions,
+    showMentions,
+  ]);
+
+  useEffect(() => {
+    if (!showMentions) {
+      setDropdownPosition(null);
+      return;
+    }
+
+    updateDropdownPosition();
+
+    const handleReposition = () => {
+      updateDropdownPosition();
+    };
+
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    document.addEventListener("selectionchange", handleReposition);
+
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+      document.removeEventListener("selectionchange", handleReposition);
+    };
+  }, [setDropdownPosition, showMentions, updateDropdownPosition]);
 
   const handleChange = () => {
     if (isBootstrappingContentRef.current) return;
 
-    const currentMentionQuery = getMentionQueryAtCursor();
+    const currentMentionQuery =
+      getMentionQueryAtCursor() ??
+      getMentionQueryFromBlock(editor.getTextCursorPosition().block);
 
     if (currentMentionQuery !== null) {
       if (!showMentions || mentionQuery !== currentMentionQuery) {
@@ -353,22 +443,17 @@ function EditorCoreInstance({
       }
       setShowMentions(true);
       setMentionQuery(currentMentionQuery);
+      requestAnimationFrame(() => updateDropdownPosition());
     } else {
       setShowMentions(false);
       setMentionQuery("");
+      setDropdownPosition(null);
     }
 
     onChange(editor.document);
   };
 
   return (
-    /*
-     * IMPORTANT: overflow-visible is required here.
-     * The MentionDropdown uses absolute positioning and must escape this
-     * container visually. Any overflow-hidden or overflow-scroll on this
-     * outer div will clip the dropdown to the editor bounds.
-     * The scroll behaviour lives on BlockNoteView only.
-     */
     <div
       className="relative w-full overflow-visible"
       style={{ minHeight: "320px" }}
@@ -408,6 +493,7 @@ function EditorCoreInstance({
           activeIndex={highlightedIndex}
           items={filteredEntities}
           onHover={setActiveIndex}
+          position={dropdownPosition}
           onSelect={(item) => {
             void selectMention(item);
           }}

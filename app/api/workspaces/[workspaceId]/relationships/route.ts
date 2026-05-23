@@ -18,19 +18,13 @@ export type RelationshipsGetResponse = {
   data: LinkedEntity[];
 };
 
-export async function GET(
-  req: Request,
-  context: { params: Promise<{ workspaceId: string }> },
-) {
+export async function GET(req: Request, context: { params: Promise<{ workspaceId: string }> }) {
   try {
     const { workspaceId } = await context.params;
 
     const access = await requireWorkspaceAccess(workspaceId);
     if ("error" in access) {
-      return NextResponse.json(
-        { success: false, error: access.error },
-        { status: access.status },
-      );
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
 
     const { searchParams } = new URL(req.url);
@@ -40,14 +34,14 @@ export async function GET(
     if (!entityType || !entityId) {
       return NextResponse.json(
         { success: false, error: "entityType and entityId are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (entityType !== "TASK" && entityType !== "DOCUMENT") {
       return NextResponse.json(
         { success: false, error: "entityType must be TASK or DOCUMENT" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -155,24 +149,18 @@ export async function GET(
     console.error("Relationships GET error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch relationships" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
 
-export async function POST(
-  req: Request,
-  context: { params: Promise<{ workspaceId: string }> },
-) {
+export async function POST(req: Request, context: { params: Promise<{ workspaceId: string }> }) {
   try {
     const { workspaceId } = await context.params;
 
     const access = await requireWorkspaceAccess(workspaceId);
     if ("error" in access) {
-      return NextResponse.json(
-        { success: false, error: access.error },
-        { status: access.status },
-      );
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     }
 
     const body = await req.json();
@@ -182,7 +170,7 @@ export async function POST(
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid payload" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -208,10 +196,9 @@ export async function POST(
 
     return NextResponse.json(
       {
-        error:
-          err instanceof Error ? err.message : "Failed to create relationship",
+        error: err instanceof Error ? err.message : "Failed to create relationship",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

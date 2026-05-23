@@ -12,6 +12,7 @@ type Props = {
   workspaceId: string;
   description?: Block[];
   onChange: (blocks: Block[]) => void;
+  editable?: boolean;
 };
 
 export default function TaskEditor({
@@ -19,13 +20,14 @@ export default function TaskEditor({
   workspaceId,
   description: initialContent,
   onChange,
+  editable = true,
 }: Props) {
   return (
     <div className="w-full h-full">
       <EditorCore
         key={`${workspaceId}:${taskId}`}
         initialContent={initialContent}
-        editable={true}
+        editable={editable}
         onChange={onChange}
       />
     </div>

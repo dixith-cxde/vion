@@ -13,12 +13,14 @@
 .vion-blocknote .bn-editor {
   height: 100%;
   background: transparent !important;
+  font-family: var(--font-poppins), Arial, Helvetica, sans-serif !important;
 }
 
 .vion-blocknote .bn-editor .ProseMirror {
   max-width: 100%;
   margin: 0;
   padding: 0.25rem 0 6rem;
+  font-family: inherit !important;
   font-size: 0.9375rem;
   line-height: 1.9;
   color: #1a1c23 !important;
@@ -174,6 +176,70 @@
 .vion-blocknote .bn-editor a[href*="/members/"]:hover,
 .bn-editor a[href*="/members/"]:hover {
   background-color: #bbf7d0 !important;
+}
+
+/* ============================================================
+   Mention chips — CHANNEL (rose, no border)
+   ============================================================ */
+
+.vion-blocknote .bn-editor a[href*="/chat?channelId="],
+.vion-blocknote .bn-editor a[href*="&channelId="],
+.bn-editor a[href*="/chat?channelId="],
+.bn-editor a[href*="&channelId="] {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  margin: 0 1px;
+  padding: 1px 7px 2px;
+  font-weight: 600;
+  font-size: 0.8em;
+  line-height: 1.7;
+  text-decoration: none !important;
+  background-color: #fff1f2 !important;
+  color: #e11d48 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: background-color 100ms ease;
+  cursor: pointer;
+}
+
+.vion-blocknote .bn-editor a[href*="/chat?channelId="]:hover,
+.vion-blocknote .bn-editor a[href*="&channelId="]:hover,
+.bn-editor a[href*="/chat?channelId="]:hover,
+.bn-editor a[href*="&channelId="]:hover {
+  background-color: #ffe4e6 !important;
+}
+
+/* ============================================================
+   Mention chips — GITHUB (slate, no border)
+   ============================================================ */
+
+.vion-blocknote .bn-editor a[href*="/github?"],
+.vion-blocknote .bn-editor a[href*="entityType=GITHUB_"],
+.bn-editor a[href*="/github?"],
+.bn-editor a[href*="entityType=GITHUB_"] {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  margin: 0 1px;
+  padding: 1px 7px 2px;
+  font-weight: 600;
+  font-size: 0.8em;
+  line-height: 1.7;
+  text-decoration: none !important;
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: background-color 100ms ease;
+  cursor: pointer;
+}
+
+.vion-blocknote .bn-editor a[href*="/github?"]:hover,
+.vion-blocknote .bn-editor a[href*="entityType=GITHUB_"]:hover,
+.bn-editor a[href*="/github?"]:hover,
+.bn-editor a[href*="entityType=GITHUB_"]:hover {
+  background-color: #e2e8f0 !important;
 }
 
 /* ============================================================

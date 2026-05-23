@@ -110,6 +110,11 @@ type TaskPerson = {
   email: string | null;
   imageUrl?: string | null;
 };
+type TaskPermissions = {
+  canEdit: boolean;
+  canDelete: boolean;
+  role: string;
+};
 type TaskRecord = Task & {
   assignedToId?: string | null;
   assignedTo?: TaskPerson | null;
@@ -163,6 +168,7 @@ export default function TaskPage() {
   const taskId = params.taskId as string;
 
   const [task, setTask] = useState<TaskRecord | null>(null);
+  const [permissions, setPermissions] = useState<TaskPermissions | null>(null);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [initialEditorContent, setInitialEditorContent] = useState<Block[] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -176,8 +182,9 @@ export default function TaskPage() {
           fetch(`/api/workspaces/${workspaceId}/members`),
         ]);
         if (!taskRes.ok) throw new Error();
-        const taskJson = (await taskRes.json()) as { data: TaskRecord };
+        const taskJson = (await taskRes.json()) as { data: TaskRecord; permissions?: TaskPermissions };
         setTask(taskJson.data);
+        setPermissions(taskJson.permissions ?? null);
         setInitialEditorContent(safeParseDescription(taskJson.data.description));
         if (memberRes.ok) {
           const membersJson = (await memberRes.json()) as {
@@ -232,6 +239,7 @@ export default function TaskPage() {
         workspaceId={workspaceId}
         members={members}
         initialEditorContent={initialEditorContent}
+        permissions={permissions}
       />
     </EditorCollaborationProvider>
   );
@@ -243,12 +251,14 @@ function TaskPageContent({
   workspaceId,
   members,
   initialEditorContent,
+  permissions,
 }: {
   task: TaskRecord;
   taskId: string;
   workspaceId: string;
   members: MemberOption[];
   initialEditorContent?: Block[];
+  permissions: TaskPermissions | null;
 }) {
   const [editorContent, setEditorContent] = useState<Block[] | undefined>(initialEditorContent);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -256,6 +266,7 @@ function TaskPageContent({
   const editorSaveErrorShownRef = useRef(false);
   const metaSaveErrorShownRef = useRef(false);
   const debouncedContent = useDebounce(editorContent, 1200);
+  const editable = permissions?.canEdit ?? false;
 
   const { meta, updateMeta } = useCollaborativeMeta<TaskMetaState>({
     title: task.title,
@@ -282,6 +293,10 @@ function TaskPageContent({
   );
 
   useEffect(() => {
+    if (!editable) {
+      return;
+    }
+
     if (metaSaveTimeoutRef.current) clearTimeout(metaSaveTimeoutRef.current);
     metaSaveTimeoutRef.current = setTimeout(async () => {
       try {
@@ -313,10 +328,10 @@ function TaskPageContent({
     return () => {
       if (metaSaveTimeoutRef.current) clearTimeout(metaSaveTimeoutRef.current);
     };
-  }, [meta, taskId, workspaceId]);
+  }, [editable, meta, taskId, workspaceId]);
 
   useEffect(() => {
-    if (!debouncedContent) return;
+    if (!debouncedContent || !editable) return;
     const nextContent: Block[] = debouncedContent;
     async function saveDescription() {
       try {
@@ -348,7 +363,7 @@ function TaskPageContent({
       }
     }
     void saveDescription();
-  }, [debouncedContent, taskId, workspaceId]);
+  }, [debouncedContent, editable, taskId, workspaceId]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] w-full overflow-auto bg-background ">
@@ -357,11 +372,21 @@ function TaskPageContent({
         {/* Top bar */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <CollaborationPresence />
-          <span
-            className={cn("text-[11px] font-medium transition-colors", SAVE_STATE_TEXT[saveState])}
-          >
-            {SAVE_STATE_LABEL[saveState]}
-          </span>
+          <div className="flex items-center gap-3">
+            {!editable ? (
+              <span className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Read only
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                "text-[11px] font-medium transition-colors",
+                SAVE_STATE_TEXT[saveState]
+              )}
+            >
+              {SAVE_STATE_LABEL[saveState]}
+            </span>
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
@@ -370,6 +395,7 @@ function TaskPageContent({
             <Input
               value={meta.title}
               onChange={(e) => updateMeta({ title: e.target.value })}
+              readOnly={!editable}
               className="h-auto border-0 bg-transparent p-0 !text-5xl font-bold tracking-tight shadow-none focus-visible:ring-0"
               placeholder="Untitled task"
             />
@@ -394,6 +420,7 @@ function TaskPageContent({
                   value={meta.status}
                   onValueChange={(v) => updateMeta({ status: v as TaskStatus })}
                   className={STATUS_CLASS[meta.status]}
+                  disabled={!editable}
                 >
                   {TASK_STATUS_OPTIONS.map((v) => (
                     <SelectItem key={v} value={v}>
@@ -408,6 +435,7 @@ function TaskPageContent({
                   value={meta.priority}
                   onValueChange={(v) => updateMeta({ priority: v as TaskPriority })}
                   className={PRIORITY_CLASS[meta.priority]}
+                  disabled={!editable}
                 >
                   {TASK_PRIORITY_OPTIONS.map((v) => (
                     <SelectItem key={v} value={v}>
@@ -422,6 +450,7 @@ function TaskPageContent({
                   value={meta.lifecycle}
                   onValueChange={(v) => updateMeta({ lifecycle: v as TaskLifecycle })}
                   className={LIFECYCLE_CLASS[meta.lifecycle]}
+                  disabled={!editable}
                 >
                   {TASK_LIFECYCLE_OPTIONS.map((v) => (
                     <SelectItem key={v} value={v}>
@@ -437,6 +466,7 @@ function TaskPageContent({
                   value={meta.assignedToId}
                   onChange={(v) => updateMeta({ assignedToId: v })}
                   selectedMember={selectedAssignee}
+                  disabled={!editable}
                 />
               </PropCell>
 
@@ -446,6 +476,7 @@ function TaskPageContent({
                     type="date"
                     value={meta.dueDate}
                     onChange={(e) => updateMeta({ dueDate: e.target.value })}
+                    readOnly={!editable}
                     className="h-auto flex-1 border-0 bg-transparent p-0 text-[11px] font-medium text-fuchsia-600 shadow-none focus-visible:ring-0"
                   />
                 </div>
@@ -459,6 +490,7 @@ function TaskPageContent({
                     placeholder="0"
                     value={meta.estimatedAt}
                     onChange={(e) => updateMeta({ estimatedAt: e.target.value })}
+                    readOnly={!editable}
                     className="h-auto flex-1 border-0 bg-transparent p-0 text-[11px] font-semibold text-indigo-600 shadow-none focus-visible:ring-0"
                   />
                   <span className="text-[10px] text-indigo-400">hrs</span>
@@ -478,6 +510,7 @@ function TaskPageContent({
               workspaceId={workspaceId}
               description={initialEditorContent}
               onChange={setEditorContent}
+              editable={editable}
             />
           </div>
         </ScrollArea>
@@ -507,14 +540,16 @@ function PillSelect({
   onValueChange,
   className,
   children,
+  disabled = false,
 }: {
   value: string;
   onValueChange: (v: string) => void;
   className?: string;
   children: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger
         className={cn(
           "h-8 w-full rounded-lg border px-3 text-[11px] font-medium shadow-none focus-visible:ring-0",
@@ -533,18 +568,21 @@ function AssignedToPicker({
   value,
   onChange,
   selectedMember,
+  disabled,
 }: {
   members: MemberOption[];
   value: string | null;
   onChange: (v: string | null) => void;
   selectedMember: MemberOption | null;
+  disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(nextOpen) => (!disabled ? setOpen(nextOpen) : null)}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
+          disabled={disabled}
           className="h-8 w-full justify-between rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[11px] font-medium text-cyan-700 shadow-none hover:bg-cyan-100 hover:text-cyan-700"
         >
           <span className="truncate">

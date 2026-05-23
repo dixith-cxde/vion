@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { Block } from "@blocknote/core";
 import DocumentEditor from "@/app/_components/editor/document-editor";
+import { getCurrentDBUser } from "@/lib/services/user.service";
+import { canEditDocumentEntity } from "@/lib/services/permissions.service";
 
 type BlockLike = {
   type: string;
@@ -32,6 +34,19 @@ export default async function Page({
     include: { author: true },
   });
 
+  const currentUser = await getCurrentDBUser();
+  const membership =
+    currentUser
+      ? await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: {
+              workspaceId,
+              userId: currentUser.id,
+            },
+          },
+        })
+      : null;
+
   if (!document) {
     throw new Error("Document not found");
   }
@@ -46,6 +61,15 @@ export default async function Page({
         documentId={documentId}
         workspaceId={workspaceId}
         initialContent={content}
+        editable={
+          membership
+            ? canEditDocumentEntity({
+                role: membership.role,
+                userId: membership.userId,
+                authorId: document.authorId,
+              })
+            : false
+        }
         meta={{
           title: document.title,
           status: document.status,

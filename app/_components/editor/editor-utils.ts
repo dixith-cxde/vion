@@ -1,38 +1,15 @@
 import { Block } from "@blocknote/core";
+import { UniversalEntityType } from "@/lib/entities/mention";
 import { type Theme } from "@blocknote/mantine";
 
-export type MentionEntityType = "TASK" | "DOCUMENT" | "USER";
+export type MentionEntityType = UniversalEntityType;
 
 export interface MentionEntity {
-  id: string;
+  entityId: string;
   label: string;
   type: MentionEntityType;
-}
-
-interface EntityApiItem {
-  id: string;
-  title: string;
-}
-
-interface EntityApiResponse {
-  data?: EntityApiItem[];
-}
-
-type MemberSummary = {
-  id: string;
-  name: string | null;
-  email: string | null;
-};
-
-interface MemberApiItem {
-  user?: MemberSummary;
-  id?: string;
-  name?: string | null;
-  email?: string | null;
-}
-
-interface MemberApiResponse {
-  data?: MemberApiItem[];
+  preview?: string;
+  href?: string;
 }
 
 interface TextContent {
@@ -152,47 +129,39 @@ export function getMentionQuery(text: string) {
   return lastWord.slice(1);
 }
 
-export function normalizeEntities(
-  tasks: EntityApiResponse,
-  documents: EntityApiResponse,
-  members?: MemberApiResponse,
-): MentionEntity[] {
-  return [
-    ...(members?.data ?? []).map((member) => ({
-      id: member.user?.id ?? member.id ?? "",
-      label:
-        member.user?.name ||
-        member.user?.email ||
-        member.name ||
-        member.email ||
-        "Unknown",
-      type: "USER" as const,
-    })),
-    ...(tasks.data ?? []).map((task) => ({
-      id: task.id,
-      label: task.title,
-      type: "TASK" as const,
-    })),
-    ...(documents.data ?? []).map((doc) => ({
-      id: doc.id,
-      label: doc.title,
-      type: "DOCUMENT" as const,
-    })),
-  ].filter((entity) => entity.id.length > 0);
+export function getMentionQueryFromBlock(block?: Block | null) {
+  if (!block) {
+    return null;
+  }
+
+  return getMentionQuery(extractTextFromBlock(block as EditorBlock));
 }
 
 export function getMentionPath(
   item: MentionEntity,
   workspaceId?: string | null,
 ): string {
+  if (item.href) {
+    return item.href;
+  }
+
   const basePath = workspaceId ? `/workspaces/${workspaceId}` : "";
-  return `${basePath}/${item.type === "TASK" ? "tasks" : item.type === "USER" ? "members" : "documents"}/${item.id}`;
+  if (item.type === "TASK") {
+    return `${basePath}/tasks/${item.entityId}`;
+  }
+  if (item.type === "DOCUMENT") {
+    return `${basePath}/documents/${item.entityId}`;
+  }
+  return `${basePath}/graph?entityType=${item.type}&entityId=${item.entityId}`;
 }
 
 export function getMentionStyles(type: MentionEntityType) {
   if (type === "TASK") return { textColor: "#5b21b6", backgroundColor: "#ede9fe" };
   if (type === "DOCUMENT") return { textColor: "#0369a1", backgroundColor: "#e0f2fe" };
   if (type === "USER") return { textColor: "#15803d", backgroundColor: "#dcfce7" };
+  if (type === "CHANNEL") return { textColor: "#9a3412", backgroundColor: "#ffedd5" };
+  if (type === "MESSAGE") return { textColor: "#0f766e", backgroundColor: "#ccfbf1" };
+  if (type === "COMMIT") return { textColor: "#14532d", backgroundColor: "#dcfce7" };
   return { textColor: "#1f2937", backgroundColor: "#e5e7eb" };
 }
 
@@ -290,6 +259,17 @@ export function extractMentions(blocks: Block[]) {
       /\/documents\/([0-9a-f-]{36})(?:$|[/?#])/i,
     );
     if (documentMatch) return { entityType: "DOCUMENT", entityId: documentMatch[1] };
+    const graphMatch = href.match(/[?&]entityType=([^&#]+).*?[?&]entityId=([^&#]+)/i);
+    if (graphMatch) {
+      return {
+        entityType: decodeURIComponent(graphMatch[1]),
+        entityId: decodeURIComponent(graphMatch[2]),
+      };
+    }
+    const channelMatch = href.match(/[?&]channelId=([0-9a-f-]{36})(?:$|[&#])/i);
+    if (channelMatch) return { entityType: "CHANNEL", entityId: channelMatch[1] };
+    const messageMatch = href.match(/[?&]messageId=([0-9a-f-]{36})(?:$|[&#])/i);
+    if (messageMatch) return { entityType: "MESSAGE", entityId: messageMatch[1] };
     return null;
   }
 

@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,26 +14,41 @@ interface MentionDropdownProps {
   items: MentionEntity[];
   onHover: (index: number) => void;
   onSelect: (item: MentionEntity) => void;
+  position: {
+    left: number;
+    top: number;
+    width: number;
+    placement: "top" | "bottom";
+  } | null;
 }
 
 function getTypeClasses(type: MentionEntity["type"]) {
-  return type === "TASK" ? "success" : type === "USER" ? "secondary" : "document";
+  if (type === "TASK") return "default";
+  if (type === "USER") return "secondary";
+  if (type === "DOCUMENT") return "outline";
+  return "outline";
 }
 
 function getGroupedItems(items: MentionEntity[]) {
   const users = items.filter((item) => item.type === "USER");
   const tasks = items.filter((item) => item.type === "TASK");
   const documents = items.filter((item) => item.type === "DOCUMENT");
+  const channels = items.filter((item) => item.type === "CHANNEL" || item.type === "MESSAGE");
+  const commits = items.filter((item) => item.type === "COMMIT");
+  const github = items.filter((item) => item.type.startsWith("GITHUB_"));
 
   return [
     { label: "Users", items: users },
     { label: "Tasks", items: tasks },
     { label: "Documents", items: documents },
+    { label: "Conversation", items: channels },
+    { label: "Commits", items: commits },
+    { label: "GitHub", items: github },
   ].filter((group) => group.items.length > 0);
 }
 
 const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(function MentionDropdown(
-  { activeIndex, items, onHover, onSelect },
+  { activeIndex, items, onHover, onSelect, position },
   ref
 ) {
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -42,18 +58,28 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(functio
     itemRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
 
-  return (
+  if (typeof document === "undefined" || !position) {
+    return null;
+  }
+
+  return createPortal(
     <Card
       ref={ref}
       onMouseDown={(event) => event.preventDefault()}
-      className="absolute left-6 top-10 z-50 w-[22rem] overflow-hidden border-border/70 bg-popover/95 shadow-2xl backdrop-blur-xl"
+      style={{
+        left: position.left,
+        top: position.top,
+        width: position.width,
+      }}
+      data-placement={position.placement}
+      className="fixed z-[80] overflow-hidden border-border/70 bg-popover/95 shadow-2xl backdrop-blur-xl"
     >
       <CardHeader className="flex flex-row items-start justify-between gap-3 border-b">
         <div>
           <CardTitle className="text-sm">Mentions</CardTitle>
           <CardDescription className="mt-1">Pick with arrows and press enter</CardDescription>
         </div>
-        <Badge variant="muted" className="uppercase tracking-[0.14em]">
+        <Badge variant="outline" className="uppercase tracking-[0.14em]">
           {items.length}
         </Badge>
       </CardHeader>
@@ -67,13 +93,14 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(functio
               </p>
               {group.items.map((item) => {
                 const index = items.findIndex(
-                  (candidate) => candidate.id === item.id && candidate.type === item.type
+                  (candidate) =>
+                    candidate.entityId === item.entityId && candidate.type === item.type
                 );
                 const isActive = index === activeIndex;
 
                 return (
                   <Button
-                    key={`${item.type}-${item.id}`}
+                    key={`${item.type}-${item.entityId}`}
                     ref={(node) => {
                       itemRefs.current[index] = node;
                     }}
@@ -88,6 +115,9 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(functio
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{item.label}</p>
+                      {item.preview ? (
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{item.preview}</p>
+                      ) : null}
                       <Badge
                         variant={getTypeClasses(item.type)}
                         className="mt-2 uppercase tracking-[0.14em]"
@@ -108,7 +138,8 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(functio
           </div>
         )}
       </CardContent>
-    </Card>
+    </Card>,
+    document.body
   );
 });
 

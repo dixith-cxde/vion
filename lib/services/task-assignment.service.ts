@@ -64,8 +64,8 @@ export async function notifyTaskAssignment(params: {
     senderId: actorId,
     workspaceId,
     type: "TASK_ASSIGNED",
-    title: "assigned you to",
-    message: "",
+    title: "Task assigned",
+    message: taskTitle,
     entityType: "TASK",
     entityId: taskId,
   });

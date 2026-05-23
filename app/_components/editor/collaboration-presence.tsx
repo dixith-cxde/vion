@@ -35,7 +35,7 @@ export function CollaborationPresence() {
     <TooltipProvider>
       <div className="flex flex-wrap items-center gap-2">
         <Badge
-          variant={status === "connected" || isLocalMode ? "success" : "muted"}
+          variant={status === "connected" || isLocalMode ? "secondary" : "outline"}
           className="h-7 gap-1.5 px-2.5 text-[11px]"
         >
           {status === "connected" || isLocalMode ? (

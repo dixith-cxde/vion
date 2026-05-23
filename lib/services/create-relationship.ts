@@ -1,6 +1,19 @@
 import { prisma } from "@/lib/prisma";
 
-type EntityType = "TASK" | "DOCUMENT" | "MESSAGE" | "COMMIT" | "CHANNEL";
+type EntityType =
+  | "WORKSPACE"
+  | "TASK"
+  | "DOCUMENT"
+  | "MESSAGE"
+  | "COMMIT"
+  | "CHANNEL"
+  | "USER"
+  | "GITHUB_REPOSITORY"
+  | "GITHUB_PULL_REQUEST"
+  | "GITHUB_ISSUE"
+  | "GITHUB_DISCUSSION"
+  | "GITHUB_RELEASE"
+  | "GITHUB_BRANCH";
 
 type CreateRelationshipInput = {
   workspaceId: string;
@@ -17,6 +30,11 @@ async function validateEntity(
   workspaceId: string,
 ) {
   switch (entityType) {
+    case "WORKSPACE":
+      return prisma.workspace.findFirst({
+        where: { id: entityId },
+      });
+
     case "TASK":
       return prisma.task.findFirst({
         where: { id: entityId, workspaceId },
@@ -40,6 +58,24 @@ async function validateEntity(
     case "CHANNEL":
       return prisma.channel.findFirst({
         where: { id: entityId, workspaceId },
+      });
+
+    case "USER":
+      return prisma.workspaceMember.findFirst({
+        where: { workspaceId, userId: entityId },
+      });
+
+    case "GITHUB_REPOSITORY":
+    case "GITHUB_PULL_REQUEST":
+    case "GITHUB_ISSUE":
+    case "GITHUB_DISCUSSION":
+    case "GITHUB_RELEASE":
+    case "GITHUB_BRANCH":
+      return prisma.externalMapping.findFirst({
+        where: {
+          id: entityId,
+          entityType,
+        },
       });
 
     default:

@@ -61,6 +61,7 @@ interface EditorProps {
   documentId: string;
   workspaceId: string;
   initialContent?: Block[];
+  editable?: boolean;
   meta: {
     title: string;
     status: string;
@@ -117,7 +118,7 @@ export default function DocumentEditor(props: EditorProps) {
   );
 }
 
-function Content({ documentId, workspaceId, initialContent, meta }: EditorProps) {
+function Content({ documentId, workspaceId, initialContent, meta, editable = true }: EditorProps) {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const saveErrorShownRef = useRef(false);
@@ -156,6 +157,10 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
   );
 
   useEffect(() => {
+    if (!editable) {
+      return;
+    }
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
@@ -187,7 +192,7 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [collaborativeMeta, workspaceId, documentId, members]);
+  }, [collaborativeMeta, documentId, editable, members, workspaceId]);
 
   const selectedAuthor = useMemo(
     () => members.find((m) => m.user.id === collaborativeMeta.authorId) ?? null,
@@ -201,14 +206,21 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
         {/* Top bar */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <CollaborationPresence />
-          <span
-            className={cn(
-              "text-[11px] font-medium transition-colors duration-300",
-              SAVE_STATE_TEXT[saveState]
-            )}
-          >
-            {SAVE_STATE_LABEL[saveState]}
-          </span>
+          <div className="flex items-center gap-3">
+            {!editable ? (
+              <span className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Read only
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                "text-[11px] font-medium transition-colors duration-300",
+                SAVE_STATE_TEXT[saveState]
+              )}
+            >
+              {SAVE_STATE_LABEL[saveState]}
+            </span>
+          </div>
         </div>
 
         {/* Writing surface */}
@@ -218,12 +230,14 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
               <Input
                 value={collaborativeMeta.title}
                 onChange={(e) => updateMeta({ title: e.target.value })}
+                readOnly={!editable}
                 className="h-auto border-0 p-0 !text-5xl font-bold tracking-tight shadow-none focus-visible:ring-0 rounded-none px-1 bg-inherit"
                 placeholder="Untitled"
               />
               <Textarea
                 value={collaborativeMeta.summary}
                 onChange={(e) => updateMeta({ summary: e.target.value })}
+                readOnly={!editable}
                 rows={1}
                 className="mt-3 min-h-0 resize-none border-0 bg-inherit  p-0 text-base leading-relaxed text-muted-foreground shadow-none focus-visible:ring-0"
                 placeholder="Add a short summary…"
@@ -236,6 +250,7 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
               workspaceId={workspaceId}
               initialContent={initialContent}
               setSaveState={setSaveState}
+              editable={editable}
             />
           </div>
         </ScrollArea>
@@ -252,6 +267,7 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
               <SidebarRow label="Status">
                 <Select
                   value={collaborativeMeta.status}
+                  disabled={!editable}
                   onValueChange={(v) => {
                     if (isDocStatus(v)) updateMeta({ status: v });
                   }}
@@ -278,6 +294,7 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
                   <Input
                     type="number"
                     min="1"
+                    readOnly={!editable}
                     value={String(collaborativeMeta.version)}
                     onChange={(e) =>
                       updateMeta({
@@ -295,6 +312,7 @@ function Content({ documentId, workspaceId, initialContent, meta }: EditorProps)
                   value={collaborativeMeta.authorId}
                   onChange={(id) => updateMeta({ authorId: id })}
                   selectedAuthor={selectedAuthor}
+                  disabled={!editable}
                 />
               </SidebarRow>
 
@@ -334,18 +352,21 @@ function AuthorPicker({
   value,
   onChange,
   selectedAuthor,
+  disabled,
 }: {
   members: WorkspaceMember[];
   value: string;
   onChange: (id: string) => void;
   selectedAuthor: WorkspaceMember | null;
+  disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(nextOpen) => (!disabled ? setOpen(nextOpen) : null)}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
+          disabled={disabled}
           className="h-7 w-full justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-3 text-[11px] font-medium text-emerald-700 shadow-none hover:bg-emerald-100 hover:text-emerald-700"
         >
           <span className="truncate">

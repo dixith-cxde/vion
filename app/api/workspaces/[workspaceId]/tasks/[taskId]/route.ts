@@ -7,6 +7,7 @@ import {
   notifyTaskAssignment,
   resolveWorkspaceAssignee,
 } from "@/lib/services/task-assignment.service";
+import { canDeleteTaskEntity, canEditTaskEntity } from "@/lib/services/permissions.service";
 
 function serializeTask(
   task: {
@@ -81,6 +82,20 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: serializeTask(task),
+      permissions: {
+        canEdit: canEditTaskEntity({
+          role: access.membership.role,
+          userId: access.user.id,
+          createdById: task.createdById,
+          assigneeId: task.assigneeId,
+        }),
+        canDelete: canDeleteTaskEntity({
+          role: access.membership.role,
+          userId: access.user.id,
+          createdById: task.createdById,
+        }),
+        role: access.membership.role,
+      },
     });
   } catch (err) {
     console.error("Task GET error:", err);
@@ -133,6 +148,7 @@ export async function PATCH(
         id: true,
         title: true,
         assigneeId: true,
+        createdById: true,
       },
     });
 
@@ -140,6 +156,23 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: "Task not found in workspace" },
         { status: 404 },
+      );
+    }
+
+    if (
+      !canEditTaskEntity({
+        role: access.membership.role,
+        userId: access.user.id,
+        createdById: existingTask.createdById,
+        assigneeId: existingTask.assigneeId,
+      })
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You do not have permission to edit this task",
+        },
+        { status: 403 },
       );
     }
 
@@ -197,7 +230,7 @@ export async function PATCH(
       taskId: updatedTask.id,
       taskTitle: updatedTask.title,
       workspaceId,
-      actorLabel: access.user.name,
+      actorId: access.user.id,
     });
 
     return NextResponse.json({
@@ -264,12 +297,32 @@ export async function DELETE(
         id: taskId,
         workspaceId,
       },
+      select: {
+        id: true,
+        createdById: true,
+      },
     });
 
     if (!existingTask) {
       return NextResponse.json(
         { success: false, error: "Task not found in workspace" },
         { status: 404 },
+      );
+    }
+
+    if (
+      !canDeleteTaskEntity({
+        role: access.membership.role,
+        userId: access.user.id,
+        createdById: existingTask.createdById,
+      })
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You do not have permission to delete this task",
+        },
+        { status: 403 },
       );
     }
 

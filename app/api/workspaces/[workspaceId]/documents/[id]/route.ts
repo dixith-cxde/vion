@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { updateDocumentSchema } from "@/lib/validators/documents";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
-import { createNotification } from "@/lib/services/notification.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
-import { emitNotificationRemoval } from "@/server/socket/events/notification.events";
+import { syncEntityMentions } from "@/lib/services/entity-mention-sync.service";
+import { canEditDocumentEntity } from "@/lib/services/permissions.service";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
@@ -28,7 +28,7 @@ function extractMentionRefs(value: unknown): MentionRef[] {
 
     if (!node || typeof node !== "object") return;
 
-    const record = node as Record<string, any>;
+    const record = node as Record<string, unknown>;
 
     if (record.type === "link" && typeof record.href === "string") {
       const href: string = record.href;
@@ -65,6 +65,33 @@ function extractMentionRefs(value: unknown): MentionRef[] {
           });
         }
       }
+
+      const graphMatch = href.match(/[?&]entityType=([^&#]+).*?[?&]entityId=([^&#]+)/i);
+      if (graphMatch) {
+        const entityType = decodeURIComponent(graphMatch[1]);
+        const entityId = decodeURIComponent(graphMatch[2]);
+
+        mentions.set(`${entityType}:${entityId}`, {
+          id: entityId,
+          type: entityType,
+        });
+      }
+
+      const channelMatch = href.match(/[?&]channelId=([0-9a-f-]{36})(?:$|[&#])/i);
+      if (channelMatch) {
+        mentions.set(`CHANNEL:${channelMatch[1]}`, {
+          id: channelMatch[1],
+          type: "CHANNEL",
+        });
+      }
+
+      const messageMatch = href.match(/[?&]messageId=([0-9a-f-]{36})(?:$|[&#])/i);
+      if (messageMatch) {
+        mentions.set(`MESSAGE:${messageMatch[1]}`, {
+          id: messageMatch[1],
+          type: "MESSAGE",
+        });
+      }
     }
 
     Object.values(record).forEach(visit);
@@ -90,7 +117,11 @@ export async function PATCH(
   try {
     const resolvedParams = await params;
     const { workspaceId, id } = resolvedParams;
-    await requireWorkspaceAccess(workspaceId);
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json({ success: false, error: access.error }, { status: access.status });
+    }
 
     const currentUser = await getCurrentDBUser();
     const parsedParams = paramsSchema.safeParse({ id });
@@ -126,6 +157,22 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: "Document not found in workspace" },
         { status: 404 }
+      );
+    }
+
+    if (
+      !canEditDocumentEntity({
+        role: access.membership.role,
+        userId: access.user.id,
+        authorId: existingDocument.authorId,
+      })
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You do not have permission to edit this document",
+        },
+        { status: 403 }
       );
     }
 
@@ -180,136 +227,22 @@ export async function PATCH(
     });
 
     if (documentFields.contentJson !== undefined) {
-      const nextMentions = extractMentionRefs(documentFields.contentJson);
+      const nextMentions = extractMentionRefs(documentFields.contentJson).map((mention) => ({
+        entityType: mention.type,
+        entityId: mention.id,
+      }));
 
-      const userMentions = nextMentions.filter((m) => m.type === "USER");
-      const otherMentions = nextMentions.filter((m) => m.type !== "USER");
-
-      // ===== REFERENCES (TASK / DOCUMENT) =====
-      const existingRelationships = await prisma.relationship.findMany({
-        where: {
-          workspaceId,
-          sourceEntityType: "DOCUMENT",
-          sourceEntityId: parsedParams.data.id,
-          relationshipType: "REFERENCES",
-        },
-        select: {
-          id: true,
-          targetEntityId: true,
-          targetEntityType: true,
-        },
+      await syncEntityMentions({
+        workspaceId,
+        sourceEntityType: "DOCUMENT",
+        sourceEntityId: parsedParams.data.id,
+        mentions: nextMentions,
+        actorId: currentUser?.id,
+        notificationEntityType: "DOCUMENT",
+        notificationEntityId: parsedParams.data.id,
+        notificationTitle: "You were mentioned",
+        notificationMessage: `You were mentioned in @${document.title}`,
       });
-
-      const nextKeys = new Set(otherMentions.map((m) => `${m.type}:${m.id}`));
-
-      const existingKeys = new Set(
-        existingRelationships.map((r) => `${r.targetEntityType}:${r.targetEntityId}`)
-      );
-
-      const relationshipIdsToDelete = existingRelationships
-        .filter((r) => !nextKeys.has(`${r.targetEntityType}:${r.targetEntityId}`))
-        .map((r) => r.id);
-
-      const relationshipsToCreate = otherMentions.filter(
-        (m) => !existingKeys.has(`${m.type}:${m.id}`)
-      );
-
-      if (relationshipIdsToDelete.length > 0) {
-        await prisma.relationship.deleteMany({
-          where: { id: { in: relationshipIdsToDelete } },
-        });
-      }
-
-      if (relationshipsToCreate.length > 0) {
-        await prisma.relationship.createMany({
-          data: relationshipsToCreate.map((m) => ({
-            workspaceId,
-            sourceEntityType: "DOCUMENT",
-            sourceEntityId: parsedParams.data.id,
-            targetEntityType: m.type,
-            targetEntityId: m.id,
-            relationshipType: "REFERENCES",
-          })),
-        });
-      }
-
-      // ===== USER MENTIONS =====
-      const existingUserRelationships = await prisma.relationship.findMany({
-        where: {
-          workspaceId,
-          sourceEntityType: "DOCUMENT",
-          sourceEntityId: parsedParams.data.id,
-          relationshipType: "MENTIONS",
-          targetEntityType: "USER",
-        },
-        select: {
-          id: true,
-          targetEntityId: true,
-        },
-      });
-
-      const nextUserIds = new Set(userMentions.map((m) => m.id));
-      const existingUserIds = new Set(existingUserRelationships.map((r) => r.targetEntityId));
-
-      const userRelsToDelete = existingUserRelationships.filter(
-        (r) => !nextUserIds.has(r.targetEntityId)
-      );
-
-      const userMentionsToCreate = userMentions.filter((m) => !existingUserIds.has(m.id));
-
-      // CREATE USER REL + NOTIFICATION
-      for (const m of userMentionsToCreate) {
-        const rel = await prisma.relationship.create({
-          data: {
-            workspaceId,
-            sourceEntityType: "DOCUMENT",
-            sourceEntityId: parsedParams.data.id,
-            targetEntityType: "USER",
-            targetEntityId: m.id,
-            relationshipType: "MENTIONS",
-          },
-        });
-
-        await createNotification({
-          userId: m.id,
-          senderId: currentUser?.id,
-          workspaceId,
-          type: "MENTIONED",
-          title: "You were mentioned",
-          message: `You were mentioned in @${document.title}`,
-          entityType: "DOCUMENT",
-          entityId: parsedParams.data.id,
-        });
-      }
-
-      // DELETE USER REL + NOTIFICATION
-      for (const rel of userRelsToDelete) {
-        // 1. get notification BEFORE deleting
-        const notifications = await prisma.notification.findMany({
-          where: {
-            relationshipId: rel.id,
-          },
-          select: {
-            id: true,
-            userId: true,
-          },
-        });
-
-        // 2. delete notifications
-        await prisma.notification.deleteMany({
-          where: {
-            relationshipId: rel.id,
-          },
-        });
-
-        // 3. emit removal event
-        for (const n of notifications) emitNotificationRemoval({ userId: n.userId, notificationId: n.id });
-
-        // 4. delete relationship
-        await prisma.relationship.deleteMany({
-          where: { id: rel.id },
-        });
-      }
     }
     return NextResponse.json({
       success: true,
