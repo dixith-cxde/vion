@@ -6,6 +6,7 @@ import { Plus, Verified } from "lucide-react";
 
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
 import { WorkspaceSwitcher } from "@/app/_components/ui/workspace-switcher";
+import { CreateWorkspaceDialog } from "@/app/_components/workspace/create-workspace-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,7 +80,7 @@ export function AppWorkspaceSidebar({ pathname }: { pathname: string }) {
             </div>
             {resolvedWorkspace?.role ? (
               <Badge
-                variant="muted"
+                variant="secondary"
                 className="rounded-md px-2 py-0 text-[10px]"
               >
                 {resolvedWorkspace.role}
@@ -122,16 +123,15 @@ export function AppWorkspaceSidebar({ pathname }: { pathname: string }) {
       <SidebarFooter className="px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
         <SidebarMenu className="group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Create Workspace"
-              className="group-data-[collapsible=icon]:justify-center"
-            >
-              <Link href="/workspaces/new">
+            <CreateWorkspaceDialog>
+              <SidebarMenuButton
+                tooltip="Create Workspace"
+                className="group-data-[collapsible=icon]:justify-center"
+              >
                 <Plus />
                 <span>Create workspace</span>
-              </Link>
-            </SidebarMenuButton>
+              </SidebarMenuButton>
+            </CreateWorkspaceDialog>
           </SidebarMenuItem>
         </SidebarMenu>
 

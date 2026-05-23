@@ -57,3 +57,44 @@ export async function requireWorkspaceOwner(params: WorkspacePermissionParams) {
 
   return member;
 }
+
+export function canManageWorkspaceContent(role: WorkspaceRole | string) {
+  return role === WorkspaceRole.OWNER || role === WorkspaceRole.ADMIN;
+}
+
+export function canEditDocumentEntity(params: {
+  role: WorkspaceRole | string;
+  userId: string;
+  authorId: string | null;
+}) {
+  if (canManageWorkspaceContent(params.role)) {
+    return true;
+  }
+
+  return Boolean(params.authorId && params.authorId === params.userId);
+}
+
+export function canEditTaskEntity(params: {
+  role: WorkspaceRole | string;
+  userId: string;
+  createdById: string | null;
+  assigneeId: string | null;
+}) {
+  if (canManageWorkspaceContent(params.role)) {
+    return true;
+  }
+
+  return params.createdById === params.userId || params.assigneeId === params.userId;
+}
+
+export function canDeleteTaskEntity(params: {
+  role: WorkspaceRole | string;
+  userId: string;
+  createdById: string | null;
+}) {
+  if (canManageWorkspaceContent(params.role)) {
+    return true;
+  }
+
+  return Boolean(params.createdById && params.createdById === params.userId);
+}

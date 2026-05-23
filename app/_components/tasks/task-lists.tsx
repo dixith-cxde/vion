@@ -53,13 +53,13 @@ export function TaskList({ tasks, lifecycle }: Props) {
           <CardContent className="space-y-3 pt-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
-                variant="muted"
+                variant="secondary"
                 className="border-none bg-muted px-3 py-1 text-xs font-medium"
               >
                 {formatLifecycle(task.lifecycle)}
               </Badge>
               <Badge
-                variant="muted"
+                variant="secondary"
                 className="border-none bg-muted px-3 py-1 text-xs font-medium"
               >
                 {formatPriority(task.priority)}

@@ -4,6 +4,7 @@ import {
   Bell,
   CheckSquare2,
   Files,
+  FolderGit2,
   LayoutDashboard,
   MessageSquareText,
   Network,
@@ -64,6 +65,11 @@ export function buildSidebarNavigation(
           href: `/workspaces/${workspaceId}/graph`,
           icon: Network,
         },
+        {
+          title: "GitHub",
+          href: `/workspaces/${workspaceId}/github`,
+          icon: FolderGit2,
+        },
       ],
     },
     {
@@ -105,6 +111,7 @@ export function getPageTitle(
     { match: `${workspaceRoot}/tasks`, title: "Tasks" },
     { match: `${workspaceRoot}/chat`, title: "Chat" },
     { match: `${workspaceRoot}/graph`, title: "Graph" },
+    { match: `${workspaceRoot}/github`, title: "GitHub" },
     {
       match: workspaceRoot,
       title: workspaceName ? `${workspaceName} overview` : "Workspace overview",

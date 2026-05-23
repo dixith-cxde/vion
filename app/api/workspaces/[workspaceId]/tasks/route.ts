@@ -119,7 +119,7 @@ export async function POST(
       taskId: task.id,
       taskTitle: task.title,
       workspaceId,
-      actorLabel: user.email,
+      actorId: user.id,
     });
 
     return NextResponse.json(

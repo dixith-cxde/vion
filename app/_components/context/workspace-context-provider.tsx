@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 
@@ -13,6 +13,7 @@ type Workspace = {
 type WorkspaceContextType = {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
+  reloadWorkspaces: () => Promise<void>;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
@@ -29,28 +30,30 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/workspaces");
-        if (!res.ok) {
-          throw new Error("Failed to load workspaces");
-        }
-        const data = await res.json();
-
-        setWorkspaces(data);
-      } catch (err) {
-        console.error("Failed to load workspaces", err);
-        toast({
-          title: "Unable to load workspaces",
-          description: "Refresh the page and try again.",
-          variant: "destructive",
-        });
+  const reloadWorkspaces = useCallback(async () => {
+    try {
+      const res = await fetch("/api/workspaces");
+      if (!res.ok) {
+        throw new Error("Failed to load workspaces");
       }
-    }
+      const data = await res.json();
 
-    void load();
+      setWorkspaces(data);
+    } catch (err) {
+      console.error("Failed to load workspaces", err);
+      toast({
+        title: "Unable to load workspaces",
+        description: "Refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
   }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void reloadWorkspaces();
+    });
+  }, [reloadWorkspaces]);
 
   useEffect(() => {
     const shouldRedirectToDefaultWorkspace =
@@ -72,7 +75,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [currentWorkspaceId, workspaces]);
 
   return (
-    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, reloadWorkspaces }}>
       {children}
     </WorkspaceContext.Provider>
   );

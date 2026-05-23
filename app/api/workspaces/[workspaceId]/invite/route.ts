@@ -92,7 +92,7 @@ export async function POST(
         senderId: userId,
         type: "INVITE_RECEIVED",
         title: "Workspace Invitation",
-        message: "You have been invited to a workspace",
+        message: `You have been invited to join this workspace as ${role}.`,
         workspaceId,
         entityId: invite.id,
       });

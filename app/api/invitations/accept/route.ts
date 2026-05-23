@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       userId,
       type: "INVITE_RECEIVED",
       title: "Joined Workspace",
-      message: "You have joined the workspace",
+      message: "You joined the workspace and were added to collaborative channels.",
       workspaceId: invite.workspaceId,
     });
 

@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const createChannelSchema = z.object({
   workspaceId: z.string().min(1),
   name: z.string().min(1).max(100),
+  description: z.string().max(280).optional(),
+  topic: z.string().max(120).optional(),
   type: z.enum(['GROUP']),
   visibility: z.enum(['PUBLIC', 'PRIVATE']),
   memberIds: z.array(z.string()).default([]),
