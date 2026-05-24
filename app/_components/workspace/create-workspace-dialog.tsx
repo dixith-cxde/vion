@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Layers3, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
 import { Button } from "@/components/ui/button";
@@ -89,30 +89,22 @@ export function CreateWorkspaceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
 
-      <DialogContent className="border-0 bg-background p-0 shadow-none sm:max-w-xl">
-        <div className="border-b border-border/60 px-6 py-5">
-          <DialogHeader className="space-y-4 text-left">
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
-                  <Layers3 className="size-3.5" />
-                  Workspace
-                </div>
-                <DialogTitle className="text-xl font-semibold">Create workspace</DialogTitle>
-                <DialogDescription className="mt-1 text-sm leading-6">
-                  Name the workspace and create it.
-                </DialogDescription>
-              </div>
-            </div>
+      <DialogContent className="border-0 bg-background p-0 shadow-none sm:max-w-2xl">
+        <div className="px-6 pb-6 pt-5 sm:px-8">
+          <DialogHeader className="space-y-2 text-left">
+            <DialogTitle className="text-xl font-semibold tracking-tight">
+              Create workspace
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Enter a name to get started.
+            </DialogDescription>
           </DialogHeader>
-        </div>
 
-        <div className="space-y-6 px-6 py-6">
-          <div className="space-y-3">
-            <Label htmlFor="workspace-name" className="text-sm font-medium">
+          <div className="mt-6 space-y-3">
+            <Label htmlFor="workspace-name" className="text-sm font-medium text-foreground">
               Workspace name
             </Label>
             <Input
@@ -129,23 +121,12 @@ export function CreateWorkspaceDialog({
               disabled={isPending}
               maxLength={120}
               autoFocus
-              className="h-12 rounded-lg border-0 bg-white ring-1 ring-slate-200 shadow-none focus-visible:ring-1 focus-visible:ring-violet-300"
+              className="h-12 rounded-lg border-0 bg-violet-50/70 px-4 shadow-none ring-1 ring-violet-100 focus-visible:ring-2 focus-visible:ring-violet-300"
             />
-            <p className="text-xs leading-5 text-muted-foreground">
-              Documents, tasks, channels, and GitHub context will live inside this workspace.
-            </p>
-          </div>
-
-          <div className="border-l border-violet-200 pl-4">
-            <p className="text-sm font-medium text-slate-900">Default access</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">
-              Document and task access currently follows workspace membership roles. Per-entity role
-              policies are not wired in this build yet.
-            </p>
           </div>
         </div>
 
-        <DialogFooter className="border-t border-border/60 px-6 py-4">
+        <DialogFooter className="px-6 pb-6 sm:px-8">
           <Button variant="ghost" disabled={isPending} onClick={() => setOpen(false)}>
             Cancel
           </Button>

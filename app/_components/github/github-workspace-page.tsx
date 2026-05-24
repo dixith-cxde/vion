@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { useGithubEntity } from "@/lib/hooks/use-github-entity";
@@ -393,17 +394,17 @@ export function GithubWorkspacePage({
                   relationships share the same code context.
                 </p>
               </div>
-                <div className="flex flex-col gap-3 xl:flex-row">
+                <div className="flex flex-col gap-2 xl:flex-row">
                   <Input
                     value={repositoryInput}
                     onChange={(event) => setRepositoryInput(event.target.value)}
                     placeholder={linkedRepositoryName || "owner/repo"}
-                    className="rounded-lg border-0 bg-white ring-1 ring-slate-200 shadow-none focus-visible:ring-1 focus-visible:ring-violet-300"
+                    className="h-10 rounded-lg border-0 bg-slate-100/80 ring-1 ring-slate-200 shadow-none focus-visible:ring-1 focus-visible:ring-violet-300"
                   />
                   <Button
                     onClick={() => void handleConnectRepository()}
                     disabled={isConnectingRepository}
-                    className="rounded-lg bg-violet-600 hover:bg-violet-700"
+                    className="h-10 rounded-lg bg-violet-600 hover:bg-violet-700"
                   >
                     {isConnectingRepository ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -416,7 +417,7 @@ export function GithubWorkspacePage({
                     variant="outline"
                     onClick={() => void handleLinkAllRepositories()}
                     disabled={isLinkingAll || isConnectingRepository || data.repositories.length === 0}
-                    className="rounded-lg border-0 bg-sky-50 text-sky-700 shadow-none hover:bg-sky-100 hover:text-sky-800"
+                    className="h-10 rounded-lg border-0 bg-sky-100/80 text-sky-700 shadow-none hover:bg-sky-200/80 hover:text-sky-800"
                   >
                     {isLinkingAll ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -427,21 +428,25 @@ export function GithubWorkspacePage({
                   </Button>
                 </div>
 
-                <div className="border-l border-emerald-200 pl-4 text-sm text-muted-foreground">
+                <div className="rounded-lg bg-emerald-50/80 px-4 py-2 text-sm text-muted-foreground">
                   Primary repository: {data.linkedRepository.fullName ?? "Not set"}
                 </div>
 
                 {data.linkedRepositories.length ? (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {data.linkedRepositories.map((connection) => (
-                      <LinkedRepositoryCard
-                        key={connection.id}
-                        workspaceId={workspaceId}
-                        connection={connection}
-                        isDisconnectingRepository={isDisconnectingRepository}
-                        onDisconnect={() => void handleDisconnectRepository(connection.repositoryFullName)}
-                      />
-                    ))}
+                  <div className="rounded-lg bg-slate-100/85 p-3">
+                    <ScrollArea className="h-[240px] pr-3">
+                      <div className="space-y-2">
+                        {data.linkedRepositories.map((connection) => (
+                          <LinkedRepositoryCard
+                            key={connection.id}
+                            workspaceId={workspaceId}
+                            connection={connection}
+                            isDisconnectingRepository={isDisconnectingRepository}
+                            onDisconnect={() => void handleDisconnectRepository(connection.repositoryFullName)}
+                          />
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                 ) : null}
 
@@ -467,6 +472,7 @@ export function GithubWorkspacePage({
                     title="Active pull requests"
                     description="Recently updated PRs across the connected account."
                     emptyMessage="No pull requests found."
+                    scrollHeightClassName="h-[320px]"
                   >
                     {data.pullRequests.map((pullRequest) => (
                       <PullRequestRow
@@ -481,6 +487,7 @@ export function GithubWorkspacePage({
                     title="Active issues"
                     description="Recently updated issues across the connected account."
                     emptyMessage="No issues found."
+                    scrollHeightClassName="h-[320px]"
                   >
                     {data.issues.map((issue) => (
                       <IssueRow
@@ -500,6 +507,7 @@ export function GithubWorkspacePage({
                       : "Connect a repository to see branches, releases, discussions, and commits."
                   }
                   emptyMessage="No linked repository activity yet."
+                  scrollHeightClassName="h-[360px]"
                 >
                   {data.linkedRepositoryData?.commits.map((commit) => (
                     <CommitRow key={commit.sha} commit={commit} />
@@ -518,16 +526,20 @@ export function GithubWorkspacePage({
                     </p>
                   </div>
                     {data.repositories.length > 0 ? (
-                      <div className="grid gap-4 xl:grid-cols-2">
-                        {data.repositories.map((repository) => (
-                          <RepositoryRow
-                            key={repository.id}
-                            workspaceId={workspaceId}
-                            repository={repository}
-                            isLinked={linkedRepositoryNames.has(repository.fullName)}
-                            onLink={() => void handleConnectRepository(repository.fullName)}
-                          />
-                        ))}
+                      <div className="rounded-lg bg-slate-100/85 p-3">
+                        <ScrollArea className="h-[460px] pr-3">
+                          <div className="space-y-2">
+                            {data.repositories.map((repository) => (
+                              <RepositoryRow
+                                key={repository.id}
+                                workspaceId={workspaceId}
+                                repository={repository}
+                                isLinked={linkedRepositoryNames.has(repository.fullName)}
+                                onLink={() => void handleConnectRepository(repository.fullName)}
+                              />
+                            ))}
+                          </div>
+                        </ScrollArea>
                       </div>
                     ) : (
                       <div className="text-sm text-muted-foreground">No repositories available.</div>
@@ -539,8 +551,9 @@ export function GithubWorkspacePage({
                 <EntityCard
                   title="Pull requests"
                   description="GitHub pull request activity resolved from the signed-in user."
-                    emptyMessage="No pull requests found."
-                  >
+                  emptyMessage="No pull requests found."
+                  scrollHeightClassName="h-[520px]"
+                >
                     {data.pullRequests.map((pullRequest) => (
                       <PullRequestRow
                         key={`${pullRequest.repositoryFullName}-${pullRequest.number}`}
@@ -555,8 +568,9 @@ export function GithubWorkspacePage({
                 <EntityCard
                   title="Issues"
                   description="GitHub issue activity resolved from the signed-in user."
-                    emptyMessage="No issues found."
-                  >
+                  emptyMessage="No issues found."
+                  scrollHeightClassName="h-[520px]"
+                >
                     {data.issues.map((issue) => (
                       <IssueRow
                         key={`${issue.repositoryFullName}-${issue.number}`}
@@ -574,6 +588,7 @@ export function GithubWorkspacePage({
                       title="Branches"
                       description="Current branch set from the workspace-linked repository."
                       emptyMessage="No branches found."
+                      scrollHeightClassName="h-[280px]"
                     >
                       {linkedRepositoryData.branches.map((branch) => (
                         <BranchRow key={branch.name} branch={branch} />
@@ -585,6 +600,7 @@ export function GithubWorkspacePage({
                         title="Releases"
                         description="Published releases from the linked repository."
                         emptyMessage="No releases found."
+                        scrollHeightClassName="h-[280px]"
                       >
                         {linkedRepositoryData.releases.map((release) => (
                           <ReleaseRow
@@ -600,6 +616,7 @@ export function GithubWorkspacePage({
                         title="Discussions"
                         description="Recent repository discussions."
                         emptyMessage="No discussions found."
+                        scrollHeightClassName="h-[280px]"
                       >
                         {linkedRepositoryData.discussions.map((discussion) => (
                           <DiscussionRow
@@ -616,6 +633,7 @@ export function GithubWorkspacePage({
                       title="Recent commits"
                       description="Fresh commit flow from the linked repository."
                       emptyMessage="No commits found."
+                      scrollHeightClassName="h-[360px]"
                     >
                       {linkedRepositoryData.commits.map((commit) => (
                         <CommitRow key={commit.sha} commit={commit} />
@@ -686,8 +704,9 @@ function LinkedRepositoryCard({
   onDisconnect: () => void;
 }) {
   return (
-    <div className="space-y-4 border-b border-border/60 py-4">
-        <div className="space-y-2">
+    <div className="rounded-lg bg-white/75 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="truncate text-sm font-semibold text-foreground">
               {connection.repositoryFullName}
@@ -698,35 +717,27 @@ function LinkedRepositoryCard({
               </Badge>
             ) : null}
             {connection.isPrivate ? (
-              <Badge variant="outline" className="rounded-md border-slate-200 px-2 py-0 text-[10px]">
+              <Badge variant="outline" className="rounded-md border-slate-200 bg-white/70 px-2 py-0 text-[10px]">
                 Private
               </Badge>
             ) : null}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {connection.repositoryOwner} / {connection.repositoryName}
           </div>
           <div className="text-xs text-muted-foreground">
             {connection.syncStatus.toLowerCase()} · synced {formatRelativeDate(connection.lastSyncedAt)}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-          <div>
-            <div className="font-medium text-foreground">Owner</div>
-            <div className="mt-1 truncate">{connection.repositoryOwner}</div>
-          </div>
-          <div>
-            <div className="font-medium text-foreground">Repository</div>
-            <div className="mt-1 truncate">{connection.repositoryName}</div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild className="rounded-lg border-0 bg-slate-100 shadow-none hover:bg-slate-200">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg border-0 bg-slate-200/80 px-3 shadow-none hover:bg-slate-300/80">
             <Link href={`/workspaces/${workspaceId}/github/repositories/${connection.repositoryFullName}`}>
               <FolderGit2 className="size-3.5" />
               Open
             </Link>
           </Button>
-          <Button variant="outline" size="sm" onClick={onDisconnect} disabled={isDisconnectingRepository} className="rounded-lg border-0 bg-rose-50 text-rose-700 shadow-none hover:bg-rose-100 hover:text-rose-800">
+          <Button variant="outline" size="sm" onClick={onDisconnect} disabled={isDisconnectingRepository} className="h-8 rounded-lg border-0 bg-rose-100/80 px-3 text-rose-700 shadow-none hover:bg-rose-200/80 hover:text-rose-800">
             {isDisconnectingRepository ? (
               <LoaderCircle className="size-3.5 animate-spin" />
             ) : (
@@ -735,6 +746,7 @@ function LinkedRepositoryCard({
             Disconnect
           </Button>
         </div>
+      </div>
     </div>
   );
 }
@@ -744,25 +756,29 @@ function EntityCard({
   description,
   emptyMessage,
   children,
+  scrollHeightClassName = "h-[360px]",
 }: {
   title: string;
   description: string;
   emptyMessage: string;
   children: React.ReactNode;
+  scrollHeightClassName?: string;
 }) {
   const items = Array.isArray(children) ? children.filter(Boolean) : [children].filter(Boolean);
 
   return (
-    <section className="space-y-4 border-t border-border/60 pt-5">
+    <section className="space-y-4 rounded-lg bg-slate-100/85 p-4">
       <div>
         <h3 className="text-base font-semibold tracking-tight text-slate-950">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-        {items.length > 0 ? (
-          <div className="divide-y">{items}</div>
-        ) : (
-          <div className="py-4 text-sm text-muted-foreground">{emptyMessage}</div>
-        )}
+      {items.length > 0 ? (
+        <ScrollArea className={`${scrollHeightClassName} pr-3`}>
+          <div className="space-y-2">{items}</div>
+        </ScrollArea>
+      ) : (
+        <div className="py-4 text-sm text-muted-foreground">{emptyMessage}</div>
+      )}
     </section>
   );
 }
@@ -907,8 +923,9 @@ function RepositoryRow({
   onLink: () => void;
 }) {
   return (
-    <div className="space-y-4 border-b border-border/60 py-4">
-        <div className="space-y-2">
+    <div className="rounded-lg bg-white/75 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="truncate text-sm font-semibold text-foreground">{repository.fullName}</div>
             {isLinked ? (
@@ -917,55 +934,43 @@ function RepositoryRow({
               </Badge>
             ) : null}
             {repository.private ? (
-              <Badge variant="outline" className="rounded-md border-slate-200 px-2 py-0 text-[10px]">
+              <Badge variant="outline" className="rounded-md border-slate-200 bg-white/70 px-2 py-0 text-[10px]">
                 Private
               </Badge>
             ) : null}
           </div>
-          <div className="line-clamp-2 text-sm leading-6 text-muted-foreground">
+          <div className="line-clamp-1 text-sm text-muted-foreground">
             {repository.description ?? "No description"}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-          <div>
-            <div className="font-medium text-foreground">Language</div>
-            <div className="mt-1">{repository.language ?? "Unspecified"}</div>
-          </div>
-          <div>
-            <div className="font-medium text-foreground">Updated</div>
-            <div className="mt-1">{formatRelativeDate(repository.updatedAt)}</div>
-          </div>
-          <div>
-            <div className="font-medium text-foreground">Stars</div>
-            <div className="mt-1">{repository.stargazers}</div>
-          </div>
-          <div>
-            <div className="font-medium text-foreground">Forks</div>
-            <div className="mt-1">{repository.forks}</div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>{repository.language ?? "Unspecified"}</span>
+            <span>Updated {formatRelativeDate(repository.updatedAt)}</span>
+            <span>{repository.stargazers} stars</span>
+            <span>{repository.forks} forks</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild className="rounded-lg border-0 bg-slate-100 shadow-none hover:bg-slate-200">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg border-0 bg-slate-200/80 px-3 shadow-none hover:bg-slate-300/80">
             <Link href={`/workspaces/${workspaceId}/github/repositories/${repository.fullName}`}>
               <FolderGit2 className="size-3.5" />
               Details
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild className="rounded-lg border-0 bg-sky-50 text-sky-700 shadow-none hover:bg-sky-100 hover:text-sky-800">
+          <Button variant="outline" size="sm" asChild className="h-8 rounded-lg border-0 bg-sky-100/80 px-3 text-sky-700 shadow-none hover:bg-sky-200/80 hover:text-sky-800">
             <a href={repository.url} target="_blank" rel="noreferrer">
               <ArrowUpRight className="size-3.5" />
               Open
             </a>
           </Button>
           {!isLinked ? (
-            <Button size="sm" onClick={onLink} className="rounded-lg bg-violet-600 hover:bg-violet-700">
+            <Button size="sm" onClick={onLink} className="h-8 rounded-lg bg-violet-600 px-3 hover:bg-violet-700">
               <Link2 className="size-3.5" />
               Link
             </Button>
           ) : null}
         </div>
+      </div>
     </div>
   );
 }

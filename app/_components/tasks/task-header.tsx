@@ -25,7 +25,9 @@ export function TasksHeader({ tasks, doneCount, inProgressCount, onCreateTask }:
             </span>
           </div>
 
-          <h1 className="text-5xl font-black tracking-[-0.06em] text-foreground">Tasks</h1>
+          <h1 className="text-5xl font-black tracking-[-0.06em] text-foreground uppercase">
+            Tasks
+          </h1>
 
           <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
             Operational task management and workflow tracking across the workspace.

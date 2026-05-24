@@ -2,13 +2,7 @@
 
 import { useDeferredValue, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowUpRight,
-  FileText,
-  LoaderCircle,
-  Plus,
-  Search,
-} from "lucide-react";
+import { ArrowUpRight, FileText, LoaderCircle, Plus, Search } from "lucide-react";
 import { useWorkspace } from "@/app/_components/context/workspace-context-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,9 +63,7 @@ export default function DocumentsPage() {
     async function fetch_() {
       if (!activeWorkspace) return;
       try {
-        const res = await fetch(
-          `/api/workspaces/${activeWorkspace.id}/documents`,
-        );
+        const res = await fetch(`/api/workspaces/${activeWorkspace.id}/documents`);
         if (!res.ok) throw new Error();
         const json = (await res.json()) as { data: Document[] };
         setDocuments(json.data ?? []);
@@ -91,23 +83,18 @@ export default function DocumentsPage() {
     if (!activeWorkspace || creating) return;
     setCreating(true);
     try {
-      const res = await fetch(
-        `/api/workspaces/${activeWorkspace.id}/documents`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: "Untitled" }),
-        },
-      );
+      const res = await fetch(`/api/workspaces/${activeWorkspace.id}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Untitled" }),
+      });
       if (!res.ok) throw new Error();
       const json = (await res.json()) as {
         success: boolean;
         data?: { id: string };
       };
       if (!json.success || !json.data?.id) throw new Error();
-      router.push(
-        `/workspaces/${activeWorkspace.id}/documents/${json.data.id}`,
-      );
+      router.push(`/workspaces/${activeWorkspace.id}/documents/${json.data.id}`);
     } catch {
       toast({ title: "Document creation failed", variant: "destructive" });
       setCreating(false);
@@ -117,10 +104,7 @@ export default function DocumentsPage() {
   const q = deferredSearch.trim().toLowerCase();
   const filtered = documents
     .filter((d) => d.title.toLowerCase().includes(q))
-    .sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   if (loading) {
     return (
@@ -137,18 +121,13 @@ export default function DocumentsPage() {
       <div className="border-b px-6 py-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Documents</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground pb-1.5">
               {activeWorkspace?.name} · {documents.length} document
               {documents.length !== 1 ? "s" : ""}
             </p>
+            <h1 className="text-4xl font-bold uppercase">Documents</h1>
           </div>
-          <Button
-            onClick={handleCreate}
-            disabled={creating}
-            size="sm"
-            className="rounded-full"
-          >
+          <Button onClick={handleCreate} disabled={creating} size="sm" className="rounded-full">
             <Plus className="size-3.5" />
             {creating ? "Opening…" : "New"}
           </Button>
@@ -169,11 +148,7 @@ export default function DocumentsPage() {
       {/* List */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {filtered.length === 0 ? (
-          <EmptyState
-            hasSearch={!!q}
-            onCreate={handleCreate}
-            creating={creating}
-          />
+          <EmptyState hasSearch={!!q} onCreate={handleCreate} creating={creating} />
         ) : (
           <div className="space-y-1">
             {filtered.map((doc, i) => (
@@ -182,9 +157,7 @@ export default function DocumentsPage() {
                 doc={doc}
                 isLatest={i === 0 && !q}
                 onClick={() =>
-                  router.push(
-                    `/workspaces/${activeWorkspace?.id}/documents/${doc.id}`,
-                  )
+                  router.push(`/workspaces/${activeWorkspace?.id}/documents/${doc.id}`)
                 }
               />
             ))}
@@ -218,9 +191,7 @@ function DocumentCard({
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium text-foreground">
-            {doc.title}
-          </p>
+          <p className="truncate text-sm font-medium text-foreground">{doc.title}</p>
           {isLatest && (
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               Latest
@@ -229,16 +200,14 @@ function DocumentCard({
         </div>
 
         {doc.summary && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-            {doc.summary}
-          </p>
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{doc.summary}</p>
         )}
 
         <div className="mt-1.5 flex items-center gap-2">
           <span
             className={cn(
               "rounded-md px-2 py-0.5 text-[10px] font-medium",
-              STATUS_CLASS[doc.status] ?? "bg-zinc-100 text-zinc-500",
+              STATUS_CLASS[doc.status] ?? "bg-zinc-100 text-zinc-500"
             )}
           >
             {doc.status.charAt(0) + doc.status.slice(1).toLowerCase()}
@@ -250,9 +219,7 @@ function DocumentCard({
             Updated {timeAgo(doc.updatedAt)}
           </span>
           <span className="text-[11px] text-muted-foreground/40">·</span>
-          <span className="text-[11px] text-muted-foreground/60">
-            {formatDate(doc.createdAt)}
-          </span>
+          <span className="text-[11px] text-muted-foreground/60">{formatDate(doc.createdAt)}</span>
         </div>
       </div>
 
@@ -278,17 +245,10 @@ function EmptyState({
         {hasSearch ? "No matching documents" : "No documents yet"}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        {hasSearch
-          ? "Try a different search term."
-          : "Create a document to start."}
+        {hasSearch ? "Try a different search term." : "Create a document to start."}
       </p>
       {!hasSearch && (
-        <Button
-          onClick={onCreate}
-          disabled={creating}
-          size="sm"
-          className="mt-4 rounded-full"
-        >
+        <Button onClick={onCreate} disabled={creating} size="sm" className="mt-4 rounded-full">
           <Plus className="size-3.5" />
           Create first document
         </Button>
