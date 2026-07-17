@@ -12,7 +12,7 @@ export default function WorkspaceNotificationPage() {
   const workspaceId = params.workspaceId;
 
   return (
-    <div className="px-3 py-4 md:px-4 md:py-5">
+    <div className="px-3 py-4 md:px-4 md:py-5 overflow-auto">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <Button
