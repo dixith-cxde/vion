@@ -8,7 +8,6 @@ import { Toaster } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { QueryProvider } from "./_components/provider/query-provider";
-import { SocketProvider } from "./_components/provider/socket-provider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -29,7 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <ClerkProvider>
           <QueryProvider>
-            <SocketProvider />
             <TooltipProvider>{children}</TooltipProvider>
           </QueryProvider>
         </ClerkProvider>

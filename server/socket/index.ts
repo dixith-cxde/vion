@@ -9,13 +9,9 @@ export function registerSocketServer(httpServer: HTTPServer) {
   io.use(socketAuthMiddleware);
 
   io.on("connection", (socket) => {
-    console.log(`Socket connected: ${socket.id}`);
-
     const userId = socket.data.userId;
     if (userId) {
-      const room = getUserRoom(userId);
-      socket.join(room);
-      console.log("JOINING ROOM:", room);
+      socket.join(getUserRoom(userId));
     }
 
     registerSocketHandlers(io, socket);

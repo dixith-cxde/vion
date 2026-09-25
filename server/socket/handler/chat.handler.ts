@@ -115,8 +115,17 @@ function removeUserFromChannelState(io: TypedSocketServer, channelId: string, us
 export function registerChatHandler(io: TypedSocketServer, socket: AuthenticatedSocket) {
   const state = getSocketState(socket.id);
 
-  socket.on("workspace:join", ({ workspaceId }) => {
+  socket.on("workspace:join", async ({ workspaceId }) => {
     if (state.workspaces.has(workspaceId)) {
+      return;
+    }
+
+    const member = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: socket.data.userId } },
+      select: { id: true },
+    });
+
+    if (!member) {
       return;
     }
 
@@ -143,6 +152,26 @@ export function registerChatHandler(io: TypedSocketServer, socket: Authenticated
       return;
     }
 
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { id: true, workspaceId: true },
+    });
+
+    if (!channel) {
+      return;
+    }
+
+    const member = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: channel.workspaceId, userId: socket.data.userId },
+      },
+      select: { id: true },
+    });
+
+    if (!member) {
+      return;
+    }
+
     socket.join(getChannelRoom(channelId));
     state.channels.add(channelId);
     incrementPresenceCounter(channelPresence, channelId, socket.data.userId);
@@ -162,6 +191,10 @@ export function registerChatHandler(io: TypedSocketServer, socket: Authenticated
   });
 
   socket.on("typing:start", async ({ channelId }) => {
+    if (!state.channels.has(channelId)) {
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: {
         id: socket.data.userId,
@@ -187,6 +220,10 @@ export function registerChatHandler(io: TypedSocketServer, socket: Authenticated
   });
 
   socket.on("typing:stop", async ({ channelId }) => {
+    if (!state.channels.has(channelId)) {
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: {
         id: socket.data.userId,

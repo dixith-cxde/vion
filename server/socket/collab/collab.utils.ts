@@ -8,7 +8,7 @@ export const messageSync = 0;
 export const messageAwareness = 1;
 export const messageQueryAwareness = 3;
 
-export function createSyncMessage(doc: Y.Doc, write: (encoder: encoding.Encoder) => void) {
+export function createSyncMessage(_doc: Y.Doc, write: (encoder: encoding.Encoder) => void) {
   const encoder = encoding.createEncoder();
 
   encoding.writeVarUint(encoder, messageSync);
