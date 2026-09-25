@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { requireChannelAccess } from "@/lib/channel-access";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { sendMessage, getChannelMessages } from "@/lib/services/message.service";
 import { sendMessageSchema, getChannelMessagesSchema } from "@/lib/validators/message.validator";
@@ -32,6 +33,15 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const { channelId } = await params;
+
+    const channelAccess = await requireChannelAccess(channelId);
+
+    if ("error" in channelAccess) {
+      return NextResponse.json(
+        { error: channelAccess.error },
+        { status: channelAccess.status }
+      );
+    }
 
     const body = await request.json();
 
@@ -88,14 +98,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   } catch (err) {
     console.error("ERROR_SENDING_MESSAGE", err);
 
-    return NextResponse.json(
-      {
-        error: "Failed to send message",
-      },
-      {
-        status: 500,
-      }
-    );
+    const message = err instanceof Error ? err.message : "Failed to send message";
+    const status =
+      message === "User is not a member of this channel." ? 403
+      : message === "Channel not found." || message === "Parent message not found." ? 404
+      : 500;
+
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -115,6 +124,15 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     const { channelId } = await params;
+
+    const channelAccess = await requireChannelAccess(channelId);
+
+    if ("error" in channelAccess) {
+      return NextResponse.json(
+        { error: channelAccess.error },
+        { status: channelAccess.status }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
 

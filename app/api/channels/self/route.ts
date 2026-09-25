@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireWorkspaceAccess } from '@/lib/workspace-access';
 import { getCurrentDBUser } from '@/lib/services/user.service';
 import { createSelfChannel } from '@/lib/services/channel.service';
 import { emitChannelCreated } from '@/lib/socket/chat.events';
@@ -19,6 +20,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { workspaceId } = parsed.data;
+
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+
     const channel = await createSelfChannel({
       workspaceId,
       userId: currentUser.id,

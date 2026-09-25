@@ -15,7 +15,7 @@ export const sendMessageSchema = z.object({
   content: z.string().trim().min(1).max(4000),
   contentJson: z.custom<Block[]>().optional(),
   parentId: z.string().optional(),
-  type: z.nativeEnum(MessageType).optional(),
+  type: z.literal(MessageType.TEXT).optional(),
   attachments: z.array(attachmentSchema).max(10).optional(),
 });
 

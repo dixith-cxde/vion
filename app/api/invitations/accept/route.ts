@@ -47,6 +47,10 @@ export async function POST(req: Request) {
     }
 
     if (invite.expiresAt < new Date()) {
+      await prisma.invitation.update({
+        where: { id: invite.id },
+        data: { status: InvitationStatus.EXPIRED },
+      });
       return NextResponse.json({ success: false, message: "Invitation expired" }, { status: 400 });
     }
 
@@ -96,12 +100,16 @@ export async function POST(req: Request) {
           relationshipType: "MEMBER_OF",
         },
       });
+    });
 
+    try {
       await addUserToWorkspacePublicChannels({
         workspaceId: invite.workspaceId,
         userId,
       });
-    });
+    } catch (err) {
+      console.error("ACCEPT_INVITE_CHANNEL_JOIN_FAILED", err);
+    }
 
     await createNotification({
       userId,

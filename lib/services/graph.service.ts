@@ -1,6 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { resolveEntityLabels } from "./entity-resolve.service";
 
+type GraphNode = {
+  id: string;
+  type: string;
+  label: string;
+};
+
+type GraphEdge = {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+};
+
 export async function getWorkspaceGraph(workspaceId: string) {
   const relationships = await prisma.relationship.findMany({
     where: { workspaceId },
@@ -9,8 +22,8 @@ export async function getWorkspaceGraph(workspaceId: string) {
   // Resolve labels using same system as dashboard
   const resolved = await resolveEntityLabels(relationships);
 
-  const nodesMap = new Map<string, any>();
-  const edges: any[] = [];
+  const nodesMap = new Map<string, GraphNode>();
+  const edges: GraphEdge[] = [];
 
   resolved.forEach((rel) => {
     const sourceKey = `${rel.sourceEntityType}-${rel.sourceEntityId}`;

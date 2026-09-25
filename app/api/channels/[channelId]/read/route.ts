@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireChannelAccess } from "@/lib/channel-access";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { getChannelSummaryForUser, markChannelRead } from "@/lib/services/channel.service";
 import { emitChannelRead, emitChannelUpdated } from "@/lib/socket/chat.events";
@@ -24,6 +25,13 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const { channelId } = await params;
+
+    const channelAccess = await requireChannelAccess(channelId);
+
+    if ("error" in channelAccess) {
+      return NextResponse.json({ error: channelAccess.error }, { status: channelAccess.status });
+    }
+
     const body = await request.json();
     const parsed = markChannelReadSchema.safeParse(body);
 

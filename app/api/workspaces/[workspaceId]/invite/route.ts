@@ -1,8 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { WorkspaceRole } from "@/lib/generated/prisma/enums";
 import { createNotification } from "@/lib/services/notification.service";
 import { requireWorkspaceAdmin } from "@/lib/services/permissions.service";
 import { getCurrentDBUser } from "@/lib/services/user.service";
+
+const inviteSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  role: z.nativeEnum(WorkspaceRole).default(WorkspaceRole.MEMBER),
+});
 
 export async function POST(
   req: Request,
@@ -21,20 +28,19 @@ export async function POST(
 
     const userId = user.id;
 
-    // Permission guard
     await requireWorkspaceAdmin(workspaceId, userId);
 
-    // Parse request
-    const { email, role } = await req.json();
+    const parsed = inviteSchema.safeParse(await req.json());
 
-    if (!email) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, message: "Email required" },
+        { success: false, message: parsed.error.message },
         { status: 400 },
       );
     }
 
-    // Prevent duplicate membership
+    const { email, role } = parsed.data;
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -57,7 +63,6 @@ export async function POST(
       }
     }
 
-    // Prevent duplicate invite
     const existingInvite = await prisma.invitation.findFirst({
       where: {
         workspaceId,
@@ -73,7 +78,6 @@ export async function POST(
       );
     }
 
-    // Create invitation
     const invite = await prisma.invitation.create({
       data: {
         workspaceId,
@@ -83,9 +87,16 @@ export async function POST(
         token: crypto.randomUUID(),
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
       },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        expiresAt: true,
+        createdAt: true,
+      },
     });
 
-    // Notification (only if user exists)
     if (existingUser) {
       await createNotification({
         userId: existingUser.id,
@@ -110,6 +121,9 @@ export async function POST(
       return NextResponse.json({ success: false, message }, { status: 403 });
     }
 
-    return NextResponse.json({ success: false, message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@/lib/generated/prisma/client";
 
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 
 import { createChannel, getWorkspaceChannels } from "@/lib/services/channel.service";
@@ -7,7 +9,6 @@ import { emitChannelCreated } from "@/lib/socket/chat.events";
 
 import { createChannelSchema } from "@/lib/validators/channel";
 
-// -- GET CHANNELS ---------------------------------------------
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,6 +43,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+
     const channels = await getWorkspaceChannels({
       workspaceId,
       userId: currentUser.id,
@@ -63,7 +70,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// -- CREATE CHANNEL -------------------------------------------
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,6 +87,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { workspaceId, name, description, topic, type, visibility, memberIds } = parsed.data;
+
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
 
     const channel = await createChannel({
       workspaceId,
@@ -116,13 +128,13 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("ERROR_CREATING_CHANNEL", err);
 
-    return NextResponse.json(
-      {
-        error: "Failed to create channel",
-      },
-      {
-        status: 500,
-      }
-    );
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json({ error: "CHANNEL_NAME_TAKEN" }, { status: 409 });
+    }
+
+    const message = err instanceof Error ? err.message : "Failed to create channel";
+    const status = message === "Some users are not members of the workspace." ? 403 : 500;
+
+    return NextResponse.json({ error: message }, { status });
   }
 }

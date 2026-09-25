@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { WorkspaceRole } from "@/lib/generated/prisma/client";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import {
   connectWorkspaceGithubRepository,
@@ -41,7 +42,7 @@ export async function GET(_request: Request, { params }: Params) {
 export async function POST(request: Request, { params }: Params) {
   try {
     const { workspaceId } = await params;
-    const access = await requireWorkspaceAccess(workspaceId, ["OWNER", "ADMIN"]);
+    const access = await requireWorkspaceAccess(workspaceId, [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]);
 
     if ("error" in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });
@@ -73,7 +74,7 @@ export async function POST(request: Request, { params }: Params) {
 export async function DELETE(request: Request, { params }: Params) {
   try {
     const { workspaceId } = await params;
-    const access = await requireWorkspaceAccess(workspaceId, ["OWNER", "ADMIN"]);
+    const access = await requireWorkspaceAccess(workspaceId, [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]);
 
     if ("error" in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });

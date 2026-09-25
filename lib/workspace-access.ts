@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { getOrCreateUser } from "@/lib/services/user.service";
+import { getCurrentDBUser } from "@/lib/services/user.service";
+import type { WorkspaceRole } from "@/lib/generated/prisma/client";
 
 type AccessSuccess = {
   user: {
@@ -11,20 +12,30 @@ type AccessSuccess = {
     id: string;
     workspaceId: string;
     userId: string;
-    role: string;
+    role: WorkspaceRole;
   };
 };
 
 type AccessError = {
-  error: "UNAUTHORIZED" | "FORBIDDEN" | "FORBIDDEN_ROLE";
+  error: "UNAUTHORIZED" | "FORBIDDEN" | "FORBIDDEN_ROLE" | "INVALID_ID";
   status: number;
 };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function requireWorkspaceAccess(
   workspaceId: string,
-  allowedRoles?: string[],
+  allowedRoles?: WorkspaceRole[],
 ): Promise<AccessSuccess | AccessError> {
-  const user = await getOrCreateUser();
+  if (!UUID_RE.test(workspaceId)) {
+    return {
+      error: "INVALID_ID",
+      status: 400,
+    };
+  }
+
+  const user = await getCurrentDBUser();
 
   if (!user) {
     return {

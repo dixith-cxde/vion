@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { createDMChannel } from "@/lib/services/channel.service";
 import { emitChannelCreated } from "@/lib/socket/chat.events";
@@ -34,6 +36,21 @@ export async function POST(request: NextRequest) {
     }
 
     const { workspaceId, targetUserId } = parsed.data;
+
+    const access = await requireWorkspaceAccess(workspaceId);
+
+    if ("error" in access) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+
+    const targetMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      select: { id: true },
+    });
+
+    if (!targetMember) {
+      return NextResponse.json({ error: "TARGET_NOT_MEMBER" }, { status: 403 });
+    }
 
     const channel = await createDMChannel({
       workspaceId,

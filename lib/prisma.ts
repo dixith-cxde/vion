@@ -19,33 +19,40 @@ function getDatabaseUrl() {
 
 function createPool() {
   const databaseUrl = getDatabaseUrl();
-  const parsed = new URL(databaseUrl);
-  const sslMode = parsed.searchParams.get("sslmode");
+  let pool: Pool;
 
-  return new Pool({
-    connectionString: databaseUrl,
-    host: parsed.hostname,
-    port: parsed.port ? Number(parsed.port) : 5432,
-    user: decodeURIComponent(parsed.username),
-    password: decodeURIComponent(parsed.password),
-    database: parsed.pathname.replace(/^\//, ""),
-    ssl:
-      sslMode && sslMode !== "disable"
-        ? { rejectUnauthorized: sslMode === "verify-full" }
-        : undefined,
-  });
-}
+  try {
+    const parsed = new URL(databaseUrl);
+    const sslMode = parsed.searchParams.get("sslmode");
 
-const pool = globalForPrisma.prismaPool ?? createPool();
-const adapter = new PrismaPg(pool);
+    pool = new Pool({
+      connectionString: databaseUrl,
+      ssl:
+        sslMode && sslMode !== "disable"
+          ? { rejectUnauthorized: sslMode === "verify-full" }
+          : undefined,
+    });
+  } catch {
+    pool = new Pool({ connectionString: databaseUrl });
+  }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
+  pool.on("error", (err) => {
+    console.error("Postgres pool error:", err);
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prismaPool = pool;
-  globalForPrisma.prisma = prisma;
+  return pool;
 }
+
+function getPool() {
+  globalForPrisma.prismaPool ??= createPool();
+  return globalForPrisma.prismaPool;
+}
+
+function getClient() {
+  globalForPrisma.prisma ??= new PrismaClient({
+    adapter: new PrismaPg(getPool()),
+  });
+  return globalForPrisma.prisma;
+}
+
+export const prisma: PrismaClient = getClient();
