@@ -25,12 +25,6 @@ export interface EditorBlock {
   [key: string]: unknown;
 }
 
-const emptyTextContent: TextContent = {
-  type: "text",
-  text: "",
-  styles: {},
-};
-
 export const lightTheme: Theme = {
   colors: {
     editor: { text: "#191c25", background: "transparent" },
@@ -55,21 +49,10 @@ export const lightTheme: Theme = {
     },
   },
   borderRadius: 10,
-  fontFamily:
-    'var(--font-poppins), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
+  fontFamily: 'var(--font-poppins), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
 };
 
 export const darkTheme: Theme = lightTheme;
-
-function sanitizeBlocks(blocks: EditorBlock[]) {
-  return blocks.map((block) => ({
-    ...block,
-    content:
-      block.content && block.content.length > 0
-        ? block.content
-        : [emptyTextContent],
-  }));
-}
 
 export function parseInitialContent(initialContent?: Block[] | string) {
   const emptyDoc = [{ type: "paragraph", content: [] }];
@@ -88,10 +71,7 @@ export function parseInitialContent(initialContent?: Block[] | string) {
 
 export function extractTextFromDocument(doc: EditorBlock[]): string {
   return doc
-    .map(
-      (block) =>
-        block.content?.map((content) => content.text ?? "").join("") ?? "",
-    )
+    .map((block) => block.content?.map((content) => content.text ?? "").join("") ?? "")
     .join("\n");
 }
 
@@ -111,7 +91,7 @@ export function getMentionQueryAtCursor() {
       ? (anchorNode as HTMLElement)
       : anchorNode.parentElement;
   const blockElement = anchorElement?.closest(
-    ".bn-editor [data-content-type], .bn-editor .bn-block-content",
+    ".bn-editor [data-content-type], .bn-editor .bn-block-content"
   );
   if (!blockElement) return null;
   const textRange = range.cloneRange();
@@ -137,10 +117,7 @@ export function getMentionQueryFromBlock(block?: Block | null) {
   return getMentionQuery(extractTextFromBlock(block as EditorBlock));
 }
 
-export function getMentionPath(
-  item: MentionEntity,
-  workspaceId?: string | null,
-): string {
+export function getMentionPath(item: MentionEntity, workspaceId?: string | null): string {
   if (item.href) {
     return item.href;
   }
@@ -165,9 +142,7 @@ export function getMentionStyles(type: MentionEntityType) {
   return { textColor: "#1f2937", backgroundColor: "#e5e7eb" };
 }
 
-export function getMentionBackgroundColor(
-  type: MentionEntityType,
-): "blue" | "purple" {
+export function getMentionBackgroundColor(type: MentionEntityType): "blue" | "purple" {
   return type === "TASK" ? "blue" : "purple";
 }
 
@@ -175,7 +150,7 @@ export function replaceMentionTokenInBlock(
   block: Block,
   item: MentionEntity,
   mentionQuery: string,
-  workspaceId?: string | null,
+  workspaceId?: string | null
 ): Block["content"] {
   const content = Array.isArray(block.content) ? block.content : [];
   const token = `@${mentionQuery}`;
@@ -255,9 +230,7 @@ export function extractMentions(blocks: Block[]) {
     if (!href) return null;
     const taskMatch = href.match(/\/tasks\/([0-9a-f-]{36})(?:$|[/?#])/i);
     if (taskMatch) return { entityType: "TASK", entityId: taskMatch[1] };
-    const documentMatch = href.match(
-      /\/documents\/([0-9a-f-]{36})(?:$|[/?#])/i,
-    );
+    const documentMatch = href.match(/\/documents\/([0-9a-f-]{36})(?:$|[/?#])/i);
     if (documentMatch) return { entityType: "DOCUMENT", entityId: documentMatch[1] };
     const graphMatch = href.match(/[?&]entityType=([^&#]+).*?[?&]entityId=([^&#]+)/i);
     if (graphMatch) {
@@ -285,7 +258,7 @@ export function extractMentions(blocks: Block[]) {
       }
       if (mentionNode.type === "link") {
         const parsed = parseMentionHref(
-          typeof mentionNode.href === "string" ? mentionNode.href : undefined,
+          typeof mentionNode.href === "string" ? mentionNode.href : undefined
         );
         if (parsed) mentions.push(parsed);
       }

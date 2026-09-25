@@ -2,10 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
 
-type RouteParams = {
-  params: { id: string };
-};
-
 /**
  * PATCH → Toggle read/unread state
  */

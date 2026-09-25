@@ -3,7 +3,7 @@ import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { getWorkspaceDashboard } from "@/lib/services/dashboard.service";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {

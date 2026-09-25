@@ -28,9 +28,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const { workspaceId } = options;
 
   const queryClient = useQueryClient();
+  const queryKey = ["notifications", workspaceId ?? "all"];
 
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["notifications"],
+  const { data = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey,
     queryFn: fetchNotifications,
     refetchOnWindowFocus: false,
   });
@@ -58,7 +59,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     },
 
     onSuccess: (result, notificationId) => {
-      queryClient.setQueryData<NotificationItem[]>(["notifications"], (current) =>
+      queryClient.setQueryData<NotificationItem[]>(queryKey, (current) =>
         (current ?? []).map((notification) =>
           notification.id === notificationId
             ? {
@@ -68,6 +69,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
             : notification,
         ),
       );
+    },
+
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -85,9 +90,13 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     },
 
     onSuccess: (_result, notificationId) => {
-      queryClient.setQueryData<NotificationItem[]>(["notifications"], (current) =>
+      queryClient.setQueryData<NotificationItem[]>(queryKey, (current) =>
         (current ?? []).filter((notification) => notification.id !== notificationId),
       );
+    },
+
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -109,7 +118,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     },
 
     onSuccess: () => {
-      queryClient.setQueryData<NotificationItem[]>(["notifications"], (current) =>
+      queryClient.setQueryData<NotificationItem[]>(queryKey, (current) =>
         (current ?? []).map((notification) =>
           !workspaceId || notification.workspaceId === workspaceId
             ? {
@@ -120,12 +129,19 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         ),
       );
     },
+
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   return {
     notifications,
     unreadCount,
     loading: isLoading,
+    isError,
+    error,
+    refetch,
 
     toggleRead: toggleReadMutation.mutateAsync,
     deleteNotification: deleteMutation.mutateAsync,

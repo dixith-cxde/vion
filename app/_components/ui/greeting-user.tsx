@@ -5,8 +5,8 @@ import { useUser } from "@clerk/nextjs";
 export default function GreetingUser() {
   const { user, isLoaded, isSignedIn } = useUser();
 
-  if (!isSignedIn) return;
-  getGreeting();
+  if (!isLoaded || !isSignedIn) return null;
+
   return (
     <div className="text-3xl font-semibold">
       {getGreeting()}, {user.username ?? user.firstName}

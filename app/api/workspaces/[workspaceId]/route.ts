@@ -6,7 +6,7 @@ import { getCurrentDBUser } from "@/lib/services/user.service";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   context: { params: Promise<{ workspaceId: string }> },
 ) {
   try {

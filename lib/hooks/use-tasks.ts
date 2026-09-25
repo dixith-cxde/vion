@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Task, TaskStatus } from "@/lib/generated/prisma/client";
 import { canMoveTask } from "@/lib/tasks/task-rules";
 
-// ---------- NORMALIZER ----------
 function normalizeTasks(tasks: Task[]): Task[] {
   return tasks.map((t) => ({
     ...t,
@@ -16,37 +15,47 @@ function normalizeTasks(tasks: Task[]): Task[] {
 export function useTasks(workspaceId: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const tasksRef = useRef<Task[]>([]);
 
-  // ---------- LOAD ----------
   useEffect(() => {
-    let ignore = false;
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  useEffect(() => {
+    const controller = new AbortController();
 
     async function load() {
       try {
-        const res = await fetch(`/api/workspaces/${workspaceId}/tasks`);
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`/api/workspaces/${workspaceId}/tasks`, {
+          signal: controller.signal,
+        });
         if (!res.ok) {
           throw new Error("Failed to load tasks");
         }
 
         const json = await res.json();
 
-        if (!ignore) {
-          setTasks(normalizeTasks(json.data ?? []));
-          setLoading(false);
+        setTasks(normalizeTasks(json.data ?? []));
+        setLoading(false);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
         }
-      } catch {
-        if (!ignore) setLoading(false);
+        setError(err instanceof Error ? err.message : "Failed to load tasks");
+        setLoading(false);
       }
     }
 
-    load();
+    void load();
 
     return () => {
-      ignore = true;
+      controller.abort();
     };
   }, [workspaceId]);
 
-  // ---------- CREATE ----------
   const createTask = useCallback(
     async (
       title: string,
@@ -107,10 +116,9 @@ export function useTasks(workspaceId: string) {
     [workspaceId],
   );
 
-  // ---------- UPDATE STATUS ----------
   const updateStatus = useCallback(
     async (taskId: string, nextStatus: TaskStatus) => {
-      const task = tasks.find((t) => t.id === taskId);
+      const task = tasksRef.current.find((t) => t.id === taskId);
       if (!task) return;
       if (task.status === nextStatus) return;
 
@@ -153,12 +161,13 @@ export function useTasks(workspaceId: string) {
         );
       }
     },
-    [tasks, workspaceId],
+    [workspaceId],
   );
 
   return {
     tasks,
     loading,
+    error,
     createTask,
     updateStatus,
   };

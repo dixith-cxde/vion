@@ -4,11 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
+@theme {
   --font-poppins: var(--font-poppins);
   --font-sans: var(--font-poppins);
   --font-heading: var(--font-poppins);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-sidebar-ring: var(--sidebar-ring);

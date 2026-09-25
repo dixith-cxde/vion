@@ -3,7 +3,7 @@ import { getCurrentDBUser } from "@/lib/services/user.service";
 import { NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ workspaceId: string }> },
 ) {
   try {

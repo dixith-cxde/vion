@@ -12,7 +12,6 @@ import { ViewTabs } from "@/app/_components/tasks/view-tabs";
 import { KanbanBoard } from "@/app/_components/tasks/kanban-view";
 import { EmptyState } from "@/app/_components/tasks/task-empty-state";
 import { TasksHeader } from "@/app/_components/tasks/task-header";
-import { TasksStats } from "@/app/_components/tasks/task-stats";
 import { TaskProgress } from "@/app/_components/tasks/task-progress";
 
 import { toast } from "@/hooks/use-toast";
