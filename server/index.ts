@@ -6,8 +6,8 @@ const dev = process.env.NODE_ENV !== "production";
 
 loadEnvConfig(projectDir, dev);
 
-const hostname = "localhost";
-const port = 3000;
+const hostname = process.env.HOSTNAME ?? "localhost";
+const port = Number(process.env.PORT ?? 3000);
 
 async function bootstrap() {
   const [{ default: next }, { registerSocketServer }, { initializeCollabServer }] =
