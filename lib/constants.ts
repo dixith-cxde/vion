@@ -47,9 +47,7 @@ export const ENTITY_LABEL: Record<EntityType, string> = {
   USER: "User",
 };
 
-// ---------------------------------------------------------------------------
 // TASK STATUS TOKENS
-// ---------------------------------------------------------------------------
 
 export const TASK_STATUS = {
   TODO: "TODO",
@@ -82,9 +80,7 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   BLOCKED: "Blocked",
 };
 
-// ---------------------------------------------------------------------------
 // DOCUMENT STATUS TOKENS (matches reference image: Incoming / Ongoing / Past)
-// ---------------------------------------------------------------------------
 
 export const DOC_STATUS = {
   INCOMING: "INCOMING",
@@ -106,9 +102,7 @@ export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
   PAST: "Past",
 };
 
-// ---------------------------------------------------------------------------
 // NOTIFICATION TYPE TOKENS
-// ---------------------------------------------------------------------------
 
 export const NOTIFICATION_TYPE = {
   MENTIONED: "MENTIONED",
@@ -160,9 +154,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   DOCUMENT_UPDATED: "Doc Updated",
 };
 
-// ---------------------------------------------------------------------------
 // RELATIONSHIP TYPE TOKENS
-// ---------------------------------------------------------------------------
 
 export const RELATIONSHIP_TYPE = {
   EXPLAINS: "EXPLAINS",
@@ -182,9 +174,7 @@ export const RELATIONSHIP_LABEL: Record<RelationshipType, string> = {
   BLOCKS: "Blocks",
 };
 
-// ---------------------------------------------------------------------------
 // TIME FILTER TOKENS (for list UIs like Documents / Tasks)
-// ---------------------------------------------------------------------------
 
 export const TIME_FILTER = {
   ALL: "ALL",

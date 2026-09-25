@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { connectSocket, disconnectSocket } from "@/lib/socket/client";
+import { connectSocket, disconnectSocket, hasSocket, reauthSocket } from "@/lib/socket/client";
 import { NotificationWithSender } from "@/types/notification.type";
 
 type NotificationPayload = {
@@ -43,8 +44,10 @@ function getNotificationHref(notification: NotificationWithSender) {
 
 export function SocketProvider() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { getToken, isSignedIn } = useAuth();
+  const ownedConnection = useRef(false);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -61,40 +64,64 @@ export function SocketProvider() {
           return;
         }
 
+        const alreadyConnected = hasSocket();
         const socket = await connectSocket(token);
-        socket.removeAllListeners("notification:new");
-        socket.removeAllListeners("notification:remove");
+        ownedConnection.current = !alreadyConnected;
+
+        socket.off("notification:new");
+        socket.off("notification:remove");
+        socket.off("connect_error");
+
+        socket.on("connect_error", async (err) => {
+          if (!mounted) {
+            return;
+          }
+
+          if (err.message.toLowerCase().includes("auth")) {
+            const freshToken = await getToken({ skipCache: true });
+
+            if (freshToken && mounted) {
+              reauthSocket(freshToken);
+            }
+          }
+        });
 
         socket.on("notification:new", (notification: NotificationWithSender) => {
-          queryClient.setQueryData(["notifications"], (old: NotificationWithSender[] | undefined) => {
-            const current = old ?? [];
+          void queryClient.setQueriesData<NotificationWithSender[]>(
+            { queryKey: ["notifications"] },
+            (old) => {
+              const current = old ?? [];
 
-            const exists = current.some((item) => item.id === notification.id);
+              const exists = current.some((item) => item.id === notification.id);
 
-            if (exists) {
-              return current;
-            }
+              if (exists) {
+                return current;
+              }
 
-            return [notification, ...current];
-          });
+              return [notification, ...current];
+            },
+          );
 
           toast(notification.title, {
             description: notification.message,
             action: {
               label: "Open",
               onClick: () => {
-                window.location.href = getNotificationHref(notification);
+                router.push(getNotificationHref(notification));
               },
             },
           });
         });
 
         socket.on("notification:remove", (payload: NotificationPayload) => {
-          queryClient.setQueryData(["notifications"], (old: NotificationWithSender[] | undefined) => {
-            const current = old ?? [];
+          void queryClient.setQueriesData<NotificationWithSender[]>(
+            { queryKey: ["notifications"] },
+            (old) => {
+              const current = old ?? [];
 
-            return current.filter((notification) => notification.id !== payload.id);
-          });
+              return current.filter((notification) => notification.id !== payload.id);
+            },
+          );
         });
       } catch (error) {
         console.error("Realtime initialization failed:", error);
@@ -106,9 +133,12 @@ export function SocketProvider() {
     return () => {
       mounted = false;
 
-      disconnectSocket();
+      if (ownedConnection.current) {
+        ownedConnection.current = false;
+        disconnectSocket();
+      }
     };
-  }, [getToken, isSignedIn, queryClient]);
+  }, [getToken, isSignedIn, queryClient, router]);
 
   return null;
 }
