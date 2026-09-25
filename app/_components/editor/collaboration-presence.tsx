@@ -4,12 +4,7 @@ import { Wifi, WifiOff } from "lucide-react";
 
 import { useEditorCollaboration } from "./collaboration-context";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function getInitials(name: string) {
   return name

@@ -1,18 +1,13 @@
 "use client";
 
 import {
-    ArchiveRestoreIcon,
     CheckCircleIcon,
     ChevronRight,
     FileText,
-    LoaderCircle,
     Trash2,
 } from "lucide-react";
 
-import { useRouter } from "next/navigation";
-
 import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
 
 import { type NotificationItem } from "@/lib/hooks/use-notification";
 
@@ -28,7 +23,9 @@ import {
     formatNotificationDateTime,
     parseMention,
 } from "./notification-utils";
-import { useMemo, useState } from "react";
+import { Avatar } from "./notification-avatar";
+import { shortTime, useNotificationActions } from "./use-notification-actions";
+import { useState } from "react";
 
 interface NotificationCardProps {
     notification: NotificationItem;
@@ -38,57 +35,9 @@ interface NotificationCardProps {
     onDelete: (id: string) => Promise<unknown>;
 }
 
-function Avatar({
-    name,
-    imageUrl,
-    size = 32,
-}: {
-    name: string | null | undefined;
-
-    imageUrl: string | null | undefined;
-
-    size?: number;
-}) {
-    const initials = name
-        ? name
-              .split(" ")
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase()
-        : "?";
-
-    return (
-        <div
-            className="relative shrink-0 overflow-hidden rounded-full"
-            style={{
-                width: size,
-                height: size,
-            }}
-        >
-            {imageUrl ? (
-                <img
-                    src={imageUrl}
-                    alt={name ?? ""}
-                    className="h-full w-full rounded-full object-cover"
-                />
-            ) : (
-                <div
-                    className="flex h-full w-full items-center justify-center rounded-full bg-muted font-medium text-muted-foreground"
-                    style={{
-                        fontSize: Math.round(size * 0.34),
-                    }}
-                >
-                    {initials}
-                </div>
-            )}
-        </div>
-    );
-}
-
 export function NotificationCard({ notification, onToggleRead, onDelete }: NotificationCardProps) {
-    const router = useRouter();
     const [now] = useState(() => Date.now());
+    const { handleInvite, navigateToEntity } = useNotificationActions(notification);
 
     const isUnread = !notification.isRead;
     const parts = parseMention(notification.message);
@@ -102,81 +51,6 @@ export function NotificationCard({ notification, onToggleRead, onDelete }: Notif
     };
 
     const typeLabel = NOTIFICATION_TYPE_LABEL[typeKey] ?? formatLabel(notification.type);
-
-    function shortTime(iso: string): string {
-        const diff = now - new Date(iso).getTime();
-
-        const m = Math.floor(diff / 60000);
-
-        if (m < 1) return "just now";
-
-        if (m < 60) return `${m}m ago`;
-
-        const h = Math.floor(m / 60);
-
-        if (h < 24) return `${h}h ago`;
-
-        return `${Math.floor(h / 24)}d ago`;
-    }
-
-    async function handleInvite(e: React.MouseEvent) {
-        e.stopPropagation();
-
-        if (!notification.entityId) return;
-
-        try {
-            const res = await fetch("/api/invitations/accept", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    invitationId: notification.entityId,
-                }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok || !data.success) {
-                throw new Error(data.message || "Failed to join.");
-            }
-
-            toast({
-                title: "Workspace Joined",
-                description: "You have joined successfully.",
-            });
-
-            if (data.data?.workspaceId) {
-                window.location.assign(`/workspaces/${data.data.workspaceId}`);
-            }
-        } catch (err) {
-            toast({
-                title: "Error",
-                description: err instanceof Error ? err.message : "Failed to join workspace.",
-                variant: "destructive",
-            });
-        }
-    }
-
-    function navigateToEntity() {
-        if (notification.entityId && notification.workspaceId) {
-            const base = `/workspaces/${notification.workspaceId}`;
-
-            if (notification.entityType === "DOCUMENT") {
-                router.push(`${base}/documents/${notification.entityId}`);
-            } else if (notification.entityType === "TASK") {
-                router.push(`${base}/tasks/${notification.entityId}`);
-            } else if (notification.entityType === "MESSAGE") {
-                router.push(`${base}/chat?messageId=${notification.entityId}`);
-            } else if (notification.entityType) {
-                router.push(
-                    `${base}/graph?entityType=${notification.entityType}&entityId=${notification.entityId}`
-                );
-            } else {
-                router.push(base);
-            }
-        }
-    }
 
     return (
         <div
@@ -243,7 +117,7 @@ export function NotificationCard({ notification, onToggleRead, onDelete }: Notif
                         </div>
 
                         <span className="whitespace-nowrap text-[11px] text-muted-foreground/60">
-                            {shortTime(notification.createdAt.toString())}
+                            {shortTime(now, notification.createdAt.toString())}
                         </span>
                     </div>
                 </div>

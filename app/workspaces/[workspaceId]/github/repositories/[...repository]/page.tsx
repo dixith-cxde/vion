@@ -1,4 +1,4 @@
-import { GithubRepositoryPage } from "@/app/_components/github/github-repository-page";
+import { GithubRepositoryPage } from "@/app/_components/github/repository/repository-page";
 
 type GithubRepositoryRouteProps = {
   params: Promise<{

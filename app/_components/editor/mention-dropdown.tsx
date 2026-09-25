@@ -116,7 +116,9 @@ const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(functio
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{item.label}</p>
                       {item.preview ? (
-                        <p className="mt-1 truncate text-xs text-muted-foreground">{item.preview}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {item.preview}
+                        </p>
                       ) : null}
                       <Badge
                         variant={getTypeClasses(item.type)}

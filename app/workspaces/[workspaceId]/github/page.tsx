@@ -1,4 +1,4 @@
-import { GithubWorkspacePage } from "@/app/_components/github/github-workspace-page";
+import { GithubWorkspacePage } from "@/app/_components/github/workspace/github-workspace-page";
 
 type GithubPageProps = {
   params: Promise<{

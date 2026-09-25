@@ -6,7 +6,6 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { SaveState } from "@/types";
-import "./editor.css";
 
 const EditorCore = dynamic(() => import("./editor-core"), {
   ssr: false,
@@ -36,16 +35,13 @@ export default function EditorWrapper({
       try {
         setSaveState("saving");
         if (!debouncedContent) return null;
-        const response = await fetch(
-          `/api/workspaces/${workspaceId}/documents/${documentId}`,
-          {
+        const response = await fetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contentJson: debouncedContent,
           }),
-          },
-        );
+        });
 
         if (!response.ok) {
           throw new Error("Autosave failed");
@@ -72,11 +68,5 @@ export default function EditorWrapper({
     }
   }, [debouncedContent, documentId, editable, setSaveState, workspaceId]);
 
-  return (
-    <EditorCore
-      initialContent={initialContent}
-      editable={editable}
-      onChange={setContent}
-    />
-  );
+  return <EditorCore initialContent={initialContent} editable={editable} onChange={setContent} />;
 }
